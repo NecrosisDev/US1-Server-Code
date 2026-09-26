@@ -182,7 +182,7 @@ function gh.RetreatWhileReloading(bot, brain, now, target, dist)
 	if IsValid(target) and (dist or 0) < 1200 and lib and lib.FindCover then
 		if now >= (brain.reloadCoverAt or 0) then
 			brain.reloadCoverAt = now + 1.5
-			brain.reloadCoverPos = lib.FindCover(bot, target, 700, "retreat")
+			brain.reloadCoverPos = lib.KeepCover(bot, brain, "reload", target, 700, "retreat")
 		end
 		if isvector(brain.reloadCoverPos) then
 			if bot:GetPos():DistToSqr(brain.reloadCoverPos) < 48 * 48 then

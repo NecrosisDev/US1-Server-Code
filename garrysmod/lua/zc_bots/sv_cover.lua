@@ -124,6 +124,35 @@ function lib.FindCover(bot, threatEnt, radius, purpose)
 	return best
 end
 
+-- 2026-09-26: cover hysteresis. FindCover samples ~10 random nav areas per
+-- call and every caller re-runs it on a 1.5 s cadence, so each call could
+-- return a DIFFERENT "best" spot -- a bot running for cover turned around
+-- every 1.5 s to run for another one. KeepCover holds the spot it already
+-- chose while that spot still hides it from the same threat and is still
+-- within reach; only then is a fresh spot searched for. `slot` separates
+-- independent uses (reload / break-contact / self-treat) on one brain.
+hg.botdriver.DeclareBrainState("cover_hold", { fields = { "coverHeld" } })
+
+function lib.KeepCover(bot, brain, slot, threatEnt, radius, purpose)
+	radius = radius or 700
+	local held = brain.coverHeld and brain.coverHeld[slot]
+	if held and IsValid(threatEnt) and held.threat == threatEnt and isvector(held.pos) then
+		local hidden = util.TraceLine({
+			start = threatEnt:EyePos(),
+			endpos = held.pos + Vector(0, 0, 40),
+			filter = { bot, threatEnt },
+			mask = MASK_SHOT,
+		}).Hit
+		if hidden and bot:GetPos():DistToSqr(held.pos) <= (radius * 1.4) ^ 2 then
+			return held.pos
+		end
+	end
+	local pos = lib.FindCover(bot, threatEnt, radius, purpose)
+	brain.coverHeld = brain.coverHeld or {}
+	brain.coverHeld[slot] = pos and { pos = pos, threat = threatEnt } or nil
+	return pos
+end
+
 -- Item 4 (2026-09-22, weapon-appropriate positioning): the inverse of
 -- FindCover -- a spot near `bot` with a CLEAR line of sight to `threatEnt`,
 -- preferring greater distance from the threat without crossing past it, so

@@ -113,6 +113,7 @@ function lib.LocalSteer(bot, brain, dirAng, speed, now)
 	local centerDanger, centerSoft = 0, false
 	local bestAngle, bestScore = 0, math.huge
 	local allBlocked = true
+	local rightDanger = 1 -- the -32 (right-hand) whisker, for keep-right passing
 	-- centre-first: in open ground the centre whisker is clear and the four
 	-- side whiskers are never traced (one hull trace per 0.1 s per bot).
 	local centerTr = whisker(bot, origin, dirAng:Forward(), len)
@@ -140,6 +141,7 @@ function lib.LocalSteer(bot, brain, dirAng, speed, now)
 		end
 		if danger < 0.999 then allBlocked = false end
 		if a == 0 then centerDanger, centerSoft = danger, soft end
+		if a == -32 then rightDanger = danger end
 		-- Prefer the clearest whisker; among equals prefer the smallest turn.
 		local score = danger * 2 + (math.abs(a) / 64) * 0.5
 		if score < bestScore then bestScore, bestAngle = score, a end
@@ -159,10 +161,17 @@ function lib.LocalSteer(bot, brain, dirAng, speed, now)
 			local commit = 0.55 + 0.45 * centerDanger
 			yawOffset = bestAngle * commit
 			if centerSoft then
-				-- A person: shoulder past, do not swerve wide. Slide to the side
-				-- this bot always prefers so two bots meeting pick opposite sides.
-				local side = (bot:EntIndex() % 2 == 0) and 1 or -1
-				if bestAngle == 0 then yawOffset = side * 24 end
+				-- A person: shoulder past, do not swerve wide. 2026-09-26: keep
+				-- RIGHT whenever the right side is open. The old per-bot side
+				-- (EntIndex parity) was relative to each bot's own heading, so
+				-- two bots of opposite parity meeting head-on both chose the
+				-- same world side and mirrored into each other -- the hallway
+				-- dance. A shared rule means both always step apart.
+				if rightDanger < 0.9 then
+					yawOffset = -24
+				elseif bestAngle == 0 then
+					yawOffset = 24
+				end
 				speedMul = SOFT_SPEED_MUL
 				brain.steerSoftUntil = now + 0.4
 			else

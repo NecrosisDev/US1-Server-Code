@@ -396,7 +396,7 @@ function hg.botdriver.ApplySurvivalPreemption(bot, brain, now, state, policy)
 		if IsValid(threat) then
 			if now >= (brain.breakContactCoverAt or 0) then
 				brain.breakContactCoverAt = now + 1.5
-				brain.breakContactCoverPos = lib.FindCover(bot, threat, 700)
+				brain.breakContactCoverPos = lib.KeepCover(bot, brain, "break", threat, 700)
 			end
 			if isvector(brain.breakContactCoverPos) then
 				brain.target = nil
@@ -425,7 +425,7 @@ function hg.botdriver.ApplySurvivalPreemption(bot, brain, now, state, policy)
 			if now - brain.selfTreatCoverStart < 3 then
 				if now >= (brain.selfTreatCoverAt or 0) then
 					brain.selfTreatCoverAt = now + 1.5
-					brain.selfTreatCoverPos = lib.FindCover(bot, threat, 700)
+					brain.selfTreatCoverPos = lib.KeepCover(bot, brain, "treat", threat, 700)
 				end
 				if isvector(brain.selfTreatCoverPos)
 					and bot:GetPos():DistToSqr(brain.selfTreatCoverPos) > 96 * 96 then

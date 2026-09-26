@@ -21,7 +21,12 @@ local EDGE_MARGIN = 32
 -- midpoint of the shortcut). Waypoints inside narrow areas (doorways) and on
 -- JUMP/CROUCH areas are always kept, and flagged in the returned meta so the
 -- follower goes through the middle without lane offset or corner cutting.
-local SMOOTH_MAX_TRACES = 24
+-- 2026-09-26: 24 traces smoothed only the first ~12 legs; long roam routes
+-- (computed once) zig-zagged for the rest of the walk. Narrow areas also no
+-- longer force a waypoint: auto-generated meshes are full of <80 u strips in
+-- open ground, and the shortcut hull (widened to 36 u, a little over the
+-- 32 u player hull) already refuses a cut that would clip a door frame.
+local SMOOTH_MAX_TRACES = 48
 local SMOOTH_MAX_DZ = 40
 local NARROW_AREA_SIZE = 80
 local NAV_CACHE_TTL = 30
@@ -329,7 +334,7 @@ end
 
 local warnedNoNavmesh = false
 
-local smoothTrace = { mins = Vector(-16, -16, 0), maxs = Vector(16, 16, 72), mask = MASK_PLAYERSOLID }
+local smoothTrace = { mins = Vector(-18, -18, 0), maxs = Vector(18, 18, 72), mask = MASK_PLAYERSOLID }
 local smoothGround = { mask = MASK_PLAYERSOLID }
 local function smoothFilter(ent)
 	if not IsValid(ent) then return false end
@@ -349,7 +354,6 @@ end
 
 local function areaNeedsWaypoint(area)
 	if not IsValid(area) then return true end
-	if areaIsNarrow(area) then return true end
 	if area.HasAttributes and (area:HasAttributes(NAV_MESH_CROUCH or 1) or area:HasAttributes(NAV_MESH_JUMP or 2)) then return true end
 	return false
 end
@@ -376,6 +380,10 @@ local function smoothCorridor(fromPos, points, corridor, corridorCount)
 	local anchor = fromPos
 	local n = #points
 	local index = 1
+	-- A dropped narrow area (a doorway the straight leg passes through)
+	-- still marks the leg that crosses it narrow: no lane offset, no corner
+	-- cutting and short whiskers while going through the frame.
+	local crossedNarrow = false
 	while index <= n do
 		local keep = true
 		if index < n and traces < SMOOTH_MAX_TRACES then
@@ -389,9 +397,11 @@ local function smoothCorridor(fromPos, points, corridor, corridorCount)
 		if keep then
 			out[#out + 1] = points[index]
 			anchor = points[index]
-			narrow[#out] = areaIsNarrow(area) or nil
+			narrow[#out] = (areaIsNarrow(area) or crossedNarrow) or nil
+			crossedNarrow = false
 			if IsValid(area) then areaIndex[area:GetID()] = #out end
 		elseif IsValid(area) then
+			if areaIsNarrow(area) then crossedNarrow = true end
 			-- The dropped waypoint's area is passed while travelling to the
 			-- next kept point: give it that index for reservation release.
 			areaIndex[area:GetID()] = #out + 1

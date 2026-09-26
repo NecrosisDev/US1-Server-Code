@@ -38,6 +38,7 @@ local FLANK_OFFSET_MIN, FLANK_OFFSET_MAX = 250, 400
 -- non-point member re-forms, and where its slot sits relative to the point
 -- bot's current facing.
 local FORMATION_SLACK = 220
+hg.botdriver.DeclareBrainState("squad_formation", { fields = { "formationFace", "formationHoldUntil" } })
 local SUPPORT_BEHIND = 220
 local FLANK_BEHIND = 80
 local FLANK_SIDE = 180
@@ -454,16 +455,35 @@ hg.botdriver.RegisterBehavior({
 		-- objective" into a squad that visibly moves together; the old
 		-- far-away regroup-to-centroid case below still covers a squad that
 		-- has come apart (e.g. its point died mid-round).
+		-- 2026-09-26 (formation "yo-yo" fix): the slot used to hang off the
+		-- point bot's AIM vector -- which sweeps, glances and checks behind
+		-- -- and was only enforced beyond 220 u, so inside that a follower
+		-- roamed off randomly, drifted out, turned back, and repeated. The
+		-- slot now follows the point's direction of TRAVEL (last heading kept
+		-- while it stands still), keeps following while the point moves, and
+		-- a follower near a stopped point hangs around (lib.Roam honours
+		-- brain.formationHoldUntil) instead of wandering away.
 		local info = squad.SquadOf(bot)
 		local mates = squad.Squadmates(bot)
 		if info and info.slot ~= "point" and #mates > 1 then
 			local point = squad.PointOf(bot)
 			if IsValid(point) and point ~= bot then
+				local brain = ctx.brain
 				local pointPos = point:GetPos()
-				if bot:GetPos():DistToSqr(pointPos) > FORMATION_SLACK * FORMATION_SLACK then
-					local faceDir = point:GetAimVector()
-					faceDir.z = 0
-					if faceDir:LengthSqr() < 1 then faceDir = Vector(1, 0, 0) else faceDir:Normalize() end
+				local vel = point:GetVelocity()
+				vel.z = 0
+				local pointMoving = vel:LengthSqr() > 60 * 60
+				if pointMoving then brain.formationFace = vel:GetNormalized() end
+				local distSqr = bot:GetPos():DistToSqr(pointPos)
+				brain.formationHoldUntil = ctx.now + 1.5
+				if distSqr > FORMATION_SLACK * FORMATION_SLACK
+					or (pointMoving and distSqr > (FORMATION_SLACK * 0.55) ^ 2) then
+					local faceDir = brain.formationFace
+					if not faceDir then
+						faceDir = point:GetAimVector()
+						faceDir.z = 0
+						if faceDir:LengthSqr() < 1 then faceDir = Vector(1, 0, 0) else faceDir:Normalize() end
+					end
 					local right = Vector(-faceDir.y, faceDir.x, 0)
 					local dest
 					if info.slot == "support" then
