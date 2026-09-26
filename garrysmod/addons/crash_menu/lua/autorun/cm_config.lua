@@ -1,0 +1,33 @@
+CM = {}
+
+//Increase this if the menu shows on map change.
+CM.DelayTime = 8
+
+//What's the title?
+CM.Title = "Oops."
+
+//What message do you want to display when the server has crashed?
+CM.Message = "Looks like ZCity has crashed or is restarting. Wait for the server to restart and reconnect. If the map is changing, ignore this."
+
+//What is the estimated time in seconds it takes for the server to restart after a crash?
+CM.ServerRestartTime = 45
+
+CM.BackgroundColor = Color(52, 152, 219)
+
+CM.ButtonColor = Color(236, 240, 241)
+CM.ButtonHoverColor = Color(41, 128, 185)
+
+CM.TitleTextColor = Color(236, 240, 241)
+CM.MessageTextColor = Color(236, 240, 241)
+CM.ButtonTextColor = Color(52, 152, 219)
+
+//Server buttons(Limit 3).
+CM.ServerNameButtons = {
+}
+
+//Make sure it corresponds to the server names above!
+//You can also do websites. Have it start with http://
+CM.ServerIPButtons = {
+}
+
+//Delete the code inside the brackets of both the ServerNameButtons and ServerIPButtons if you don't need server buttons.

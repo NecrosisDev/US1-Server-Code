@@ -1,0 +1,1 @@
+local S=assert(ZCTickIncident);assert(S.runID=='zc_tick_incident_20260919t013709z' and S.active,'capture not active');S.Mark('off2')

@@ -1,0 +1,2 @@
+# Preserve imported file bytes without implicit line-ending conversion.
+* -text

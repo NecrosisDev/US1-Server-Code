@@ -1,0 +1,17 @@
+assert(SERVER)
+local source=assert(file.Read("homigrad/libraries/core/sh_networking.lua","LUA"))
+assert(util.SHA256(source)=="442e63a3b29030ad66956aedbf5a437ec37cc217ab8cf5e530042549362803df")
+if not ZCWoundQueue or ZCWoundQueue.Version~="20260919.2" then
+    include("homigrad/libraries/core/sh_networking.lua")
+end
+local B=assert(ZCTickBudget)
+local em=FindMetaTable("Entity")
+assert(em.SendNetVar==B.entitySender.wrapper,"equipment budget wrapper absent")
+assert(B.Install() and not B.networkDrift,"budget integration drift")
+assert(debug.getinfo(em.SetNetVar,"S").source:find("sv_zc_netopt.lua",1,true),"scalar optimizer absent")
+assert(hook.GetTable().Tick.ZCityTickBudget==B.Step,"budget worker hook absent")
+assert(hook.GetTable().Think["homigrad-organism"]==ZCORGSCHED.mine,"organism scheduler inactive")
+assert(GetConVar("zc_orgsched"):GetBool() and GetConVar("zc_governor"):GetBool() and GetConVar("zc_tick_budget"):GetBool())
+assert(timer.Exists("zc_orgsched_sync") and timer.Exists("TickGov_Evaluate") and timer.Exists("TickGov_ThawScan"))
+include("zc_incident_20260919/module_inspect.lua")
+print("ZC_MODULE_INTEGRATION_RESTORED",ZCWoundQueue.Version)

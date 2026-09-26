@@ -1,0 +1,25 @@
+if SERVER then
+    AddCSLuaFile("swingdoors/sh_settings.lua")
+    AddCSLuaFile("swingdoors/cl_input.lua")
+    AddCSLuaFile("swingdoors/cl_settings_panel.lua")
+
+    include("swingdoors/sh_settings.lua")
+    include("swingdoors/sv_bootstrap.lua")
+    include("swingdoors/sv_geometry.lua")
+    include("swingdoors/sv_mapio.lua")
+    include("swingdoors/sv_collision.lua")
+    include("swingdoors/sv_doorstate.lua")
+    include("swingdoors/sv_handle.lua")
+    include("swingdoors/sv_portals.lua")
+    include("swingdoors/sv_sessions.lua")
+    include("swingdoors/sv_bodypush.lua")
+    include("swingdoors/sv_impact.lua")
+    include("swingdoors/sv_input.lua")
+    include("swingdoors/sv_vanilla_block.lua")
+    include("swingdoors/sv_tuning.lua")
+    include("swingdoors/sv_debug.lua")
+else
+    include("swingdoors/sh_settings.lua")
+    include("swingdoors/cl_input.lua")
+    include("swingdoors/cl_settings_panel.lua")
+end

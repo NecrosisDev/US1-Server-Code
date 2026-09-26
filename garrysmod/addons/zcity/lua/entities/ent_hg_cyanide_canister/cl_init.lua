@@ -1,0 +1,97 @@
+include("shared.lua")
+
+function ENT:Draw()
+	self:DrawModel()
+end
+
+local tbl = {}
+local oldtbl = {}
+local sendtime = CurTime() + 1
+net.Receive("cyanide_debug",function()
+	table.CopyFromTo(tbl,oldtbl)
+	tbl = net.ReadTable()
+	sendtime = CurTime() + 1
+end)
+hook.Add("HUDPaint","cyanide_debug",function()
+	if not tbl then return end
+	
+	for i,tbl2 in ipairs(tbl) do
+		if not tbl2 then continue end
+		if not oldtbl[i] then continue end
+
+		local pos = tbl2[1]
+		local oldpos = oldtbl[i][1]
+		local lerp = 1 - (sendtime - CurTime())
+		local poss = LerpVector(lerp,oldpos,pos):ToScreen()
+		
+		surface.SetDrawColor(255,255,255,255)
+		surface.DrawRect(poss.x,poss.y,10,10)
+	end
+end)
+
+-- =====================================================================
+-- Traitor gas vision: if this client receives cyanide_traitorgas, the
+-- server has decided we're a traitor - render the invisible gas cloud
+-- and mark the canister. Innocent clients never receive anything.
+-- =====================================================================
+local gasClouds = {}   -- ent -> { particles = {Vector,...}, expire = t }
+local glowMat = Material("sprites/glow04_noz")
+local ringMat = Material("effects/select_ring")
+local gasColor = Color(90, 220, 90, 14)
+local markColor = Color(120, 255, 120, 200)
+
+surface.CreateFont("CyanideGas_Mark", {
+	font = "Bahnschrift",
+	size = 42,
+	weight = 900,
+	antialias = true,
+})
+
+net.Receive("cyanide_traitorgas", function()
+	local ent = net.ReadEntity()
+	local count = net.ReadUInt(6)
+	local particles = {}
+	for i = 1, count do
+		particles[i] = net.ReadVector()
+	end
+	if IsValid(ent) then
+		gasClouds[ent] = { particles = particles, expire = CurTime() + 2.5 }
+	end
+end)
+
+hook.Add("PostDrawTranslucentRenderables", "CyanideGas_TraitorVision", function(bDepth, bSkybox)
+	if bSkybox then return end
+
+	local now = CurTime()
+	local any = false
+
+	for ent, cloud in pairs(gasClouds) do
+		if not IsValid(ent) or cloud.expire < now then
+			gasClouds[ent] = nil
+			continue
+		end
+		any = true
+
+		-- gas particles: soft green glow puffs
+		render.SetMaterial(glowMat)
+		for _, pos in ipairs(cloud.particles) do
+			render.DrawSprite(pos, 18, 18, gasColor)
+		end
+
+		-- canister marker: ring + label floating above
+		local cpos = ent:WorldSpaceCenter()
+		render.SetMaterial(ringMat)
+		render.DrawQuadEasy(cpos + Vector(0, 0, 1), Vector(0, 0, 1), 30, 30, markColor, now * 40 % 360)
+
+		local ang = (cpos - EyePos()):Angle()
+		ang:RotateAroundAxis(ang:Up(), -90)
+		ang:RotateAroundAxis(ang:Forward(), 90)
+
+		cam.Start3D2D(cpos + Vector(0, 0, 22), ang, 0.12)
+			draw.SimpleTextOutlined("CYANIDE", "CyanideGas_Mark", 0, 0,
+				markColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, 1, Color(0, 0, 0, 220))
+		cam.End3D2D()
+	end
+
+	if not any and next(gasClouds) == nil then return end
+end)

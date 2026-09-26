@@ -1,0 +1,1 @@
+-- Retired: circle1 owns interaction delivery. Native Q sources remain unchanged.

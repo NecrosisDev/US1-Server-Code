@@ -1,0 +1,1 @@
+local rows={};for _,p in ipairs(player.GetHumans())do rows[#rows+1]={id=p:UserID(),name=p:Nick(),sid=p:SteamID64()}end;file.Write("zc_scoreboard_players.json",util.TableToJSON(rows,true))

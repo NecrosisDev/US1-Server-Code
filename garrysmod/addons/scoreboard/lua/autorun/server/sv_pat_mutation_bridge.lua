@@ -1,0 +1,1 @@
+-- Public round bridges are owned by zc_scoreboard/sv_round.lua.
