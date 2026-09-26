@@ -151,7 +151,7 @@ function DP.ApplyGuiltRows(rows)
     if not sent then return end
     -- a reply already on its way when the action left was built before the server applied it: only the reply to the
     -- 0.3 s follow-up request may reconcile (final review 2026-09-26)
-    if RealTime() - (sent.at or 0) < 0.25 then return end
+    if RealTime() - (sent.at or 0) < 0.3 then return end -- the follow-up request leaves at 0.3 s; a stale reply on a >300 ms ping can still slip past
     DP.GuiltSent = nil
     for _, row in ipairs(DP.GuiltRows) do
         if row.caseid == sent.caseid and row.steamid64 == sent.steamid64 then
