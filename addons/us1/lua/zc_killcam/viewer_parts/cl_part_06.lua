@@ -1036,8 +1036,24 @@ local function mutedFor(name)
     end
     return fn
 end
+-- The whole RenderScreenspaceEffects event is skipped as well: most of Z-City's screen effects (O2/unconscious noise,
+-- berserk, noradrenaline, fear) paint the full screen with render.DrawScreenQuad from inside it. hook.Call is read from
+-- the global table on every engine call, so the swap covers the gamemode and every hook for the inset render only; it
+-- chains whatever hook.Call is installed (ulx_zchat_bridge replaces it) and is put back right after.
+local SKIP_EVENTS = {RenderScreenspaceEffects = true}
+local mutedCall
 function V.MutePostProcess()
     local saved = {}
+    local call = hook.Call
+    if isfunction(call) and call ~= mutedCall then
+        local original = call
+        mutedCall = function(event, ...)
+            if SKIP_EVENTS[event] then V.MutedPost[event] = (V.MutedPost[event] or 0) + 1 return end
+            return original(event, ...)
+        end
+        saved.hookCall = original
+        hook.Call = mutedCall
+    end
     for i = 1, #POST_FUNCS do
         local name = POST_FUNCS[i]
         local fn = rawget(_G, name)
@@ -1047,6 +1063,10 @@ function V.MutePostProcess()
         end
     end
     return function()
+        if saved.hookCall then
+            if hook.Call == mutedCall then hook.Call = saved.hookCall end
+            saved.hookCall = nil
+        end
         for name, fn in pairs(saved) do _G[name] = fn end
         if V.ImpactPrint and V.ImpactPrint:GetBool() and next(V.MutedPost) and RealTime() - (V.MutedSaidAt or -math.huge) > 10 then
             V.MutedSaidAt = RealTime()
