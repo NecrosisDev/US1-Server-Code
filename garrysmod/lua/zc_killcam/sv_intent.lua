@@ -119,7 +119,7 @@ local function bump(key) stats[key] = (stats[key] or 0) + 1 end
 
 -- Who, as the timeline needs it: UserID for matching, SteamID64 for the record, a display name for the text.
 local function who(p)
-    if istable(p) and p.uid then return {uid = p.uid, sid = p.id, name = p.name} end -- a recorder identity
+    if istable(p) and p.uid and not p.UserID then return {uid = p.uid, sid = p.id, name = p.name} end -- a recorder identity
     if not IsValid(p) then return nil end
     return {uid = p:UserID(), sid = not p:IsBot() and p:SteamID64() or nil, name = K.DisplayName and K.DisplayName(p) or p:Nick()}
 end

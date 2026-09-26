@@ -333,6 +333,16 @@ hook.Add("ZCKillcam_Death", "ZCKillcam.Life", function(victim)
                 local ok, h2h = pcall(K.LifeH2H, who.sid, death)
                 if ok and istable(h2h) then seq.h2h = h2h end
             end
+            -- The per-life timeline (sv_timeline.lua) fills the death panel's reserved h2h.timeline field, with or
+            -- without the ledger above. Fenced the same way: a timeline bug costs the panel its lines, never the replay.
+            if K.LifeTimeline then
+                local ok, tl = pcall(K.LifeTimeline, who.sid, victim)
+                if ok and istable(tl) and #tl.events > 0 then
+                    seq.h2h = seq.h2h or {v = 1}
+                    seq.h2h.timeline, seq.h2h.span, seq.h2h.held = tl.events, tl.span, tl.held
+                    seq.h2h.karma = {tl.karma0, tl.karma1}
+                end
+            end
             breathe("life.build")
             local blob = K.PackSequence(seq, breathe)
             lat.packDone, lat.bytes = SysTime(), #blob -- M1

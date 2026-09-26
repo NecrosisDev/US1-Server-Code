@@ -25,11 +25,13 @@ function CurTime() return now end
 function SysTime() return now end
 function SetNow(t) now = t end
 local convars = {}
+CONVARS = convars
 function CreateConVar(name, default)
     local cv = {v = tostring(default)}
     function cv:GetInt() return math.floor(tonumber(self.v) or 0) end
     function cv:GetFloat() return tonumber(self.v) or 0 end
     function cv:GetBool() return (tonumber(self.v) or 0) ~= 0 end
+    function cv:GetString() return self.v end
     convars[name] = cv
     return cv
 end
@@ -42,7 +44,7 @@ function hook.Run(ev, ...)
 end
 concommand = {Add = function(name, fn) _G["CMD_" .. name] = fn end}
 TIMERS = {}
-timer = {Create = function(name, _, _, fn) TIMERS[name] = fn end, Simple = function() end, Remove = function() end}
+timer = {Create = function(name, _, _, fn) TIMERS[name] = fn end, Simple = function(_, fn) fn() end, Remove = function() end}
 MASK_SHOT = 1174421507
 local grace = 0
 function GetGlobalFloat(_, d) return grace end
@@ -60,6 +62,7 @@ WALL = false
 weapons = {GetStored = function() return {Category = "Melee"} end}
 util = {AddNetworkString = function() end, TableToJSON = function() return "{}" end, JSONToTable = function() return {} end,
     TraceLine = function(t) return {Hit = WALL, Entity = nil} end,
+    Compress = function(s) return s end,
     DistanceToLine = function(a, b, p)
         local ab, ap = b - a, p - a
         local len2 = ab:Dot(ab)
@@ -67,7 +70,10 @@ util = {AddNetworkString = function() end, TableToJSON = function() return "{}" 
         local c = Vector(a.x + ab.x * t, a.y + ab.y * t, a.z + ab.z * t)
         return (p - c):Length(), c, t
     end}
-net = {Receive = function() end}
+NETRECV = {}
+net = {Receive = function(name, fn) NETRECV[name] = fn end, Start = function() end, WriteUInt = function() end,
+    WriteData = function(d) NETSENT = d end, Send = function() end}
+function GetConVar(name) return CONVARS[name] end
 file = {Read = function() end, Write = function() end, CreateDir = function() end, Exists = function() return false end, Find = function() return {} end}
 game = {GetMap = function() return "test_map" end}
 string.Trim = string.Trim or function(s) return (s:gsub("^%s+", ""):gsub("%s+$", "")) end
@@ -93,6 +99,8 @@ local function mkPlayer(uid, sid, traitor, bot)
     function p:GetVelocity() return Vector(self.vel, 0, 0) end
     function p:GetActiveWeapon() return self.wep end
     function p:GetClass() return "player" end
+    function p:Team() return 1 end
+    function p:SteamID() return "STEAM_" .. self.uid end
     function p:UserID() return self.uid end
     function p:SteamID64() return self.sid end
     function p:IsBot() return self.bot == true end
@@ -374,6 +382,78 @@ class KillcamScoringTests(unittest.TestCase):
             return n
         ''')
         self.assertEqual(got, 0)
+
+    # ------------------------------------------------------------------ per-life timeline
+    def load_timeline(self):
+        self.run_lua('''
+            Include("zc_killcam/sv_karma.lua")
+            Include("zc_killcam/sv_timeline.lua")
+            SetConVar("zc_killcam_karma", 1)
+            SetConVar("zc_killcam_timeline", 2)
+            LOCKED = false
+            ZCityMetaSafety = {Locked = function() return LOCKED end}
+            json = {}
+            util.TableToJSON = function(t) LASTTABLE = t return "x" end
+        ''')
+
+    def test_timeline_explains_what_counted_and_why(self):
+        self.load_timeline()
+        got = self.run_lua('''
+            local baiter, target = MakePlayer(1, "s1"), MakePlayer(2, "s2")
+            hook.Run("ZB_PreRoundStart") SetNow(0) hook.Run("ZB_StartRound")
+            hook.Run("PlayerSpawn", baiter) hook.Run("PlayerSpawn", target)
+            AimAt(baiter, target)
+            for t = 10, 14, 0.25 do Tick(t) end
+            Hit(14.5, target, baiter) Kill(15, target, baiter)
+            hook.Run("PlayerDeath", baiter, nil, target)
+            local mine = K.Timeline.lives["s1"][1]
+            local lines = {}
+            for _, e in ipairs(mine.events) do lines[#lines + 1] = e.text .. " [" .. (e.tag or "") .. "]" end
+            local theirs = {}
+            for _, e in ipairs(K.Timeline.live[2].events) do theirs[#theirs + 1] = e.text .. " [" .. (e.tag or "") .. "]" end
+            return table.concat(lines, "|"), table.concat(theirs, "|"), mine.ended
+        ''')
+        baiter, target, ended = got
+        self.assertIn('You held a gun on P2 [flag - only counts if a fight follows]', baiter)
+        self.assertIn('P2 fought back after you held a gun on them [counts as baiting (0.5)]', baiter)
+        self.assertIn('Killed by P2 - you held a gun on them / squared up first', baiter)
+        self.assertIn('You fought back after P1 held a gun on you [provoked - doesn\'t count against you]', target)
+        self.assertIn("You killed P1 - they held a gun on you / squared up first [doesn't count]", target)
+        self.assertEqual(ended, 'died')
+
+    def test_timeline_holds_back_role_revealing_verdicts_until_round_end(self):
+        self.load_timeline()
+        got = self.run_lua('''
+            local hero, traitor = MakePlayer(1, "s1"), MakePlayer(2, "s2", true)
+            hook.Run("ZB_PreRoundStart") SetNow(0) hook.Run("ZB_StartRound")
+            hook.Run("PlayerSpawn", hero) hook.Run("PlayerSpawn", traitor)
+            Hit(10, traitor, hero) Hit(11, hero, traitor) Kill(12, hero, traitor)
+            hook.Run("ZB_EndRound")                       -- the hero survived
+            local life = K.Timeline.lives["s1"][1]
+            LOCKED = true
+            local during = K.Timeline.View(life).events
+            LOCKED = false
+            local after = K.Timeline.View(life).events
+            return during[#during].text, during[#during].tag, after[#after].text, after[#after].tag, life.ended
+        ''')
+        self.assertEqual(tuple(got), ('You killed P2', 'verdict at round end', 'You killed P2, a traitor', 'good kill', 'survived'))
+
+    def test_karma_app_only_sends_your_own_lives_and_your_record(self):
+        self.load_timeline()
+        got = self.run_lua('''
+            local a, b = MakePlayer(1, "s1"), MakePlayer(2, "s2")
+            hook.Run("ZB_PreRoundStart") SetNow(0) hook.Run("ZB_StartRound")
+            hook.Run("PlayerSpawn", a) hook.Run("PlayerSpawn", b)
+            Hit(10, a, b) Kill(11, a, b)
+            hook.Run("PlayerDeath", b, nil, a)
+            hook.Run("ZB_EndRound")
+            SetNow(20) NETRECV["zckc_timeline"](0, b)
+            local forB = LASTTABLE
+            SetConVar("zc_killcam_timeline", 1)          -- tester only: b is not the tester
+            SetNow(30) NETRECV["zckc_timeline"](0, b)
+            return #forB.lives, forB.lives[1].events[#forB.lives[1].events].text, LASTTABLE.allowed, #LASTTABLE.lives
+        ''')
+        self.assertEqual(tuple(got), (1, 'Killed by P1 - they started it - counted against them', False, 0))
 
     # ------------------------------------------------------------------ karma ledger
     def load_karma(self):

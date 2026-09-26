@@ -11,9 +11,13 @@ CreateConVar("zc_goob_icons_tester", "76561198011536179", {FCVAR_ARCHIVE, FCVAR_
 -- Step 5 switch: 1 = GoobOS death panel + round-end panel (killcam replay inset via the P3 seam, votes and summary in-panel;
 -- the mode-vote HUD, SolidMapVote menu, cops_gangsters end menu and forgiveness prompt are drawn by the panels). 0 = today.
 CreateConVar("zc_goobos_panels", "0", {FCVAR_ARCHIVE, FCVAR_REPLICATED}, "GoobOS death and round-end panels (0 = current behaviour)")
+-- Karma app + the death panel's timeline lines (zc_killcam/sv_timeline.lua, owner 2026-09-26: "transparent karma ledger,
+-- per-life, per-player"). Created here, replicated, so the phone knows whether to show the app; 0 off, 1 tester, 2 everyone.
+CreateConVar("zc_killcam_timeline", "1", {FCVAR_ARCHIVE, FCVAR_REPLICATED}, "Per-life karma timeline for players: 0 off, 1 tester only, 2 everyone")
+CreateConVar("zc_killcam_timeline_tester", "76561198011536179", {FCVAR_ARCHIVE, FCVAR_REPLICATED}, "SteamID64 that sees the karma timeline while zc_killcam_timeline is 1")
 if SERVER then AddCSLuaFile("zc_goobos/feed_rules.lua") end
 include("zc_goobos/feed_rules.lua")
-local files = {"apps.lua", "kit.lua", "notify.lua", "media.lua", "panels.lua", "deathpanel.lua", "roundend.lua", "donate.lua", "preview.lua", "phone_preferences.lua", "shop.lua", "wardrobe.lua", "progress.lua", "settings.lua", "voice.lua", "camera.lua", "camera_ui.lua", "arcade.lua", "arcade_social.lua", "feed.lua", "feed_ui.lua", "messages.lua", "replays.lua"}
+local files = {"apps.lua", "kit.lua", "notify.lua", "media.lua", "panels.lua", "deathpanel.lua", "roundend.lua", "donate.lua", "preview.lua", "phone_preferences.lua", "shop.lua", "wardrobe.lua", "progress.lua", "settings.lua", "voice.lua", "camera.lua", "camera_ui.lua", "arcade.lua", "arcade_social.lua", "feed.lua", "feed_ui.lua", "messages.lua", "replays.lua", "karma.lua"}
 for _, name in ipairs(files) do
     local path = "zc_goobos/" .. name
     if SERVER then AddCSLuaFile(path) else include(path) end
