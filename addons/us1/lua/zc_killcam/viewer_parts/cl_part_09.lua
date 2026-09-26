@@ -383,8 +383,7 @@ function V.TapeRefused(id, status)
     end
     local rs = R.open
     if string.sub(id, #rs.prefix + 1) == "index" then
-        MsgN("[Replay] " .. text)
-        R.Close("refused")
+        R.Fail(rs, "Couldn't open this round", text, status == 4) -- 4: the server was busy; worth another try
         return true
     end
     local c = rs.chunks[rs.idx.seqAt[tonumber(string.sub(id, #rs.prefix + 1))]]
@@ -553,8 +552,15 @@ function R.Close(reason)
         if V.Life.stop then V.Life.stop() end
     end
     if reason == "alive" then
+        local at = R.Clock(R.resume and R.resume.cs or 0)
         MsgN("[Replay] you are alive in a live round, so the replay closed. `zc_replay resume` picks it up again at "
-            .. R.Clock(R.resume and R.resume.cs or 0) .. " once you are dead or the round is over.")
+            .. at .. " once you are dead or the round is over.")
+        -- replay_ui_20260926: say it where the player looks, not only in the console
+        local N = istable(ZCGoobApps) and ZCGoobApps.Notify
+        if istable(N) and isfunction(N.Push) then
+            pcall(N.Push, {key = "replay:paused", app = "Replays", glyph = "play", title = "Replay paused at " .. at,
+                body = "You're alive in a live round. Resume it from Replays once you're dead or the round ends."})
+        end
     end
     rs.chunks, rs.clip, rs.L = nil, nil, nil
 end
@@ -593,8 +599,7 @@ end
 function R.Start(rs)
     local idx = rs.idx
     if #idx.chunks == 0 or #idx.actors == 0 then
-        MsgN("[Replay] round " .. rs.rid .. " has nothing to replay (no chunks or no players in its index).")
-        return R.Close("empty")
+        return R.Fail(rs, "Nothing to replay", "This round's recording has no players or no footage in it.", false)
     end
     local L0 = V.Life.State()
     if L0 then MsgN("[Replay] a killcam took the screen while the round loaded.") return R.Close("busy") end
@@ -864,7 +869,20 @@ function R.Fault(what, err)
 end
 function R.Press(code)
     local rs = R.open
-    if not rs or not rs.L then return end
+    if not rs then return end
+    if code == MOUSE_LEFT then -- replay_ui_20260926: the ways out work while loading and on the failure card too
+        local mx0, my0 = input.GetCursorPos()
+        local t0 = R.HitAt(mx0, my0)
+        if t0 and t0[5] == "close" then return R.Close("button") end
+        if t0 and t0[5] == "retry" then
+            local rid = rs.rid
+            R.Close("retry")
+            return V.OpenRound(rid)
+        end
+        if t0 and t0[5] == "keys" then rs.keysOpen = not rs.keysOpen return end
+        if t0 and t0[5] == "feed" then rs.feed = rs.feed == false return end
+    end
+    if not rs.L then return end
     local L = rs.L
     if code == MOUSE_RIGHT then
         rs.looking = true
@@ -885,7 +903,8 @@ function R.Press(code)
     elseif act == "jump" then R.Seek(rs, L, L.cs + arg)
     elseif act == "mark" then R.Mark(rs, L, arg)
     elseif act == "speed" then rs.speed = arg
-    elseif act == "map" then rs.map = not rs.map end
+    elseif act == "map" then rs.map = not rs.map
+    elseif act == "cycle" then R.Cycle(rs, L, arg) end
 end
 function R.Release(code)
     local rs = R.open
@@ -983,106 +1002,138 @@ function R.Button(x, y, h, text, on, act, arg)
     R.Hit(x, y, w, h, act, arg)
     return w
 end
-function R.Paint(w, h)
-    local rs = R.open
-    if not rs or (V.ScoreboardUp and V.ScoreboardUp()) then return end
-    local began = SysTime()
-    R.hitN = 0
-    if R.fhGen ~= V.FontGen then
-        R.fhGen = V.FontGen
-        surface.SetFont("ZCKC.LifeSmall") R.fs = select(2, surface.GetTextSize("Ag"))
-        surface.SetFont("ZCKC.LifeBody") R.fb = select(2, surface.GetTextSize("Ag"))
-        surface.SetFont("ZCKC.LifeHead") R.fh = select(2, surface.GetTextSize("Ag"))
-    end
-    local L = rs.L
-    if not L or not L.clip then
-        R.Box(w / 2 - ScreenScale(110), h * 0.44, ScreenScale(220), R.fb + 24)
-        draw.SimpleText(rs.note or "Loading…", "ZCKC.LifeBody", w / 2, h * 0.44 + 12 + R.fb / 2, R.C.text, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-    else
-        local cs = L.cs
-        R.PaintCard(rs, w, h)
-        draw.SimpleText("BETA · REPLAY", "ZCKC.LifeSmall", w / 2, h * 0.025, R.C.gold, TEXT_ALIGN_CENTER)
-        local top = h * 0.025
-        if rs.map then top = R.PaintMap(rs, L, cs, w, h) end
-        R.PaintRoster(rs, L, cs, w, h, top)
-        R.PaintFeed(rs, cs, w, h)
-        R.PaintBar(rs, L, cs, w, h)
-        if rs.buffering then
-            draw.SimpleTextOutlined("Loading this part of the round…", "ZCKC.LifeBody", w / 2, h * 0.45, R.C.text, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, 1, R.C.black)
-        end
-        if rs.note and RealTime() < (rs.noteUntil or 0) then
-            draw.SimpleTextOutlined(rs.note, "ZCKC.LifeBody", w / 2, h * 0.09, R.C.gold, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, 1, R.C.black)
-        end
-    end
-    local s, ms = R.stats.hud, (SysTime() - began) * 1000
-    s.n, s.sum = s.n + 1, s.sum + ms
-    if ms > s.max then s.max = ms end
-end
+-- replay_ui_20260926 (owner-approved canvas "Round Replay Redesign", Main + Loading boards): a top bar with the round,
+-- the camera switch, Shortcuts and a real Close button; the followed player's chip; the map and the player list on the
+-- right; the kill feed bottom-left; one transport bar with the timeline, play, skip, bookmarks, speed and toggles; and
+-- loading / failure cards that always have a way out. Laid out at 1440x810 and scaled by the screen height. Every
+-- helper is a field on R: the assembled viewer chunk is at LuaJIT's 200-local limit.
+R.UI = {panel = Color(15, 15, 17, 235), edge = Color(83, 19, 23, 204), red = Color(163, 0, 0), redEdge = Color(208, 16, 16),
+    accent = Color(192, 0, 0), text = Color(236, 236, 236), muted = Color(159, 159, 159), caps = Color(185, 185, 185),
+    gold = Color(247, 199, 115), ink = Color(26, 20, 8), me = Color(191, 224, 255), alive = Color(127, 176, 143),
+    down = Color(224, 160, 80), dead = Color(74, 72, 74), deadText = Color(138, 135, 138), track = Color(255, 255, 255, 23),
+    buf = Color(255, 255, 255, 51), sel = Color(163, 0, 0, 97), segBg = Color(0, 0, 0, 90), line = Color(255, 255, 255, 36),
+    hover = Color(255, 255, 255, 14), kill = Color(255, 90, 90), death = Color(70, 150, 220), other = Color(255, 255, 255, 140),
+    white = Color(255, 255, 255), shadow = Color(0, 0, 0, 160)}
+R.SPEEDS = {{0.25, "¼×"}, {0.5, "½×"}, {1, "1×"}, {2, "2×"}, {4, "4×"}}
 R.MODES = {{"free", "1", "Free"}, {"follow", "2", "Follow"}, {"fp", "3", "First person"}}
-function R.PaintCard(rs, w, h)
-    local C, idx = R.C, rs.idx
-    if not rs.cardTitle then -- built once
-        local head = idx.head or {}
-        rs.cardTitle = tostring(head.mode or "Round") .. " · " .. rs.rid
-        rs.cardSub = string.format("%s · %d players%s", tostring(head.map or "?"), #idx.actors,
-            idx.ended and (" · ended " .. os.date("%H:%M", idx.ended)) or "")
-        for _, m in ipairs(R.MODES) do m.label = m[2] .. "  " .. m[3] end
+R.SHORTCUTS = {{"Play / pause", "Space"}, {"Back / forward 5 s", "Left  Right"}, {"Previous / next bookmark", "[  ]"},
+    {"Camera: free, follow, first person", "1  2  3"}, {"Previous / next player", "Q  E"}, {"Show / hide map", "M"},
+    {"Look around / orbit", "Right-drag"}, {"Close the replay", "Esc"}}
+R.HINTS = {free = "WASD move · right-drag look · Shift fast", follow = "Scroll to zoom · right-drag to orbit", fp = "Their eyes"}
+
+function R.Fonts(h)
+    local u = math.Clamp(h / 810, 0.7, 2.2)
+    R.u = u
+    if R.fontU == u then return u end
+    R.fontU, R.w2 = u, {}
+    local cv = GetConVar("hg_font")
+    local face = cv and cv:GetString() ~= "" and cv:GetString() or "Bahnschrift"
+    for name, spec in pairs({Title = {20, 700}, Body = {14, 500}, Strong = {15, 600}, Small = {12, 500}, Caps = {11, 600},
+        Key = {11, 500}, Time = {22, 700}, Big = {20, 700}}) do
+        surface.CreateFont("ZCKC.Rep" .. name, {font = face, size = math.max(10, math.floor(spec[1] * u + 0.5)), weight = spec[2], antialias = true, extended = true})
     end
-    local x, y = w * 0.015, h * 0.025
-    local bh = R.fs + 10
-    local cw = math.max(w * 0.24, R.W("ZCKC.LifeHead", rs.cardTitle) + 28)
-    local ch = R.fs + R.fh + R.fs + bh + R.fs + 44
-    R.Box(x, y, cw, ch)
-    local ty = y + 8
-    draw.SimpleText("ROUND REPLAY", "ZCKC.LifeSmall", x + 14, ty, C.dim)
-    ty = ty + R.fs + 2
-    draw.SimpleText(rs.cardTitle, "ZCKC.LifeHead", x + 14, ty, C.text)
-    ty = ty + R.fh
-    draw.SimpleText(rs.cardSub, "ZCKC.LifeSmall", x + 14, ty, C.muted)
-    ty = ty + R.fs + 8
-    local bx = x + 14
-    for _, m in ipairs(R.MODES) do bx = bx + R.Button(bx, ty, bh, m.label, rs.mode == m[1], "mode", m[1]) + 6 end
-    ty = ty + bh + 6
-    local a = rs.clip.actors[rs.follow or 0]
-    local who = a and a.name or "?"
-    if rs.followFor ~= a or rs.followMode ~= rs.mode then -- rebuilt only when the camera or its subject changes
-        rs.followFor, rs.followMode = a, rs.mode
-        rs.followText = rs.mode == "free" and "Free camera · WASD + RMB look · Shift fast" or
-            (rs.mode == "fp" and ("First person · " .. who) or ("Following " .. who .. " · scroll to zoom · RMB orbit"))
-    end
-    draw.SimpleText(rs.followText, "ZCKC.LifeSmall", x + 14, ty, C.muted)
+    return u
 end
-function R.PaintMap(rs, L, cs, w, h)
-    local C = R.C
-    local mw, mh = w * 0.19, h * 0.35
-    local x, y = w - w * 0.015 - mw, h * 0.025
-    R.Box(x, y, mw, mh)
-    draw.SimpleText("MAP · M", "ZCKC.LifeSmall", x + 8, y + 5, C.dim)
-    R.Hit(x, y, mw, R.fs + 8, "map")
-    local ix, iy, iw, ih = x + 6, y + R.fs + 10, mw - 12, mh - R.fs - 16
-    surface.SetDrawColor(C.mapBg) surface.DrawRect(ix, iy, iw, ih)
-    local b = rs.bounds
-    if b[1] > b[3] then return y + mh + h * 0.01 end
-    local spanX, spanY = math.max(b[3] - b[1], 256), math.max(b[4] - b[2], 256)
-    local scale = math.min(iw / spanX, ih / spanY) * 0.92
-    local cx, cy = (b[1] + b[3]) / 2, (b[2] + b[4]) / 2
-    local mx, my = ix + iw / 2, iy + ih / 2
-    for i, a in ipairs(L.clip.actors) do
-        local ax, ay, _, _, _, flags = V.StateAt(a, cs)
-        if ax then
-            local px, py = mx + (ax - cx) * scale, my - (ay - cy) * scale -- world +y is up the map
-            local alive = V.HasFlag(flags, 1)
-            local col = (a.uid == rs.idx.me) and C.me or (alive and (a.hudCol or C.text) or C.dead)
-            if i == rs.follow then surface.SetDrawColor(C.white) surface.DrawRect(px - 5, py - 5, 10, 10) end
-            surface.SetDrawColor(col) surface.DrawRect(px - 3, py - 3, 6, 6)
+function R.TW(font, text)
+    local byFont = R.w2[font]
+    if not byFont then byFont = {} R.w2[font] = byFont end
+    local w = byFont[text]
+    if not w then surface.SetFont(font) w = surface.GetTextSize(text) byFont[text] = w end
+    return w
+end
+function R.T(text, font, x, y, col, ax, ay) draw.SimpleText(text, "ZCKC.Rep" .. font, x, y, col, ax or TEXT_ALIGN_LEFT, ay or TEXT_ALIGN_TOP) end
+function R.Card(x, y, w, h, edge)
+    local r = math.floor(8 * R.u)
+    draw.RoundedBox(r, x, y, w, h, edge or R.UI.edge)
+    draw.RoundedBox(r, x + 1, y + 1, w - 2, h - 2, R.UI.panel)
+end
+function R.Over(x, y, w, h)
+    local mx, my = input.GetCursorPos()
+    return mx >= x and my >= y and mx < x + w and my < y + h
+end
+-- A clickable box: style "red" (filled), "on" (selected in a group), "ghost" (outlined), "flat" (group member).
+function R.Btn(x, y, w, h, style, act, arg)
+    local U, r = R.UI, math.floor(6 * R.u)
+    local over = R.Over(x, y, w, h)
+    if style == "red" or style == "on" then
+        draw.RoundedBox(r, x, y, w, h, style == "red" and U.redEdge or U.red)
+        draw.RoundedBox(r, x + 1, y + 1, w - 2, h - 2, over and U.accent or U.red)
+    elseif style == "ghost" then
+        draw.RoundedBox(r, x, y, w, h, U.line)
+        draw.RoundedBox(r, x + 1, y + 1, w - 2, h - 2, over and Color(40, 40, 44, 240) or U.panel)
+    elseif over then
+        draw.RoundedBox(r, x, y, w, h, U.hover)
+    end
+    R.Hit(x, y, w, h, act, arg)
+end
+-- Code-drawn icons (the HUD font has no media glyphs). s = icon size in pixels, centred on (cx, cy).
+function R.Bar(x1, y1, x2, y2, t, col)
+    local dx, dy = x2 - x1, y2 - y1
+    local len = math.sqrt(dx * dx + dy * dy)
+    if len < 0.5 then return end
+    surface.SetDrawColor(col)
+    surface.DrawTexturedRectRotated((x1 + x2) / 2, (y1 + y2) / 2, len, t, -math.deg(math.atan2(dy, dx)))
+end
+function R.Icon(name, cx, cy, s, col)
+    draw.NoTexture()
+    local t = math.max(1.5, s * 0.12)
+    local h = s / 2
+    surface.SetDrawColor(col)
+    if name == "x" then
+        R.Bar(cx - h * 0.7, cy - h * 0.7, cx + h * 0.7, cy + h * 0.7, t * 1.2, col)
+        R.Bar(cx + h * 0.7, cy - h * 0.7, cx - h * 0.7, cy + h * 0.7, t * 1.2, col)
+    elseif name == "play" then
+        surface.DrawPoly({{x = cx - h * 0.45, y = cy - h * 0.7}, {x = cx + h * 0.75, y = cy}, {x = cx - h * 0.45, y = cy + h * 0.7}})
+    elseif name == "pause" then
+        surface.DrawRect(cx - h * 0.55, cy - h * 0.65, h * 0.38, h * 1.3)
+        surface.DrawRect(cx + h * 0.17, cy - h * 0.65, h * 0.38, h * 1.3)
+    elseif name == "prev" or name == "next" then
+        local d = name == "next" and 1 or -1
+        surface.DrawRect(cx + d * h * 0.55 - t / 2, cy - h * 0.6, t, h * 1.2)
+        local tip, base = cx + d * h * 0.35, cx - d * h * 0.55
+        if d == 1 then surface.DrawPoly({{x = base, y = cy - h * 0.6}, {x = tip, y = cy}, {x = base, y = cy + h * 0.6}})
+        else surface.DrawPoly({{x = tip, y = cy}, {x = base, y = cy - h * 0.6}, {x = base, y = cy + h * 0.6}}) end
+    elseif name == "chevL" or name == "chevR" then
+        local d = name == "chevR" and 1 or -1
+        R.Bar(cx - d * h * 0.3, cy - h * 0.55, cx + d * h * 0.3, cy, t * 1.3, col)
+        R.Bar(cx + d * h * 0.3, cy, cx - d * h * 0.3, cy + h * 0.55, t * 1.3, col)
+    elseif name == "back" or name == "fwd" then
+        local d = name == "fwd" and 1 or -1
+        for i = 0, 5 do -- an open arc with an arrowhead
+            local a1, a2 = math.rad(-120 + i * 45), math.rad(-120 + (i + 1) * 45)
+            R.Bar(cx + d * math.cos(a1) * h * 0.6, cy + math.sin(a1) * h * 0.6, cx + d * math.cos(a2) * h * 0.6, cy + math.sin(a2) * h * 0.6, t, col)
+        end
+        local ax, ay = cx + d * math.cos(math.rad(-120)) * h * 0.6, cy + math.sin(math.rad(-120)) * h * 0.6
+        R.Bar(ax, ay, ax - d * h * 0.35, ay + h * 0.05, t, col)
+        R.Bar(ax, ay, ax - d * h * 0.05, ay + h * 0.35, t, col)
+    elseif name == "keys" then
+        surface.DrawOutlinedRect(cx - h * 0.9, cy - h * 0.5, h * 1.8, h, math.max(1, math.floor(t)))
+        for i = 0, 3 do surface.DrawRect(cx - h * 0.6 + i * h * 0.38, cy - h * 0.2, t, t) end
+        surface.DrawRect(cx - h * 0.45, cy + h * 0.15, h * 0.9, t)
+    elseif name == "map" then
+        R.Bar(cx - h * 0.8, cy - h * 0.55, cx - h * 0.27, cy - h * 0.75, t, col) R.Bar(cx - h * 0.27, cy - h * 0.75, cx + h * 0.27, cy - h * 0.55, t, col)
+        R.Bar(cx + h * 0.27, cy - h * 0.55, cx + h * 0.8, cy - h * 0.75, t, col) R.Bar(cx - h * 0.8, cy + h * 0.75, cx - h * 0.27, cy + h * 0.55, t, col)
+        R.Bar(cx - h * 0.27, cy + h * 0.55, cx + h * 0.27, cy + h * 0.75, t, col) R.Bar(cx + h * 0.27, cy + h * 0.75, cx + h * 0.8, cy + h * 0.55, t, col)
+        for _, x in ipairs({-0.8, -0.27, 0.27, 0.8}) do R.Bar(cx + h * x, cy - h * 0.65, cx + h * x, cy + h * 0.65, t, col) end
+    elseif name == "list" then
+        for i = -1, 1 do
+            surface.DrawRect(cx - h * 0.8, cy + i * h * 0.5 - t / 2, t * 1.2, t)
+            surface.DrawRect(cx - h * 0.45, cy + i * h * 0.5 - t / 2, h * 1.25, t)
         end
     end
-    if rs.mode == "free" then
-        local e = R.camPos
-        surface.SetDrawColor(C.gold) surface.DrawRect(mx + (e.x - cx) * scale - 2, my - (e.y - cy) * scale - 2, 4, 4)
-    end
-    return y + mh + h * 0.012
 end
+function R.Circle(cx, cy, r, col) draw.RoundedBox(math.floor(r), cx - r, cy - r, r * 2, r * 2, col) end
+function R.Chip(text, x, cy, col, font)
+    font = font or "Key"
+    local u = R.u
+    local w = R.TW("ZCKC.Rep" .. font, text) + 10 * u
+    local h = 16 * u
+    draw.RoundedBox(math.floor(3 * u), x, cy - h / 2, w, h, Color(col.r, col.g, col.b, 110))
+    draw.RoundedBox(math.floor(3 * u), x + 1, cy - h / 2 + 1, w - 2, h - 2, R.UI.panel)
+    R.T(text, font, x + w / 2, cy, col, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+    return w
+end
+
 function R.Status(a, cs)
     local x, _, _, _, _, flags = V.StateAt(a, cs)
     if x then
@@ -1097,154 +1148,385 @@ function R.Kills(a, cs)
     for _, t in ipairs(a.kills) do if t <= cs then n = n + 1 else break end end
     return n
 end
-function R.PaintRoster(rs, L, cs, w, h, top)
-    local C = R.C
-    local rw = w * 0.19
-    local x = w - w * 0.015 - rw
-    local bottom = h - h * 0.025 - R.BarH(h) - h * 0.015
-    local rowH = R.fb + 6
+function R.StatusColor(st) local U = R.UI return st == "alive" and U.alive or (st == "down" and U.down or U.dead) end
+
+function R.Paint(w, h)
+    local rs = R.open
+    if not rs or (V.ScoreboardUp and V.ScoreboardUp()) then return end
+    local began = SysTime()
+    R.hitN = 0
+    R.Fonts(h)
+    local L = rs.L
+    if rs.failed or not L or not L.clip then
+        R.PaintLoading(rs, w, h)
+    else
+        local cs = L.cs
+        local u = R.u
+        local barTop = h - 16 * u - 122 * u
+        R.PaintTop(rs, L, w, h)
+        R.PaintSubject(rs, L, cs, w, h)
+        local colX = w - 16 * u - 300 * u
+        local y = 88 * u
+        if rs.map then y = R.PaintMap(rs, L, cs, colX, y, 300 * u, 210 * u) + 10 * u end
+        R.PaintRoster(rs, L, cs, colX, y, 300 * u, barTop - 10 * u - y)
+        if rs.feed ~= false then R.PaintFeed(rs, cs, 16 * u, barTop - 12 * u, 330 * u) end
+        R.PaintBar(rs, L, cs, 16 * u, barTop, w - 32 * u, 122 * u)
+        if rs.keysOpen then R.PaintKeys(colX - 16 * u - 300 * u, 88 * u, 300 * u) end
+        if rs.buffering then R.PaintBuffering(rs, cs, w, h) end
+        if rs.note and RealTime() < (rs.noteUntil or 0) then
+            local tw = R.TW("ZCKC.RepBody", rs.note) + 28 * u
+            draw.RoundedBox(math.floor(16 * u), w / 2 - tw / 2, 88 * u, tw, 32 * u, R.UI.shadow)
+            R.T(rs.note, "Body", w / 2, 104 * u, R.UI.gold, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+        end
+    end
+    local s, ms = R.stats.hud, (SysTime() - began) * 1000
+    s.n, s.sum = s.n + 1, s.sum + ms
+    if ms > s.max then s.max = ms end
+end
+
+function R.Titles(rs)
+    if rs.cardTitle then return end
+    local idx = rs.idx or {}
+    local head = idx.head or {}
+    rs.cardTitle = tostring(head.mode or "Round replay")
+    rs.cardSub = string.format("%s · %d players%s", tostring(head.map or "?"), #(idx.actors or {}),
+        idx.ended and (" · ended " .. os.date("%H:%M", idx.ended)) or "")
+end
+function R.PaintTop(rs, L, w, h)
+    local U, u = R.UI, R.u
+    local x, y, bw, bh = 16 * u, 16 * u, w - 32 * u, 60 * u
+    R.Card(x, y, bw, bh)
+    R.Titles(rs)
+    R.T("ROUND REPLAY", "Caps", x + 18 * u, y + 10 * u, U.caps)
+    local cw = R.TW("ZCKC.RepCaps", "ROUND REPLAY")
+    draw.RoundedBox(math.floor(3 * u), x + 26 * u + cw, y + 9 * u, 38 * u, 15 * u, U.gold)
+    R.T("BETA", "Caps", x + 45 * u + cw, y + 16.5 * u, U.ink, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+    R.T(rs.cardTitle, "Title", x + 18 * u, y + 27 * u, U.text)
+    R.T(rs.cardSub, "Small", x + 30 * u + R.TW("ZCKC.RepTitle", rs.cardTitle), y + 33 * u, U.muted)
+    -- the camera switch, centred
+    local segH, pad = 36 * u, 3 * u
+    local widths, total = {}, 0
+    for i, m in ipairs(R.MODES) do
+        widths[i] = R.TW("ZCKC.RepStrong", m[3]) + R.TW("ZCKC.RepKey", m[2]) + 44 * u
+        total = total + widths[i] + 2 * u
+    end
+    local gx = x + bw / 2 - total / 2
+    draw.RoundedBox(math.floor(7 * u), gx - pad, y + bh / 2 - segH / 2 - pad, total + pad * 2, segH + pad * 2, U.segBg)
+    for i, m in ipairs(R.MODES) do
+        local on = rs.mode == m[1]
+        R.Btn(gx, y + bh / 2 - segH / 2, widths[i], segH, on and "on" or "flat", "mode", m[1])
+        R.T(m[3], "Strong", gx + 12 * u, y + bh / 2, on and U.white or U.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+        R.Chip(m[2], gx + 20 * u + R.TW("ZCKC.RepStrong", m[3]), y + bh / 2, on and U.white or U.muted)
+        gx = gx + widths[i] + 2 * u
+    end
+    -- Close (a real way out: Esc is Z-City's menu key), then Shortcuts to its left
+    local closeW = 58 * u + R.TW("ZCKC.RepStrong", "Close") + R.TW("ZCKC.RepKey", "Esc")
+    local cx = x + bw - 10 * u - closeW
+    R.Btn(cx, y + 10 * u, closeW, 40 * u, "red", "close")
+    R.Icon("x", cx + 18 * u, y + 30 * u, 16 * u, U.white)
+    R.T("Close", "Strong", cx + 32 * u, y + 30 * u, U.white, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+    R.Chip("Esc", cx + 40 * u + R.TW("ZCKC.RepStrong", "Close"), y + 30 * u, U.white)
+    local kw = 44 * u + R.TW("ZCKC.RepBody", "Shortcuts")
+    local kx = cx - 8 * u - kw
+    R.Btn(kx, y + 10 * u, kw, 40 * u, rs.keysOpen and "on" or "ghost", "keys")
+    R.Icon("keys", kx + 18 * u, y + 30 * u, 18 * u, U.text)
+    R.T("Shortcuts", "Body", kx + 32 * u, y + 30 * u, U.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+end
+function R.PaintSubject(rs, L, cs, w, h)
+    local U, u = R.UI, R.u
+    local a = L.clip.actors[rs.follow or 0]
+    local name = a and (a.uid == rs.idx.me and (a.name .. " (you)") or a.name) or "?"
+    local label = rs.mode == "free" and "FREE CAMERA" or (rs.mode == "fp" and "FIRST PERSON" or "FOLLOWING")
+    local hint = R.HINTS[rs.mode] or ""
+    local nameW = math.max(200 * u, R.TW("ZCKC.RepStrong", name) + 70 * u)
+    local bw = 6 * u + 40 * u + 8 * u + nameW + 40 * u + 20 * u + R.TW("ZCKC.RepSmall", hint) + 16 * u
+    local x, y, bh = 16 * u, 88 * u, 52 * u
+    R.Card(x, y, bw, bh)
+    R.Btn(x + 6 * u, y + 6 * u, 40 * u, 40 * u, "flat", "cycle", -1)
+    R.Icon("chevL", x + 26 * u, y + 26 * u, 18 * u, U.text)
+    local nx = x + 54 * u
+    R.T(label, "Caps", nx, y + 9 * u, U.muted)
+    if a then R.Circle(nx + 4.5 * u, y + 34 * u, 4.5 * u, R.StatusColor(R.Status(a, cs))) end
+    R.T(name, "Strong", nx + 16 * u, y + 34 * u, a and a.uid == rs.idx.me and U.me or U.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+    if a then R.T(R.KillText(R.Kills(a, cs)), "Small", nx + 24 * u + R.TW("ZCKC.RepStrong", name), y + 34 * u, U.muted, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER) end
+    local ex = nx + nameW
+    R.Btn(ex, y + 6 * u, 40 * u, 40 * u, "flat", "cycle", 1)
+    R.Icon("chevR", ex + 20 * u, y + 26 * u, 18 * u, U.text)
+    surface.SetDrawColor(255, 255, 255, 30)
+    surface.DrawRect(ex + 48 * u, y + 12 * u, 1, 28 * u)
+    R.T(hint, "Small", ex + 60 * u, y + 26 * u, U.muted, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+end
+function R.PaintMap(rs, L, cs, x, y, mw, mh)
+    local U, u = R.UI, R.u
+    R.Card(x, y, mw, mh)
+    R.T("MAP", "Caps", x + 10 * u, y + 9 * u, U.caps)
+    R.T("M to hide", "Small", x + mw - 10 * u, y + 9 * u, U.muted, TEXT_ALIGN_RIGHT)
+    R.Hit(x, y, mw, 26 * u, "map")
+    local ix, iy, iw, ih = x + 10 * u, y + 30 * u, mw - 20 * u, mh - 40 * u
+    draw.RoundedBox(math.floor(4 * u), ix, iy, iw, ih, Color(22, 24, 26, 245))
+    local b = rs.bounds
+    if b[1] > b[3] then return y + mh end
+    local spanX, spanY = math.max(b[3] - b[1], 256), math.max(b[4] - b[2], 256)
+    local scale = math.min(iw / spanX, ih / spanY) * 0.92
+    local cx, cy = (b[1] + b[3]) / 2, (b[2] + b[4]) / 2
+    local mx, my = ix + iw / 2, iy + ih / 2
+    for i, a in ipairs(L.clip.actors) do
+        local ax, ay, _, _, _, flags = V.StateAt(a, cs)
+        if ax then
+            local px, py = mx + (ax - cx) * scale, my - (ay - cy) * scale -- world +y is up the map
+            local col = (a.uid == rs.idx.me) and U.death or (V.HasFlag(flags, 1) and (V.HasFlag(flags, 4) and U.down or U.text) or U.dead)
+            if i == rs.follow then R.Circle(px, py, 7 * u, U.white) R.Circle(px, py, 5.5 * u, Color(22, 24, 26)) end
+            R.Circle(px, py, 4 * u, col)
+        end
+    end
+    if rs.mode == "free" and R.camPos then R.Circle(mx + (R.camPos.x - cx) * scale, my - (R.camPos.y - cy) * scale, 3 * u, U.gold) end
+    return y + mh
+end
+function R.PaintRoster(rs, L, cs, x, y, rw, maxH)
+    local U, u = R.UI, R.u
     local actors = L.clip.actors
-    local fit = math.max(1, math.floor((bottom - top - R.fs - 16) / rowH))
+    local rowH = 34 * u
+    local headH = 30 * u
+    local fit = math.max(1, math.floor((maxH - headH - 10 * u) / (rowH + 2 * u)))
     local shown = math.min(#actors, fit)
     rs.rosterTop = math.Clamp(rs.rosterTop, 0, math.max(0, #actors - fit))
-    local rh = R.fs + 16 + shown * rowH
-    R.Box(x, top, rw, rh)
+    local rh = headH + shown * (rowH + 2 * u) + 8 * u
+    R.Card(x, y, rw, rh)
     rs.rosterBox = rs.rosterBox or {}
-    rs.rosterBox[1], rs.rosterBox[2], rs.rosterBox[3], rs.rosterBox[4] = x, top, rw, rh
+    rs.rosterBox[1], rs.rosterBox[2], rs.rosterBox[3], rs.rosterBox[4] = x, y, rw, rh
     if rs.clockSec ~= math.floor(cs / 100) then
         rs.clockSec = math.floor(cs / 100)
         rs.clockNow = R.Clock(cs)
-        rs.clockText = rs.clockNow .. " / " .. R.Clock(L.clip.last)
-        rs.rosterHead = "IN THIS ROUND · AT " .. rs.clockNow
+        rs.clockEnd = R.Clock(L.clip.last)
+        rs.rosterHead = "PLAYERS · AT " .. rs.clockNow
+        local alive = 0
+        for _, a in ipairs(actors) do if R.Status(a, cs) ~= "dead" then alive = alive + 1 end end
+        rs.aliveText = alive .. " alive"
     end
-    draw.SimpleText(rs.rosterHead, "ZCKC.LifeSmall", x + 12, top + 6, C.dim)
-    local y = top + R.fs + 12
+    R.T(rs.rosterHead, "Caps", x + 14 * u, y + 11 * u, U.caps)
+    R.T(rs.aliveText or "", "Small", x + rw - 14 * u, y + 10 * u, U.muted, TEXT_ALIGN_RIGHT)
     local me = rs.idx.me
+    local ry = y + headH
     for n = 1, shown do
         local i = n + rs.rosterTop
         local a = actors[i]
         if not a.hudName then
             a.hudName = a.uid == me and (a.name .. " (you)") or a.name
-            a.hudCol = a.col and Color(a.col[1] or 200, a.col[2] or 200, a.col[3] or 200) or C.text -- once per actor
+            a.hudCol = a.col and Color(a.col[1] or 200, a.col[2] or 200, a.col[3] or 200) or U.text -- once per actor
         end
-        if i == rs.follow then surface.SetDrawColor(C.sel) surface.DrawRect(x + 1, y - 2, rw - 2, rowH) end
+        local sel = i == rs.follow
+        if sel then draw.RoundedBox(math.floor(5 * u), x + 6 * u, ry, rw - 12 * u, rowH, U.sel)
+        elseif R.Over(x + 6 * u, ry, rw - 12 * u, rowH) then draw.RoundedBox(math.floor(5 * u), x + 6 * u, ry, rw - 12 * u, rowH, U.hover) end
         local st = R.Status(a, cs)
-        surface.SetDrawColor(st == "alive" and C.ok or (st == "down" and C.down or C.dead))
-        surface.DrawRect(x + 12, y + rowH / 2 - 5, 8, 8)
-        local nameCol = a.uid == me and C.meText or (st == "dead" and C.dead or a.hudCol)
-        draw.SimpleText(a.hudName, "ZCKC.LifeBody", x + 28, y, nameCol)
+        R.Circle(x + 20 * u, ry + rowH / 2, 4.5 * u, R.StatusColor(st))
+        local nameCol = a.uid == me and U.me or (st == "dead" and U.deadText or U.text)
+        R.T(a.hudName, a.uid == me and "Strong" or "Body", x + 34 * u, ry + rowH / 2, nameCol, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
         if st == "dead" then
-            surface.SetDrawColor(C.strike)
-            surface.DrawRect(x + 28, y + R.fb / 2, math.min(R.W("ZCKC.LifeBody", a.hudName), rw - 80), 1)
+            surface.SetDrawColor(255, 255, 255, 64)
+            surface.DrawRect(x + 34 * u, ry + rowH / 2, math.min(R.TW("ZCKC.RepBody", a.hudName), rw - 110 * u), 1)
         end
-        draw.SimpleText(R.KillText(R.Kills(a, cs)), "ZCKC.LifeSmall", x + rw - 12, y + 2, C.muted, TEXT_ALIGN_RIGHT)
-        R.Hit(x, y - 2, rw, rowH, "follow", i)
-        y = y + rowH
+        if st ~= "alive" then R.T(st, "Small", x + rw - 52 * u, ry + rowH / 2, U.muted, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER) end
+        R.T(R.KillText(R.Kills(a, cs)), "Small", x + rw - 16 * u, ry + rowH / 2, U.text, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
+        R.Hit(x + 6 * u, ry, rw - 12 * u, rowH, "follow", i)
+        ry = ry + rowH + 2 * u
     end
 end
-function R.PaintFeed(rs, cs, w, h)
-    local C = R.C
+function R.PaintFeed(rs, cs, x, bottom, fw)
+    local U, u = R.UI, R.u
     local deaths = rs.idx.deaths
     local last = 0
     for i = #deaths, 1, -1 do if deaths[i].t <= cs then last = i break end end
-    local first = math.max(1, last - 5)
+    local first = math.max(1, last - 4)
     local n = last > 0 and (last - first + 1) or 0
-    local fw = w * 0.25
-    local x, y = w * 0.015, h * 0.30
-    local rowH = R.fs + 8
-    R.Box(x, y, fw, R.fs + 14 + math.max(n, 1) * rowH)
-    draw.SimpleText("EVENTS", "ZCKC.LifeSmall", x + 12, y + 6, C.dim)
-    y = y + R.fs + 12
-    if n == 0 then draw.SimpleText("Nothing yet", "ZCKC.LifeSmall", x + 12, y, C.muted) return end
+    local rowH = 26 * u
+    local fh = 36 * u + math.max(n, 1) * rowH + 6 * u
+    local y = bottom - fh
+    R.Card(x, y, fw, fh, Color(83, 19, 23, 190))
+    R.T("KILL FEED", "Caps", x + 14 * u, y + 12 * u, U.caps)
+    local ry = y + 34 * u
+    if n == 0 then R.T("Nothing yet", "Small", x + 14 * u, ry + rowH / 2, U.muted, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER) return end
     local me = rs.idx.me
     for i = first, last do
         local d = deaths[i]
-        draw.SimpleText(d.clock, "ZCKC.LifeSmall", x + 12, y, C.muted)
+        if R.Over(x + 8 * u, ry, fw - 16 * u, rowH) then draw.RoundedBox(math.floor(4 * u), x + 8 * u, ry, fw - 16 * u, rowH, U.hover) end
+        R.T(d.clock, "Small", x + 14 * u, ry + rowH / 2, U.muted, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
         local mine = me and (d.a == me or d.v == me)
-        draw.SimpleText(d.text, "ZCKC.LifeSmall", x + 12 + R.W("ZCKC.LifeSmall", "00:00 "), y, mine and C.meText or C.text)
-        y = y + rowH
+        R.T(d.text, mine and "Strong" or "Body", x + 60 * u, ry + rowH / 2, mine and U.me or U.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+        R.Hit(x + 8 * u, ry, fw - 16 * u, rowH, "seek", math.max(0, d.t - 300)) -- three seconds before, to see it happen
+        ry = ry + rowH
     end
 end
-function R.BarH(h) return (R.fs or 12) * 3 + ScreenScale(14) + 38 end
--- Latin-1 glyphs only: the HUD font (hg_font, Bahnschrift) has no media-control or arrow glyphs
-R.SPEEDS = {{0.25, "¼×"}, {0.5, "½×"}, {1, "1×"}, {2, "2×"}, {4, "4×"}}
-R.KEYS = "Space play   [ ] bookmarks   Left Right 5 s   1 2 3 camera   Q E player   M map   Esc close"
-function R.PaintBar(rs, L, cs, w, h)
-    local C = R.C
-    local bh = R.BarH(h)
-    local x, y, bw = w * 0.015, h - h * 0.025 - bh, w - w * 0.03
-    R.Box(x, y, bw, bh)
-    local lx, ly = x + 14, y + 8
-    -- legend
-    draw.NoTexture()
-    surface.SetDrawColor(C.accent) surface.DrawTexturedRectRotated(lx + 4, ly + R.fs / 2, 8, 8, 45)
-    draw.SimpleText("Your kills", "ZCKC.LifeSmall", lx + 14, ly, C.muted)
-    lx = lx + 14 + R.W("ZCKC.LifeSmall", "Your kills") + 16
-    R.Skull(lx + 4, ly + R.fs / 2)
-    draw.SimpleText("Your deaths", "ZCKC.LifeSmall", lx + 14, ly, C.muted)
-    lx = lx + 14 + R.W("ZCKC.LifeSmall", "Your deaths") + 16
-    surface.SetDrawColor(C.other) surface.DrawRect(lx, ly + 2, 2, R.fs - 4)
-    draw.SimpleText("Other kills", "ZCKC.LifeSmall", lx + 8, ly, C.muted)
-    lx = lx + 8 + R.W("ZCKC.LifeSmall", "Other kills") + 16
-    surface.SetDrawColor(C.buf) surface.DrawRect(lx, ly + 2, 9, R.fs - 4)
-    draw.SimpleText("Downloaded", "ZCKC.LifeSmall", lx + 14, ly, C.muted)
-    -- timeline
-    local tx, tw = x + 14, bw - 28
-    local ty = ly + R.fs + 6
-    local th = 38
+function R.PaintKeys(x, y, kw)
+    local U, u = R.UI, R.u
+    local rowH = 22 * u
+    local kh = 40 * u + #R.SHORTCUTS * rowH
+    R.Card(x, y, kw, kh, Color(247, 199, 115, 115))
+    R.T("SHORTCUTS", "Caps", x + 16 * u, y + 14 * u, U.gold)
+    local ry = y + 36 * u
+    for _, k in ipairs(R.SHORTCUTS) do
+        R.T(k[1], "Body", x + 16 * u, ry + rowH / 2, U.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+        R.T(k[2], "Strong", x + kw - 16 * u, ry + rowH / 2, U.white, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
+        ry = ry + rowH
+    end
+end
+function R.PaintBuffering(rs, cs, w, h)
+    local U, u = R.UI, R.u
+    local c = rs.p and rs.chunks[rs.p]
+    local text = c and ("Loading " .. R.Clock(c.t0) .. " – " .. R.Clock(c.t1) .. "…") or "Loading this part of the round…"
+    local tw = R.TW("ZCKC.RepBody", text) + 54 * u
+    local th = 40 * u
+    draw.RoundedBox(math.floor(th / 2), w / 2 - tw / 2, h * 0.45 - th / 2, tw, th, Color(12, 12, 14, 230))
+    local a = RealTime() * 5 -- a turning arc
+    local sx, sy, sr = w / 2 - tw / 2 + 22 * u, h * 0.45, 7 * u
+    for i = 0, 5 do
+        local a1, a2 = a + i * 0.7, a + (i + 1) * 0.7
+        R.Bar(sx + math.cos(a1) * sr, sy + math.sin(a1) * sr, sx + math.cos(a2) * sr, sy + math.sin(a2) * sr, 2.2 * u, U.gold)
+    end
+    R.T(text, "Body", w / 2 + 12 * u, h * 0.45, U.text, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+end
+function R.PaintBar(rs, L, cs, x, y, bw, bh)
+    local U, u = R.UI, R.u
+    R.Card(x, y, bw, bh)
     local len = math.max(L.clip.last, 1)
+    -- timeline
+    local tx, tw, ty, th = x + 16 * u, bw - 32 * u, y + 12 * u, 40 * u
     rs.tlBox = rs.tlBox or {}
     rs.tlBox[1], rs.tlBox[2], rs.tlBox[3], rs.tlBox[4] = tx, ty, tw, th
     R.Hit(tx, ty, tw, th, "timeline")
-    surface.SetDrawColor(C.track) surface.DrawRect(tx, ty + 17, tw, 5)
+    local railY, railH = ty + 20 * u, 6 * u
+    local rr = math.floor(3 * u)
+    draw.RoundedBox(rr, tx, railY, tw, railH, U.track)
     for _, c in ipairs(rs.chunks) do
-        local cx = tx + tw * c.t0 / len
-        if c.state == "ready" then surface.SetDrawColor(C.buf) surface.DrawRect(cx, ty + 17, tw * (c.t1 - c.t0) / len, 5) end
-        if c.t0 > 0 then surface.SetDrawColor(C.tick) surface.DrawRect(cx, ty + 14, 1, 11) end
+        if c.state == "ready" then draw.RoundedBox(rr, tx + tw * c.t0 / len, railY, math.max(1, tw * (c.t1 - c.t0) / len), railH, U.buf) end
     end
-    surface.SetDrawColor(C.accent) surface.DrawRect(tx, ty + 17, tw * math.Clamp(cs / len, 0, 1), 5)
+    local head = math.Clamp(cs / len, 0, 1)
+    draw.RoundedBox(rr, tx, railY, tw * head, railH, U.accent)
     local mx, my = input.GetCursorPos()
     local tip
-    for _, b in ipairs(rs.idx.marks) do
-        local bx = tx + tw * b.t / len
-        if b.kind == "kill" then
-            draw.NoTexture()
-            surface.SetDrawColor(C.kill) surface.DrawTexturedRectRotated(bx, ty + 6, 12, 12, 45)
-            surface.SetDrawColor(C.accent) surface.DrawTexturedRectRotated(bx, ty + 6, 10, 10, 45)
-            R.Hit(bx - 7, ty, 14, 14, "seek", b.at)
-        elseif b.kind == "death" then
-            R.Skull(bx, ty + 5)
-            R.Hit(bx - 7, ty - 2, 14, 14, "seek", b.at)
+    draw.NoTexture()
+    for _, m in ipairs(rs.idx.marks) do
+        local px = tx + tw * m.t / len
+        if m.kind == "kill" then
+            surface.SetDrawColor(U.kill)
+            surface.DrawTexturedRectRotated(px, ty + 7 * u, 10 * u, 10 * u, 45)
+            R.Hit(px - 8 * u, ty, 16 * u, 16 * u, "seek", m.at)
+        elseif m.kind == "death" then
+            R.Circle(px, ty + 7 * u, 7 * u, Color(15, 15, 17))
+            R.Circle(px, ty + 7 * u, 5 * u, U.death)
+            R.Hit(px - 8 * u, ty, 16 * u, 16 * u, "seek", m.at)
         else
-            surface.SetDrawColor(C.other) surface.DrawRect(bx - 1, ty + 26, 2, 9)
-            R.Hit(bx - 3, ty + 24, 6, 12, "seek", b.at)
+            surface.SetDrawColor(U.other)
+            surface.DrawRect(px - 1, railY + railH + 4 * u, 2, 10 * u)
+            R.Hit(px - 4 * u, railY + railH, 8 * u, 16 * u, "seek", m.at)
         end
-        if mx >= bx - 7 and mx <= bx + 7 and my >= ty - 2 and my <= ty + th then tip = b end
+        if mx >= px - 8 * u and mx <= px + 8 * u and my >= ty - 2 * u and my <= ty + th then tip = m end
     end
-    surface.SetDrawColor(C.white) surface.DrawRect(tx + tw * math.Clamp(cs / len, 0, 1) - 1, ty + 6, 3, 27)
-    if tip then
-        local ww = R.W("ZCKC.LifeSmall", tip.d.tip) + 14
+    local hx = tx + tw * head
+    R.Circle(hx, railY + railH / 2, 11 * u, Color(192, 0, 0, 140))
+    R.Circle(hx, railY + railH / 2, 8 * u, U.white)
+    if tip and tip.d and tip.d.tip then
+        local text = tip.d.tip
+        local ww = R.TW("ZCKC.RepSmall", text) + 16 * u
         local px = math.Clamp(tx + tw * tip.t / len - ww / 2, x, x + bw - ww)
-        R.Box(px, ty - R.fs - 14, ww, R.fs + 8)
-        draw.SimpleText(tip.d.tip, "ZCKC.LifeSmall", px + 7, ty - R.fs - 10, C.text)
+        draw.RoundedBox(math.floor(4 * u), px, ty - 30 * u, ww, 24 * u, Color(12, 12, 14, 245))
+        R.T(text, "Small", px + 8 * u, ty - 18 * u, U.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
     end
-    -- transport
-    local by, bh2 = ty + th + 4, R.fs + 10
+    -- controls
+    local cy = ty + th + 8 * u + 24 * u
     local bx = tx
-    bx = bx + R.Button(bx, by, bh2, "« Bookmark", false, "mark", -1) + 6
-    bx = bx + R.Button(bx, by, bh2, "-5 s", false, "jump", -500) + 6
-    bx = bx + R.Button(bx, by, bh2, rs.playing and "Pause" or "Play", rs.playing, "play") + 6
-    bx = bx + R.Button(bx, by, bh2, "+5 s", false, "jump", 500) + 6
-    bx = bx + R.Button(bx, by, bh2, "Bookmark »", false, "mark", 1) + 12
-    draw.SimpleText(rs.clockText or "", "ZCKC.LifeHead", bx, by + bh2 / 2, C.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-    bx = bx + R.W("ZCKC.LifeHead", rs.clockText or "") + 14
-    for _, sp in ipairs(R.SPEEDS) do bx = bx + R.Button(bx, by, bh2, sp[2], rs.speed == sp[1], "speed", sp[1]) + 4 end
-    draw.SimpleText(R.KEYS, "ZCKC.LifeSmall", x + bw - 14, by + bh2 / 2, C.muted, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
+    local sq = 40 * u
+    R.Btn(bx, cy - sq / 2, sq, sq, "ghost", "mark", -1) R.Icon("prev", bx + sq / 2, cy, 18 * u, U.text) bx = bx + sq + 6 * u
+    local fiveW = 16 * u + 8 * u + R.TW("ZCKC.RepBody", "5 s") + 12 * u
+    R.Btn(bx, cy - sq / 2, fiveW, sq, "ghost", "jump", -500) R.Icon("back", bx + 16 * u, cy, 16 * u, U.text)
+    R.T("5 s", "Body", bx + 28 * u, cy, U.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER) bx = bx + fiveW + 6 * u
+    local pr = 24 * u
+    R.Circle(bx + pr, cy, pr, R.Over(bx, cy - pr, pr * 2, pr * 2) and Color(214, 0, 0) or U.accent)
+    R.Hit(bx, cy - pr, pr * 2, pr * 2, "play")
+    R.Icon(rs.playing and "pause" or "play", bx + pr, cy, 20 * u, U.white) bx = bx + pr * 2 + 6 * u
+    R.Btn(bx, cy - sq / 2, fiveW, sq, "ghost", "jump", 500)
+    R.T("5 s", "Body", bx + 12 * u, cy, U.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+    R.Icon("fwd", bx + fiveW - 16 * u, cy, 16 * u, U.text) bx = bx + fiveW + 6 * u
+    R.Btn(bx, cy - sq / 2, sq, sq, "ghost", "mark", 1) R.Icon("next", bx + sq / 2, cy, 18 * u, U.text) bx = bx + sq + 18 * u
+    R.T(rs.clockNow or "0:00", "Time", bx, cy, U.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+    bx = bx + R.TW("ZCKC.RepTime", rs.clockNow or "0:00") + 6 * u
+    R.T("/ " .. (rs.clockEnd or ""), "Body", bx, cy + 2 * u, U.muted, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+    bx = bx + R.TW("ZCKC.RepBody", "/ " .. (rs.clockEnd or "")) + 24 * u
+    -- legend
+    surface.SetDrawColor(U.kill) surface.DrawTexturedRectRotated(bx + 4 * u, cy, 8 * u, 8 * u, 45)
+    R.T("Your kills", "Small", bx + 14 * u, cy, U.muted, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER) bx = bx + 24 * u + R.TW("ZCKC.RepSmall", "Your kills")
+    R.Circle(bx + 4 * u, cy, 4.5 * u, U.death)
+    R.T("Your death", "Small", bx + 14 * u, cy, U.muted, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER) bx = bx + 24 * u + R.TW("ZCKC.RepSmall", "Your death")
+    surface.SetDrawColor(U.other) surface.DrawRect(bx + 3 * u, cy - 5 * u, 2, 10 * u)
+    R.T("Other kills", "Small", bx + 12 * u, cy, U.muted, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+    -- right: speed, feed, map
+    local rx = x + bw - 16 * u
+    R.Btn(rx - sq, cy - sq / 2, sq, sq, rs.map and "on" or "ghost", "map") R.Icon("map", rx - sq / 2, cy, 18 * u, rs.map and U.white or U.muted)
+    rx = rx - sq - 6 * u
+    local feedOn = rs.feed ~= false
+    R.Btn(rx - sq, cy - sq / 2, sq, sq, feedOn and "on" or "ghost", "feed") R.Icon("list", rx - sq / 2, cy, 18 * u, feedOn and U.white or U.muted)
+    rx = rx - sq - 12 * u
+    local segH, pad = 34 * u, 3 * u
+    local sw = 42 * u
+    local gx = rx - #R.SPEEDS * (sw + 2 * u)
+    draw.RoundedBox(math.floor(7 * u), gx - pad, cy - segH / 2 - pad, #R.SPEEDS * (sw + 2 * u) + pad * 2, segH + pad * 2, U.segBg)
+    for _, sp in ipairs(R.SPEEDS) do
+        local on = rs.speed == sp[1]
+        R.Btn(gx, cy - segH / 2, sw, segH, on and "on" or "flat", "speed", sp[1])
+        R.T(sp[2], "Strong", gx + sw / 2, cy, on and U.white or U.text, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+        gx = gx + sw + 2 * u
+    end
 end
-function R.Skull(x, y)
-    local C = R.C
-    surface.SetDrawColor(C.white) surface.DrawRect(x - 5, y - 5, 10, 8) surface.DrawRect(x - 3, y + 3, 6, 3)
-    surface.SetDrawColor(C.black) surface.DrawRect(x - 3, y - 2, 2, 2) surface.DrawRect(x + 1, y - 2, 2, 2)
+-- Loading, and a round that could not be opened: always a card with a way out (Cancel / Back), never a bare line.
+function R.PaintLoading(rs, w, h)
+    local U, u = R.UI, R.u
+    local cw = math.min(640 * u, w - 32 * u)
+    local f = rs.failed
+    local ch = f and 170 * u or 160 * u
+    local x, y = w / 2 - cw / 2, h * 0.42 - ch / 2
+    R.Card(x, y, cw, ch, f and Color(215, 153, 74, 140) or nil)
+    if f then
+        R.T(f.title, "Big", x + 28 * u, y + 26 * u, U.text)
+        R.T(f.text, "Body", x + 28 * u, y + 62 * u, U.text)
+        local bx = x + 28 * u
+        if f.retry then
+            local tw = R.TW("ZCKC.RepStrong", "Try again") + 32 * u
+            R.Btn(bx, y + ch - 64 * u, tw, 40 * u, "red", "retry")
+            R.T("Try again", "Strong", bx + tw / 2, y + ch - 44 * u, U.white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+            bx = bx + tw + 10 * u
+        end
+        local bw2 = R.TW("ZCKC.RepStrong", "Back to Replays") + 32 * u
+        R.Btn(bx, y + ch - 64 * u, bw2, 40 * u, "ghost", "close")
+        R.T("Back to Replays", "Strong", bx + bw2 / 2, y + ch - 44 * u, U.text, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+        return
+    end
+    R.T("ROUND REPLAY", "Caps", x + 28 * u, y + 24 * u, U.caps)
+    R.T("Round " .. tostring(rs.rid), "Big", x + 28 * u, y + 42 * u, U.text)
+    local cancelW = 52 * u + R.TW("ZCKC.RepStrong", "Cancel") + R.TW("ZCKC.RepKey", "Esc")
+    local cx = x + cw - 28 * u - cancelW
+    R.Btn(cx, y + 26 * u, cancelW, 40 * u, "ghost", "close")
+    R.Icon("x", cx + 18 * u, y + 46 * u, 14 * u, U.text)
+    R.T("Cancel", "Strong", cx + 32 * u, y + 46 * u, U.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+    R.Chip("Esc", cx + 40 * u + R.TW("ZCKC.RepStrong", "Cancel"), y + 46 * u, U.muted)
+    local ij = rs.indexJob
+    local share = ij and ij.raw and #ij.raw > 0 and math.Clamp((ij.pos or 1) / #ij.raw, 0, 1) or nil
+    R.T(rs.note or "Asking the server for the round…", "Body", x + 28 * u, y + 90 * u, U.text)
+    local py, pw = y + 118 * u, cw - 56 * u
+    draw.RoundedBox(math.floor(4 * u), x + 28 * u, py, pw, 8 * u, U.track)
+    if share then
+        draw.RoundedBox(math.floor(4 * u), x + 28 * u, py, pw * share, 8 * u, U.accent)
+    else -- waiting on the server: a sweeping bar, since there is nothing to count yet
+        local t = (RealTime() * 0.6) % 1
+        local sx = x + 28 * u + (pw - pw * 0.25) * math.abs(t * 2 - 1)
+        draw.RoundedBox(math.floor(4 * u), sx, py, pw * 0.25, 8 * u, U.accent)
+    end
+    R.T("It starts playing as soon as the first part is in.", "Small", x + 28 * u, y + 136 * u, U.muted)
+end
+-- A round that could not be opened keeps the panel up with the reason and a way back (the old viewer closed with a
+-- console line nobody saw). `retry`: offer Try again.
+function R.Fail(rs, title, text, retry)
+    rs.failed = {title = title, text = text, retry = retry}
+    rs.indexJob = nil
+    MsgN("[Replay] " .. text)
 end
 
 ----------------------------------------------------------------- bullet segments (the tape's `s` track)
@@ -1285,13 +1567,13 @@ function R.Watch()
     end
     if not rs then return end
     if R.Blocked(LocalPlayer()) then return R.Close("alive") end
+    if rs.failed then return end
     local menu = gui.IsGameUIVisible()
     if menu and not rs.menuUp and not gui.IsConsoleVisible() then gui.HideGameUI() return R.Close("esc") end
     rs.menuUp = menu
     if rs.idx then return R.Start(rs) end
     if not rs.indexJob and RealTime() - rs.askedAt > R.INDEX_WAIT then
-        MsgN("[Replay] the server sent nothing back for round " .. rs.rid .. ".")
-        return R.Close("timeout")
+        return R.Fail(rs, "Couldn't load this round", "The server didn't answer in time. It may still be saving the round, or the recording is gone.", true)
     end
     R.Pump(rs, R.BUDGET)
 end
