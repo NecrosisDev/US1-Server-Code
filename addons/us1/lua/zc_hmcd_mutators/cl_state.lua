@@ -168,4 +168,4 @@ end)
 concommand.Add("zc_mutator_info", function()
     if not state.active then print("[zc_mutators] No active mutator.") return end
     print("[zc_mutators] " .. state.title .. ": " .. state.description)
-end)
+end, nil, "Print the active round mutator and what it does.")

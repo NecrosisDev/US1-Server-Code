@@ -329,4 +329,4 @@ concommand.Add("zc_lowpop_status", function(ply)
 	else
 		print(msg)
 	end
-end)
+end, nil, "Superadmin: print the low-population mode lock and its mode pool.")

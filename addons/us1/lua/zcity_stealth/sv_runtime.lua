@@ -520,7 +520,7 @@ function S.RequestAction(p,id,selected,equipment,dropItem)
 end
 concommand.Add("zsf_action",function(p,_,args)
     S.RequestAction(p,args[1])
-end)
+end, nil, "Internal (stealth client): request a stealth action: zsf_action <action>.")
 hook.Add("PlayerSay","ZCityStealth.Help",function(p,text)
     if string.Trim(string.lower(text))=="!stealth" then p:ConCommand("zsf_menu") return "" end
 end)

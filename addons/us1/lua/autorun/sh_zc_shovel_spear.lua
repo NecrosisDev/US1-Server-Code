@@ -140,7 +140,7 @@ if SERVER then
 		ply:EmitSound("physics/metal/metal_box_impact_hard" .. math.random(1, 3) .. ".wav", 65, math.random(110, 125), 0.8, CHAN_ITEM)
 
 		hook.Run("ZC_ShovelSpear", ply, spear) -- for anything that wants to react
-	end)
+	end, nil, "Break the head off your shovel to make a spear (also in the Q radial).")
 
 	print("[ShovelSpear] loaded - `zc_break_shovel` live (radial entry needs clients to have the file: next restart)")
 	return

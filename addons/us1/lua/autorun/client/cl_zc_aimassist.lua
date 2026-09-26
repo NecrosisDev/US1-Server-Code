@@ -44,7 +44,7 @@ local function createConvars()
     cvReach    = CreateClientConVar("axs_zc_nudge_reach", "10", true, true, "Largest miss it will fix, measured at the target", 0, 16)
     concommand.Add("axs_zc_version", function()
         print("[axs_zc] client " .. ZC_AIMASSIST_VERSION .. " | active for tester")
-    end)
+    end, nil, "Print the aim assist client version.")
 end
 
 local IsValid    = IsValid

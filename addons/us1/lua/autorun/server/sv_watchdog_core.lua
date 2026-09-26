@@ -691,7 +691,7 @@ concommand.Add("wd_status", function(ply)
 		print(string.format("   %-22s %-11s %s", p:Nick(), p:GetUserGroup(),
 			WD.IsExempt(p) and "EXEMPT (ignored)" or "watched"))
 	end
-end)
+end, nil, "Superadmin: print Watchdog version, mode and module settings.")
 
 -- quick check: does Watchdog watch or ignore a given player?  wd_check <partial name>
 concommand.Add("wd_check", function(ply, _, args)
@@ -704,14 +704,14 @@ concommand.Add("wd_check", function(ply, _, args)
 				WD.IsExempt(p) and "EXEMPT" or "WATCHED"))
 		end
 	end
-end)
+end, nil, "Superadmin: show whether Watchdog watches or exempts players: wd_check [name].")
 
 concommand.Add("wd_dossiers", function(ply)
 	if IsValid(ply) and not ply:IsSuperAdmin() then return end
 	local files = file.Find(WD.Config.dossierDir .. "/*.txt", "DATA")
 	print("[Watchdog] " .. #files .. " dossiers in data/" .. WD.Config.dossierDir .. "/")
 	for i = math.max(1, #files - 20), #files do print("  " .. files[i]) end
-end)
+end, nil, "Superadmin: list the newest Watchdog dossier files.")
 
 concommand.Add("wd_config", function(ply, _, args)
 	if IsValid(ply) and not ply:IsSuperAdmin() then return end
@@ -741,6 +741,6 @@ concommand.Add("wd_config", function(ply, _, args)
 		print(string.format("[Watchdog] config %s -> %s", key, tostring(WD.Config[key])))
 		WD.SaveConfig()
 	end
-end)
+end, nil, "Superadmin: read or set Watchdog config: wd_config [key value | module name true|false].")
 
 print("[Watchdog] core v" .. WD.VERSION .. " loaded - WATCH MODE (standalone)")

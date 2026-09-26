@@ -970,7 +970,7 @@ end)
 concommand.Add("zc_perf_report", function(ply)
 	if IsValid(ply) and not ply:IsAdmin() then return end
 	report(ply)
-end)
+end, nil, "Admin: print the profiler report for the current window.")
 
 concommand.Add("zc_perf_reset", function(ply)
 	if IsValid(ply) and not ply:IsAdmin() then return end
@@ -981,7 +981,7 @@ concommand.Add("zc_perf_reset", function(ply)
 	end
 	resetWindow()
 	print("[zc_perf] window reset")
-end)
+end, nil, "Admin: start a fresh profiler window.")
 
 concommand.Add("zc_perf_reports", function(ply)
 	if IsValid(ply) and not ply:IsAdmin() then return end
@@ -993,7 +993,7 @@ concommand.Add("zc_perf_reports", function(ply)
 	for _, f in ipairs(files) do
 		say("  " .. f .. "  (" .. math.Round(file.Size(SAVEDIR .. "/" .. f, "DATA") / 1024, 1) .. " KB)")
 	end
-end)
+end, nil, "Admin: list saved profiler reports in data/.")
 
 print("[zc_perf] v1.7 loaded - auto-capture " .. (cv_auto:GetBool() and "ON" or "off")
 	.. " (arms below " .. cv_autotick:GetInt() .. " tick for " .. cv_autosus:GetInt() .. "s, records "

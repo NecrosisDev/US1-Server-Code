@@ -151,7 +151,7 @@ if SERVER then
 		local left = untilT - CurTime()
 		print(string.format("[ItemBlock] grace %s (%.1fs left) | grenades gated: %d",
 			left > 0 and "ACTIVE" or "inactive", math.max(0, left), gatedCount))
-	end)
+	end, nil, "Admin: print the round-start item grace state.")
 end
 
 -- backstop: any grenade projectile born during grace is unmade -

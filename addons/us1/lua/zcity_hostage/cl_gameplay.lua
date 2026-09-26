@@ -82,15 +82,15 @@ local function confirmShot(t)
     cancel:Dock(TOP) cancel:SetTall(28) cancel:SetText("Cancel")
     cancel.DoClick=function() panel:Close() end
 end
-concommand.Add("+zch_struggle",function() struggling=true nextPulse=0 end)
-concommand.Add("-zch_struggle",function() struggling=false action("struggle","0") end)
+concommand.Add("+zch_struggle",function() struggling=true nextPulse=0 end, nil, "Hostage: hold to struggle against your captor.")
+concommand.Add("-zch_struggle",function() struggling=false action("struggle","0") end, nil, "Hostage: release half of +zch_struggle.")
 for _,name in ipairs({"grab","release","surrender","cuff","kneel","lie","stand"}) do
-    concommand.Add("zch_"..name,function() action(name) end)
+    concommand.Add("zch_"..name,function() action(name) end,nil,"Hostage: "..name.." (the same action as the interaction menu).")
 end
 concommand.Add("zch_execute",function()
     local p=LocalPlayer()
     if IsValid(p) then confirmShot(G.Role(p)=="captor" and partner(p) or p:GetEyeTrace().Entity) end
-end)
+end, nil, "Hostage: shoot your hostage or the player you aim at (asks to confirm).")
 -- Diagnostics only: acknowledgements never decide target eligibility.
 timer.Create("ZCityHostage.Ready",2,0,function()
     local p=LocalPlayer()

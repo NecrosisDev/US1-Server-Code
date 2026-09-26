@@ -236,6 +236,6 @@ concommand.Add("zc_bots_relations", function(ply)
 		end
 	end
 	out(string.format("zc_bots_relations: %d bots with history", bots))
-end)
+end, nil, "Superadmin: print the bot relationship ledger.")
 
 loadLedger()

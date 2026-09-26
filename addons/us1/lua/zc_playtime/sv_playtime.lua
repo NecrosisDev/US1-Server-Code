@@ -304,7 +304,7 @@ end)
 concommand.Add("zc_playtime_me", function(p)
     if not IsValid(p) then return end
     for _, line in ipairs(P.Report(p)) do p:PrintMessage(HUD_PRINTTALK, line) end
-end)
+end, nil, "Show your playtime and hourly ZPoint rewards in chat.")
 
 concommand.Add("zc_playtime_stats", function(p)
     if IsValid(p) and not p:IsAdmin() then return end
@@ -314,7 +314,7 @@ concommand.Add("zc_playtime_stats", function(p)
         P.Version, mode:GetInt(), REWARD:GetInt(), AFK:GetInt(), n, stats.credited / 3600, stats.skippedAfk / 3600,
         stats.hours, stats.paid, stats.refused, stats.imported, stats.saves)
     if IsValid(p) then p:PrintMessage(HUD_PRINTCONSOLE, line) else print(line) end
-end)
+end, nil, "Admin: print playtime tracking totals.")
 
 concommand.Add("zc_playtime_check", function(p, _, args)
     if IsValid(p) and not p:IsAdmin() then return end
@@ -329,4 +329,4 @@ concommand.Add("zc_playtime_check", function(p, _, args)
     end
     local line = "[Playtime] " .. (#out > 0 and table.concat(out, " | ") or "nobody matched")
     if IsValid(p) then p:PrintMessage(HUD_PRINTCONSOLE, line) else print(line) end
-end)
+end, nil, "Admin: print online players' playtime: zc_playtime_check [name].")

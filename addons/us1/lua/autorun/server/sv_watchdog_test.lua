@@ -138,6 +138,6 @@ concommand.Add("wd_test", function(ply, _, args)
 		out("  stay QUIET through normal KO/fear/vehicle chaos (zero false dossiers).")
 	end
 	out("================ end self-test ================")
-end)
+end, nil, "Superadmin: Watchdog self-test: wd_test [module] [player].")
 
 print("[Watchdog] self-test loaded - superadmin: wd_test")

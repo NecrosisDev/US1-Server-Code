@@ -325,4 +325,4 @@ concommand.Add("zc_mutator_equal_status", function(p)
                 .. (s.retired and " | retired" or " | active"))
         end
     end
-end)
+end, nil, "Admin: print Equal Opportunities mutator status.")

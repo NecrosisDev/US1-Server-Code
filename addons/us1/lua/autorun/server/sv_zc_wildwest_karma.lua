@@ -222,12 +222,12 @@ concommand.Add("zc_wwkarma_stats", function(ply)
 	say("current   : zb.CROUND = " .. tostring(zb and zb.CROUND) .. "  -> " .. (activeType() and "SCALED" or "stock"))
 	say("this map  : " .. K.stats.hits .. " penalised hits scaled, " .. string.format("%.1f", K.stats.saved)
 		.. " karma saved total (" .. string.format("%.0f", span / 60) .. " min)")
-end)
+end, nil, "Admin: print Wild West karma-loss savings.")
 
 concommand.Add("zc_wwkarma_reset", function(ply)
 	if IsValid(ply) and not ply:IsAdmin() then return end
 	K.stats = { hits = 0, saved = 0, since = CurTime() }
 	print("[WWKarma] stats reset")
-end)
+end, nil, "Admin: reset the Wild West karma stats.")
 
 print("[WWKarma] loaded - installs on zb.modes.hmcd once the gamemode exists (1s sync)")

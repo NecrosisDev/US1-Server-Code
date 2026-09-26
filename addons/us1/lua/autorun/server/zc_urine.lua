@@ -303,8 +303,8 @@ function U.BladderTick()
     end
 end
 timer.Create("ZCityUrine_Bladder",0.1,0,U.BladderTick)
-concommand.Add("+pee",function(p)if IsValid(p)then U.Start(p)end end)
-concommand.Add("-pee",function(p)if IsValid(p)then U.Stop(p)end end)
+concommand.Add("+pee",function(p)if IsValid(p)then U.Start(p)end end, nil, "Hold to urinate (bind a key to +pee).")
+concommand.Add("-pee",function(p)if IsValid(p)then U.Stop(p)end end, nil, "Release half of +pee.")
 concommand.Add("pee",function(p)
     if not IsValid(p)then return end
     if U.active[p]then U.Stop(p)else U.Start(p)end

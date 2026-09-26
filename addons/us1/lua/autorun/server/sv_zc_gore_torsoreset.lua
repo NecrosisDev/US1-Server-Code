@@ -122,7 +122,7 @@ concommand.Add("zc_gore_torsoreset_status", function(ply)
         M.stats.real, M.stats.skippedFakeUp, M.stats.clearedOrganism, M.stats.clearedRagdoll, M.stats.installs)
 
     if IsValid(ply) then ply:PrintMessage(HUD_PRINTCONSOLE, line) else print(line) end
-end)
+end, nil, "Superadmin: print the gore torso-reset fix status.")
 
 concommand.Add("zc_gore_torsoreset_restore", function(ply)
     if IsValid(ply) and not ply:IsSuperAdmin() then return end
@@ -133,6 +133,6 @@ concommand.Add("zc_gore_torsoreset_restore", function(ply)
     hook.Remove("InitPostEntity", "ZCGoreTorsoReset_Install")
     hook.Add("PlayerSpawn", HOOK, M.Stock)
     print("[zc_gore_torsoreset] restored Gore V2's own listener")
-end)
+end, nil, "Superadmin: remove the torso-reset fix and restore Gore V2's own listener.")
 
 print("[zc_gore_torsoreset] Loaded " .. VERSION)

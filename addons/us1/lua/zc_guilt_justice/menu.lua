@@ -117,4 +117,4 @@ end)
 concommand.Add("zc_guilt_justice_status",function(p)
     if IsValid(p) and not p:IsAdmin() then return end
     print("[GuiltJustice]",J.Version,"cases",table.Count(J.cases),"extra penalties",false)
-end)
+end, nil, "Admin: print guilt justice status.")

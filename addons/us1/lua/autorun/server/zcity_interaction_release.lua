@@ -13,4 +13,4 @@ concommand.Add("zci_release_status",function(p)
         local cv=GetConVar(name);print("[Interaction config]",name,cv and cv:GetString() or "MISSING")
     end
     print("[Interaction acceptance] Local candidate; diagnostics do not prove rendering, medical outcomes or release acceptance.")
-end)
+end, nil, "Superadmin: print interaction release versions and seams (read-only).")

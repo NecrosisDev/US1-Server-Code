@@ -94,7 +94,7 @@ end
 concommand.Add("zc_wfa_tpik_fix_status", function()
     print("[zc_wfa_tpik_fix] v" .. VERSION .. " " .. Reason())
     for _, key in ipairs(keys) do print("  " .. key .. ": " .. (state.counts[key] or 0)) end
-end)
+end, nil, "Print the weapon TPIK fix status on this client.")
 
 net.Receive(NET, function()
     local request = net.ReadUInt(16)

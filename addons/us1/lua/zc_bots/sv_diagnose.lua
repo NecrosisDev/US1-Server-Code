@@ -269,4 +269,4 @@ concommand.Add("zc_bots_stats", function(ply, _, args)
 		local v = hg.botdriver.stats[k] or 0
 		out(string.format("  %-16s %6d   (%.2f/min)", k, v, v / (elapsed / 60)))
 	end
-end)
+end, nil, "Superadmin: print bot decision stats: zc_bots_stats [reset].")

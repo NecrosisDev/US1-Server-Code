@@ -348,4 +348,4 @@ concommand.Add("zc_killcam_ledger_print", function(p, _, args)
     else
         reply(p, "[Killcam] ledger: no lastLife for " .. sid)
     end
-end)
+end, nil, "Admin: print the killcam life ledger: zc_killcam_ledger_print [name].")

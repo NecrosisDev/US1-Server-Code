@@ -50,4 +50,4 @@ concommand.Add("zch_preview", function()
             .. (clip.paired and " | Paired clip: preview shows one role only."
                 or clip.requires_positioning and " | Requires gameplay positioning/collision handling." or ""))
     end
-end)
+end, nil, "Open the hostage animation library preview.")

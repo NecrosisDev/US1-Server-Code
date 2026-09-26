@@ -141,4 +141,4 @@ concommand.Add("zc_headshot_slowmo_status", function(p)
     print("[HeadshotSlowmo]", M.Version, "enabled", enabled:GetBool(), "scale", game.GetTimeScale(),
         "active", M.active ~= nil, "kills", M.stats.kills, "pulses", M.stats.pulses, "coalesced", M.stats.coalesced,
         "extended", M.stats.extended, "added seconds", M.stats.extensionSeconds)
-end)
+end, nil, "Admin: print headshot slow-motion status.")

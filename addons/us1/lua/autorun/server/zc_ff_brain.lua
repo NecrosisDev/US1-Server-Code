@@ -339,7 +339,7 @@ concommand.Add("zc_ff_brain_status", function(ply)
     print("[ZCityFFBrain]", F.Version, "enabled", enabled:GetBool(),
         "mode", mode and mode.name, "kind", F.ModeKind(mode), "grace", grace:GetFloat(), "victimScale", F.VictimScale(mode),
         "karmaEnabled", karmaEnabled:GetBool(), "karmaScale", karmaScale:GetFloat())
-end)
+end, nil, "Admin: print friendly-fire brain settings for the current mode.")
 -- Normal loads are silent; errors and requested status output are preserved.
 
 F.InstallDamagePriority()

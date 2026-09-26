@@ -103,6 +103,6 @@ concommand.Add("wd_http", function(ply)
 			e.r.last and os.date("%m-%d %H:%M", e.r.last) or "?"))
 	end
 	if #rows == 0 then print("  (nothing logged yet)") end
-end)
+end, nil, "Superadmin: list outbound HTTP hosts seen by Watchdog.")
 
 print("[Watchdog] HTTP monitor loaded")

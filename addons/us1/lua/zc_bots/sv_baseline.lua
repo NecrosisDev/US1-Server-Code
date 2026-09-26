@@ -25,4 +25,4 @@ concommand.Add("zc_bots_baseline", function(ply)
 		tostring(hg.botdriver.Enabled()), tostring(navmesh.IsLoaded()),
 		#player.GetHumans(), #player.GetBots(), fakes))
 	line(ply, "")
-end)
+end, nil, "Superadmin: print a census of bots, players and ragdolls.")

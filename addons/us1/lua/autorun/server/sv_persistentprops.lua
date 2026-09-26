@@ -330,18 +330,18 @@ concommand.Add("persistent_props_reload", function(ply)
     if IsValid(ply) and not canManage(ply) then return end
     PersistentProps:RespawnAll()
     if IsValid(ply) then notify(ply, "Reloaded all persistent props.") end
-end)
+end, nil, "Admin: respawn every persistent prop on this map.")
 
 concommand.Add("persistent_props_wipe", function(ply)
     if IsValid(ply) and not ply:IsSuperAdmin() then return end
     PersistentProps:WipeMap()
     if IsValid(ply) then notify(ply, "Wiped all persistent props for this map.") end
-end)
+end, nil, "Superadmin: delete every persistent prop saved for this map.")
 
 concommand.Add("persistent_props_menu", function(ply)
     if not canManage(ply) then return end
     PersistentProps:SendList(ply)
-end)
+end, nil, "Admin: send the persistent prop list to your manager window (!pprops).")
 
 net.Receive("PersistentProps_RequestList", function(_, ply)
     if not canManage(ply) then return end

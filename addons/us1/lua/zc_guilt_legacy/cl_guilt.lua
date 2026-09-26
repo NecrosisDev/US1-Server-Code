@@ -1010,6 +1010,37 @@ local function openGuiltAdminMenu(cfg)
 
     applyWorkingTheme()
 
+    -- UI cohesion U5 (2026-09-26): with the GoobOS kit loaded, this window's own chrome (frame, title bar, tabs, blocks,
+    -- fields, buttons) uses the kit's theme tokens and fonts. The live preview and the colour swatches keep drawing the
+    -- guilt theme being edited - that is what this window edits. Without the kit everything draws as it always did.
+    local A = ZCGoobApps
+    local K, KT = A and A.Kit, A and A.Theme
+    if not (K and KT and KT.glass and KT.edge) then K, KT = nil, nil end
+    local CHROME = {panelBg = "glass", panelInner = "card", panelAlt = "bg", accent = "main", accentSoft = "edge", textMain = "text", textSub = "text", muted = "muted"}
+    local function chrome(key, fallback)
+        return KT and KT[CHROME[key]] or themeColor(key, fallback)
+    end
+    local FONT_SPEC = {[FONT_TITLE] = {22, 700}, [FONT_HEADER] = {18, 700}, [FONT_MED] = {16, 600}, [FONT_SMALL] = {14, 500}, [FONT_TINY] = {12, 500}}
+    local function font(name)
+        local spec = K and FONT_SPEC[name]
+        return spec and K.Font(ui(spec[1]), spec[2]) or name
+    end
+    -- Buttons: a kit button (card, or red for primary) with the kit, the outlined black box without it.
+    local function paintButton(self, w, h, label, fontName, primary, fixedOutline)
+        if K then
+            local hover = K.Hover(self)
+            draw.RoundedBox(4, 0, 0, w, h, primary and KT.main or KT.card)
+            if hover > 0.01 then draw.RoundedBox(4, 0, 0, w, h, K.Alpha(KT.white, 13 * hover)) end
+            draw.SimpleText(label, font(fontName), w * 0.5, h * 0.5, primary and KT.white or KT.text, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+            return
+        end
+        surface.SetDrawColor(0, 0, 0, 180)
+        surface.DrawRect(0, 0, w, h)
+        local outline = (fixedOutline or self:IsHovered()) and themeColor("accent", Color(190, 20, 20, 220)) or themeColor("accentSoft", Color(255, 45, 45, 120))
+        drawOutlinedRect(0, 0, w, h, outline, ui(2))
+        draw.SimpleText(label, fontName, w * 0.5, h * 0.5, themeColor("textMain", Color(245, 245, 245, 255)), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+    end
+
     local frameClass = vgui.GetControlTable("ZFrame") and "ZFrame" or "DFrame"
     local frame = vgui.Create(frameClass)
 
@@ -1022,6 +1053,10 @@ local function openGuiltAdminMenu(cfg)
 
     frame.Paint = function(self, w, h)
         blurPanel(self, 100)
+        if K then
+            K.Card(0, 0, w, h, KT.glass, KT.edge)
+            return
+        end
         surface.SetDrawColor(themeColor("panelBg", Color(8, 8, 8, 220)))
         surface.DrawRect(0, 0, w, h)
         drawOutlinedRect(0, 0, w, h, themeColor("accent", Color(190, 20, 20, 220)), ui(2))
@@ -1031,6 +1066,13 @@ local function openGuiltAdminMenu(cfg)
     titleBar:Dock(TOP)
     titleBar:SetTall(ui(58))
     titleBar.Paint = function(self, w, h)
+        if K then
+            draw.RoundedBoxEx(4, 0, 0, w, h, KT.glassHi, true, true, false, false)
+            surface.SetDrawColor(KT.hair)
+            surface.DrawRect(0, h - 1, w, 1)
+            draw.SimpleText("Guilt admin", font(FONT_TITLE), ui(14), h * 0.5, KT.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+            return
+        end
         surface.SetDrawColor(themeColor("panelInner", Color(18, 18, 18, 235)))
         surface.DrawRect(0, 0, w, h)
         drawOutlinedRect(0, 0, w, h, themeColor("accentSoft", Color(255, 45, 45, 120)), 1)
@@ -1042,12 +1084,7 @@ local function openGuiltAdminMenu(cfg)
     closeButton:DockMargin(0, ui(10), ui(10), ui(10))
     closeButton:SetWide(ui(40))
     closeButton:SetText("")
-    closeButton.Paint = function(self, w, h)
-        surface.SetDrawColor(0, 0, 0, 180)
-        surface.DrawRect(0, 0, w, h)
-        drawOutlinedRect(0, 0, w, h, self:IsHovered() and themeColor("accent", Color(190, 20, 20, 220)) or themeColor("accentSoft", Color(255, 45, 45, 120)), ui(2))
-        draw.SimpleText("X", FONT_SMALL, w * 0.5, h * 0.5, themeColor("textMain", Color(245, 245, 245, 255)), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-    end
+    closeButton.Paint = function(self, w, h) paintButton(self, w, h, "X", FONT_SMALL) end
     closeButton.DoClick = function()
         restoreLiveTheme()
         frame:Remove()
@@ -1058,12 +1095,7 @@ local function openGuiltAdminMenu(cfg)
     saveButton:DockMargin(0, ui(10), ui(10), ui(10))
     saveButton:SetWide(ui(130))
     saveButton:SetText("")
-    saveButton.Paint = function(self, w, h)
-        surface.SetDrawColor(0, 0, 0, 180)
-        surface.DrawRect(0, 0, w, h)
-        drawOutlinedRect(0, 0, w, h, self:IsHovered() and themeColor("accent", Color(190, 20, 20, 220)) or themeColor("accentSoft", Color(255, 45, 45, 120)), ui(2))
-        draw.SimpleText("Save", FONT_SMALL, w * 0.5, h * 0.5, themeColor("textMain", Color(245, 245, 245, 255)), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-    end
+    saveButton.Paint = function(self, w, h) paintButton(self, w, h, "Save", FONT_SMALL, true) end
     saveButton.DoClick = function()
         net.Start("zcity_guilt_admin_save")
         net.WriteTable(work)
@@ -1085,12 +1117,37 @@ local function openGuiltAdminMenu(cfg)
     themePanel.Paint = nil
     sheet:AddSheet("Theme", themePanel, "icon16/color_wheel.png")
 
+    if K then
+        -- Kit tabs: the active tab is a card with the text colour, the others dimmed; no skin background.
+        sheet.Paint = function() end
+        for _, item in ipairs(sheet.Items or {}) do
+            local tab = item.Tab
+            if IsValid(tab) then
+                tab:SetFont(font(FONT_SMALL))
+                tab.UpdateColours = function(s) return s:SetTextStyleColor(sheet:GetActiveTab() == s and KT.text or KT.muted) end
+                tab.Paint = function(s, w, h)
+                    local on = sheet:GetActiveTab() == s
+                    draw.RoundedBoxEx(4, 0, 0, w, h, on and KT.card or K.Alpha(KT.card, 110), true, true, false, false)
+                    if on then
+                        surface.SetDrawColor(KT.main)
+                        surface.DrawRect(0, 0, w, 2)
+                    end
+                end
+                tab:InvalidateLayout()
+            end
+        end
+    end
+
     local function addBlock(parent, h)
         local pnl = parent:Add("DPanel")
         pnl:Dock(TOP)
         pnl:DockMargin(0, 0, 0, ui(8))
         pnl:SetTall(h)
         pnl.Paint = function(self, w, hh)
+            if K then
+                draw.RoundedBox(4, 0, 0, w, hh, KT.card)
+                return
+            end
             surface.SetDrawColor(themeColor("panelInner", Color(18, 18, 18, 235)))
             surface.DrawRect(0, 0, w, hh)
             drawOutlinedRect(0, 0, w, hh, themeColor("accentSoft", Color(255, 45, 45, 120)), 1)
@@ -1099,10 +1156,16 @@ local function openGuiltAdminMenu(cfg)
     end
 
     local function styleEntry(entry)
-        entry:SetFont(FONT_SMALL)
-        entry:SetTextColor(themeColor("textMain", Color(245, 245, 245, 255)))
-        entry:SetHighlightColor(themeColor("accent", Color(190, 20, 20, 220)))
+        entry:SetFont(font(FONT_SMALL))
+        entry:SetTextColor(chrome("textMain", Color(245, 245, 245, 255)))
+        entry:SetHighlightColor(chrome("accent", Color(190, 20, 20, 220)))
         entry.Paint = function(self, w, h)
+            if K then
+                draw.RoundedBox(4, 0, 0, w, h, KT.bg)
+                if self:HasFocus() then drawOutlinedRect(0, 0, w, h, KT.main, 1) end
+                self:DrawTextEntryText(KT.text, KT.accent, KT.text)
+                return
+            end
             surface.SetDrawColor(themeColor("panelAlt", Color(28, 28, 28, 220)))
             surface.DrawRect(0, 0, w, h)
             drawOutlinedRect(0, 0, w, h, self:HasFocus() and themeColor("accent", Color(190, 20, 20, 220)) or themeColor("accentSoft", Color(255, 45, 45, 120)), 1)
@@ -1120,9 +1183,9 @@ local function openGuiltAdminMenu(cfg)
         local lbl = pnl:Add("DLabel")
         lbl:Dock(FILL)
         lbl:DockMargin(ui(10), 0, ui(10), 0)
-        lbl:SetFont(FONT_SMALL)
+        lbl:SetFont(font(FONT_SMALL))
         lbl:SetText(labelText)
-        lbl:SetTextColor(themeColor("textMain", Color(245, 245, 245, 255)))
+        lbl:SetTextColor(chrome("textMain", Color(245, 245, 245, 255)))
         lbl:SetContentAlignment(4)
 
         local checkbox = pnl:Add("DCheckBox")
@@ -1131,6 +1194,12 @@ local function openGuiltAdminMenu(cfg)
         checkbox:SetWide(ui(22))
         checkbox:SetChecked(work[key] and true or false)
         checkbox.Paint = function(self, w, h)
+            if K then
+                draw.RoundedBox(4, 0, 0, w, h, KT.bg)
+                drawOutlinedRect(0, 0, w, h, self:GetChecked() and KT.main or KT.edge, 1)
+                if self:GetChecked() then draw.RoundedBox(3, ui(4), ui(4), w - ui(8), h - ui(8), KT.main) end
+                return
+            end
             surface.SetDrawColor(themeColor("panelAlt", Color(28, 28, 28, 220)))
             surface.DrawRect(0, 0, w, h)
             drawOutlinedRect(0, 0, w, h, self:GetChecked() and themeColor("accent", Color(190, 20, 20, 220)) or themeColor("accentSoft", Color(255, 45, 45, 120)), 1)
@@ -1151,9 +1220,9 @@ local function openGuiltAdminMenu(cfg)
         lbl:Dock(TOP)
         lbl:DockMargin(ui(10), ui(6), ui(10), ui(4))
         lbl:SetTall(ui(14))
-        lbl:SetFont(FONT_TINY)
+        lbl:SetFont(font(FONT_TINY))
         lbl:SetText(labelText)
-        lbl:SetTextColor(themeColor("textMain", Color(245, 245, 245, 255)))
+        lbl:SetTextColor(chrome("textMain", Color(245, 245, 245, 255)))
         lbl:SetContentAlignment(4)
 
         local entry = pnl:Add("DTextEntry")
@@ -1171,9 +1240,9 @@ local function openGuiltAdminMenu(cfg)
     generalHeader.Paint = nil
     local generalLabel = generalHeader:Add("DLabel")
     generalLabel:Dock(FILL)
-    generalLabel:SetFont(FONT_HEADER)
+    generalLabel:SetFont(font(FONT_HEADER))
     generalLabel:SetText("General")
-    generalLabel:SetTextColor(themeColor("textMain", Color(245, 245, 245, 255)))
+    generalLabel:SetTextColor(chrome("textMain", Color(245, 245, 245, 255)))
     generalLabel:SetContentAlignment(4)
 
     addCheck(generalScroll, "Disable native guilt menu", "DisableNativeMenu")
@@ -1199,9 +1268,9 @@ local function openGuiltAdminMenu(cfg)
     presetsHeader.Paint = nil
     local presetsLabel = presetsHeader:Add("DLabel")
     presetsLabel:Dock(FILL)
-    presetsLabel:SetFont(FONT_HEADER)
+    presetsLabel:SetFont(font(FONT_HEADER))
     presetsLabel:SetText("Punish Presets")
-    presetsLabel:SetTextColor(themeColor("textMain", Color(245, 245, 245, 255)))
+    presetsLabel:SetTextColor(chrome("textMain", Color(245, 245, 245, 255)))
     presetsLabel:SetContentAlignment(4)
 
     local function rebuildPresetEditors()
@@ -1218,17 +1287,17 @@ local function openGuiltAdminMenu(cfg)
             local title = pnl:Add("DLabel")
             title:SetPos(ui(10), ui(8))
             title:SetSize(ui(200), ui(20))
-            title:SetFont(FONT_SMALL)
+            title:SetFont(font(FONT_SMALL))
             title:SetText("Preset #" .. i)
-            title:SetTextColor(themeColor("textMain", Color(245, 245, 245, 255)))
+            title:SetTextColor(chrome("textMain", Color(245, 245, 245, 255)))
 
             local function makeField(x, y, w, labelText, value, onChange)
                 local lbl = pnl:Add("DLabel")
                 lbl:SetPos(x, y)
                 lbl:SetSize(w, ui(14))
-                lbl:SetFont(FONT_TINY)
+                lbl:SetFont(font(FONT_TINY))
                 lbl:SetText(labelText)
-                lbl:SetTextColor(themeColor("muted", Color(160, 160, 160, 255)))
+                lbl:SetTextColor(chrome("muted", Color(160, 160, 160, 255)))
 
                 local entry = pnl:Add("DTextEntry")
                 entry:SetPos(x, y + ui(16))
@@ -1253,12 +1322,7 @@ local function openGuiltAdminMenu(cfg)
 
             local remove = pnl:Add("DButton")
             remove:SetText("")
-            remove.Paint = function(self, w, h)
-                surface.SetDrawColor(0, 0, 0, 180)
-                surface.DrawRect(0, 0, w, h)
-                drawOutlinedRect(0, 0, w, h, themeColor("accent", Color(190, 20, 20, 220)), ui(2))
-                draw.SimpleText("Remove", FONT_TINY, w * 0.5, h * 0.5, themeColor("textMain", Color(245, 245, 245, 255)), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-            end
+            remove.Paint = function(self, w, h) paintButton(self, w, h, "Remove", FONT_TINY, false, true) end
             remove.DoClick = function()
                 table.remove(work.Presets, i)
                 rebuildPresetEditors()
@@ -1277,12 +1341,7 @@ local function openGuiltAdminMenu(cfg)
         addBtn:Dock(FILL)
         addBtn:DockMargin(ui(10), ui(6), ui(10), ui(6))
         addBtn:SetText("")
-        addBtn.Paint = function(self, w, h)
-            surface.SetDrawColor(0, 0, 0, 180)
-            surface.DrawRect(0, 0, w, h)
-            drawOutlinedRect(0, 0, w, h, self:IsHovered() and themeColor("accent", Color(190, 20, 20, 220)) or themeColor("accentSoft", Color(255, 45, 45, 120)), ui(2))
-            draw.SimpleText("Add Preset", FONT_SMALL, w * 0.5, h * 0.5, themeColor("textMain", Color(245, 245, 245, 255)), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-        end
+        addBtn.Paint = function(self, w, h) paintButton(self, w, h, "Add Preset", FONT_SMALL) end
         addBtn.DoClick = function()
             work.Presets[#work.Presets + 1] = {
                 id = "preset_" .. (#work.Presets + 1),
@@ -1400,8 +1459,8 @@ themeHelp:Dock(FILL)
 themeHelp:DockMargin(ui(4), 0, ui(4), 0)
 themeHelp:SetWrap(true)
 themeHelp:SetAutoStretchVertical(true)
-themeHelp:SetFont(FONT_TINY)
-themeHelp:SetTextColor(themeColor("muted", Color(160, 160, 160, 255)))
+themeHelp:SetFont(font(FONT_TINY))
+themeHelp:SetTextColor(chrome("muted", Color(160, 160, 160, 255)))
 themeHelp:SetText("Theme colors are grouped by UI surface. Click a button to edit it in the mixer.")
 
 for _, group in ipairs(ZCITY_GUILT.ThemeGroups or {}) do
@@ -1416,6 +1475,10 @@ for _, group in ipairs(ZCITY_GUILT.ThemeGroups or {}) do
     groupPanel:DockMargin(0, 0, 0, ui(10))
     groupPanel:SetTall(panelH)
     groupPanel.Paint = function(_, w, h)
+        if K then
+            draw.RoundedBox(4, 0, 0, w, h, KT.card)
+            return
+        end
         surface.SetDrawColor(themeColor("panelInner", Color(18, 18, 18, 235)))
         surface.DrawRect(0, 0, w, h)
         drawOutlinedRect(0, 0, w, h, themeColor("accentSoft", Color(255, 45, 45, 120)), 1)
@@ -1425,9 +1488,9 @@ for _, group in ipairs(ZCITY_GUILT.ThemeGroups or {}) do
     groupHeader:Dock(TOP)
     groupHeader:SetTall(ui(28))
     groupHeader:DockMargin(ui(10), ui(4), ui(10), 0)
-    groupHeader:SetFont(FONT_SMALL)
+    groupHeader:SetFont(font(FONT_SMALL))
     groupHeader:SetText(group.title or "Group")
-    groupHeader:SetTextColor(themeColor("textMain", Color(245, 245, 245, 255)))
+    groupHeader:SetTextColor(chrome("textMain", Color(245, 245, 245, 255)))
     groupHeader:SetContentAlignment(4)
 
     local grid = groupPanel:Add("DPanel")
@@ -1460,29 +1523,34 @@ for _, group in ipairs(ZCITY_GUILT.ThemeGroups or {}) do
         selectedThemeButtons[key] = button
         button:SetText("")
         button.Paint = function(self, w, h)
-            local clr = themeColor(key, Color(255, 255, 255, 255))
+            local clr = themeColor(key, Color(255, 255, 255, 255)) -- the swatch: the colour being edited
             local selected = self.themeKey == selectedThemeKey
 
-            surface.SetDrawColor(25, 25, 25, 220)
-            surface.DrawRect(0, 0, w, h)
-            drawOutlinedRect(
-                0,
-                0,
-                w,
-                h,
-                selected and themeColor("accent", Color(190, 20, 20, 220)) or themeColor("accentSoft", Color(255, 45, 45, 120)),
-                1
-            )
+            if K then
+                draw.RoundedBox(4, 0, 0, w, h, KT.bg)
+                drawOutlinedRect(0, 0, w, h, selected and KT.main or KT.edge, 1)
+            else
+                surface.SetDrawColor(25, 25, 25, 220)
+                surface.DrawRect(0, 0, w, h)
+                drawOutlinedRect(
+                    0,
+                    0,
+                    w,
+                    h,
+                    selected and themeColor("accent", Color(190, 20, 20, 220)) or themeColor("accentSoft", Color(255, 45, 45, 120)),
+                    1
+                )
+            end
 
             surface.SetDrawColor(clr)
             surface.DrawRect(ui(8), ui(8), ui(18), h - ui(16))
 
             draw.SimpleText(
                 (ZCITY_GUILT.ThemeLabels and ZCITY_GUILT.ThemeLabels[key]) or key,
-                FONT_TINY,
+                font(FONT_TINY),
                 ui(34),
                 h * 0.5,
-                themeColor("textMain", Color(245, 245, 245, 255)),
+                chrome("textMain", Color(245, 245, 245, 255)),
                 TEXT_ALIGN_LEFT,
                 TEXT_ALIGN_CENTER
             )
@@ -1517,7 +1585,7 @@ end
 concommand.Add("zcity_guilt_admin_menu", function()
     if not IsValid(LocalPlayer()) or not LocalPlayer():IsAdmin() then return end
     RunConsoleCommand("zcity_guilt_admin")
-end)
+end, nil, "Open the guilt admin window: guilt rules, punish presets and the guilt menu colours (admins; same as !guiltadmin).")
 
 net.Receive("zcity_guilt_admin_open", function()
     local cfg = net.ReadTable()

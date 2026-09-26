@@ -5,7 +5,7 @@
 --   surface.CreateFont/SetFont/GetTextSize/SetDrawColor/DrawRect/DrawOutlinedRect/PlaySound,
 --   draw.RoundedBox/RoundedBoxEx/SimpleText,
 --   net.Receive/ReadFloat/ReadBool/ReadString/BytesLeft/Start/SendToServer,
---   util.NetworkStringToID, chat.AddText, concommand.Add,
+--   util.NetworkStringToID, chat.AddText, concommand.Add, RunConsoleCommand, ULib (optional: ucl.query, cmds.translatedCmds),
 --   vgui.Create, IsValid, LocalPlayer, GetConVar, cvars.AddChangeCallback,
 --   string.format/gsub/match/sub, table.concat, TEXT_ALIGN_RIGHT/TEXT_ALIGN_CENTER.
 if not CLIENT then return end
@@ -87,6 +87,7 @@ end
 hook.Add("InitPostEntity", "RestartWarning_Ready", requestState)
 
 -- Preview never sends a server request, changes a schedule or issues a reconnect.
+local PREVIEW_HELP = "Show the restart notice locally, as a preview: zc_restart_preview [seconds 1-900] [reason]. Nothing restarts; zc_restart_preview_stop hides it."
 concommand.Add("zc_restart_preview", function(_, _, args)
     if state and not state.preview and (not state.cancelled or state.ends>SysTime()) then
         chat.AddText(red, "[ZCity Maintenance] A real notice is active; preview unavailable.")
@@ -104,8 +105,8 @@ concommand.Add("zc_restart_preview", function(_, _, args)
     end
     state = {ends=SysTime()+seconds, manual=true, preview=true, modern=true, reason=reason, span=math.max(seconds,1)}
     lastTick=nil
-end)
-concommand.Add("zc_restart_preview_stop", function() if state and state.preview then state=nil end end)
+end, nil, PREVIEW_HELP)
+concommand.Add("zc_restart_preview_stop", function() if state and state.preview then state=nil end end, nil, "Hide a zc_restart_preview notice.")
 
 local function fitRaw(text, font, width)
     surface.SetFont(font)
@@ -143,16 +144,45 @@ local function box(x, y, w, h, radius)
     surface.DrawOutlinedRect(x, y, w, h)
 end
 
+-- Staff rights (UI cohesion U5): who sees Cancel. Presentation only - the server checks again. With ULib the local
+-- player's own ULX access ("ulx restartcancel" or "ulx restart"), re-read once a second; without it IsAdmin().
+local rights={at=0}
+local function refreshRights(me)
+    local now=RealTime()
+    if now<rights.at then return end
+    rights.at=now+1
+    local ucl=ULib and ULib.ucl
+    if not (ucl and ucl.query) then
+        rights.cancel, rights.restart = me:IsAdmin() or me:IsSuperAdmin(), false
+        return
+    end
+    local okCancel, cancel = pcall(ucl.query, me, "ulx restartcancel")
+    local okRestart, restart = pcall(ucl.query, me, "ulx restart")
+    rights.cancel, rights.restart = okCancel and cancel==true, okRestart and restart==true
+end
+local function canCancel(me)
+    refreshRights(me)
+    return rights.cancel or rights.restart
+end
+-- The ULX command when ULX is installed, so the cancel is logged ("#A cancelled the pending restart"); the guarded
+-- net request otherwise.
+local function sendCancel()
+    local ulxCmds = ULib and ULib.cmds and ULib.cmds.translatedCmds
+    if ulxCmds and ulxCmds["ulx restartcancel"] and rights.cancel then RunConsoleCommand("ulx", "restartcancel") return end
+    if ulxCmds and ulxCmds["ulx restart"] and rights.restart then RunConsoleCommand("ulx", "restart", "cancel") return end
+    if util.NetworkStringToID("restartwarn_cancelreq")~=0 then
+        net.Start("restartwarn_cancelreq")
+        net.SendToServer()
+    end
+end
+
 -- Two-step confirm: 1st click arms a 3s confirm window; a 2nd click inside it fires the
--- guarded net request; a click outside either window is treated as a fresh 1st click.
+-- cancel; a click outside either window is treated as a fresh 1st click.
 local function cancelClick(btn)
     local now=RealTime()
     if cooldownUntil and now<cooldownUntil then return end
     if confirmUntil and now<confirmUntil then
-        if util.NetworkStringToID("restartwarn_cancelreq")~=0 then
-            net.Start("restartwarn_cancelreq")
-            net.SendToServer()
-        end
+        sendCancel()
         confirmUntil=nil
         cooldownUntil=now+3
         btn:SetText("Cancelling...")
@@ -211,7 +241,7 @@ hook.Add("HUDPaint", "RestartWarning_Draw", function()
     local waiting=not state.cancelled and n==0
     local real=not state.preview and not state.cancelled and remaining>0
     local me=LocalPlayer()
-    local isAdmin=real and IsValid(me) and (me:IsAdmin() or me:IsSuperAdmin())
+    local isAdmin=real and IsValid(me) and canCancel(me)
     if not isAdmin and IsValid(cancelBtn) then cancelBtn:Remove(); cancelBtn=nil; btnRect=nil end
 
     syncTheme()
@@ -258,7 +288,7 @@ hook.Add("HUDPaint", "RestartWarning_Draw", function()
         draw.SimpleText(fit(body, "ZCRestartBody", w-pad*2), "ZCRestartBody", x+pad, y+111*scale, white)
         draw.SimpleText(fit(hint, "ZCRestartSmall", w-pad*2), "ZCRestartSmall", x+pad, y+143*scale, dim)
         if isAdmin then
-            draw.SimpleText(fit("Admins: type !restart cancel, or free the cursor and click Cancel", "ZCRestartSmall", w-pad*2), "ZCRestartSmall", x+pad, y+164*scale, dim)
+            draw.SimpleText(fit("Staff: type !restart cancel, or free the cursor and click Cancel", "ZCRestartSmall", w-pad*2), "ZCRestartSmall", x+pad, y+164*scale, dim)
         end
         surface.SetDrawColor(edge)
         surface.DrawRect(x+pad, y+h-12*scale, w-pad*2, 3*scale)

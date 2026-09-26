@@ -139,5 +139,5 @@ if SERVER then
     concommand.Add("us1_status", function(ply)
         if IsValid(ply) and not ply:IsSuperAdmin() then return end
         US1.Status()
-    end)
+    end, nil, "Superadmin: print US1 core status (ready state, modules, errors).")
 end

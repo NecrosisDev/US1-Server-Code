@@ -665,4 +665,4 @@ concommand.Add("zc_vm_status", function(ply)
         cvFinal:GetInt(), tostring(f.armed == true), tostring(f.opened == true),
         f.endsAt and string.format("%.0fs", f.endsAt - CurTime()) or "-",
         tostring(SolidMapVote and isfunction(SolidMapVote.mapVoteDue) and SolidMapVote.mapVoteDue() or false)))
-end)
+end, nil, "Admin: print the vote arbiter's state.")

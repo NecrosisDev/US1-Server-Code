@@ -4,11 +4,23 @@ local function reply(ply, text)
     local line = "[zc_mutators] " .. tostring(text)
     if IsValid(ply) then ply:PrintMessage(HUD_PRINTCONSOLE, line .. "\n") else print(line) end
 end
+local HELP = {
+    zc_mutator_status = "Admin: print the round mutator state (enabled, chance, active, queued).",
+    zc_mutator_list = "Admin: list every round mutator with its weight and whether it can run this round.",
+    zc_mutator_next = "Admin: queue a mutator for the next compatible round: zc_mutator_next <id|none>.",
+    zc_mutator_now = "Admin: start a mutator in the current round: zc_mutator_now <id>.",
+    zc_mutator_cancel = "Admin: cancel the current or waiting mutator (a queued one stays queued).",
+    zc_mutator_point_add = "Admin: save a mutator point: zc_mutator_point_add <group> [x y z yaw]; in game, aim at a surface.",
+    zc_mutator_point_list = "Admin: list saved mutator points: zc_mutator_point_list [group] (default altar).",
+    zc_mutator_point_remove = "Admin: remove a saved mutator point: zc_mutator_point_remove <group> <index>.",
+    zc_mutator_role = "Admin: pick who gets a special role: zc_mutator_role <role> <steamid64|none>.",
+    zc_mutator_roles = "Admin: list the special roles and their picks."
+}
 local function command(name, fn)
     concommand.Add(name, function(ply, _, args)
         if not allowed(ply) then return end
         fn(ply, args)
-    end)
+    end, nil, HELP[name])
 end
 command("zc_mutator_status", function(ply)
     local mode, variant = M:Round()

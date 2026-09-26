@@ -124,6 +124,6 @@ concommand.Add("zc_perf2_capture",function(p,_,args)
     local ok,err=P.Start(args[1])
     local message=ok and "[Perf2] Capture started; report will be saved under data/zc_perf_pass2/."or tostring(err)
     if IsValid(p)then p:PrintMessage(HUD_PRINTCONSOLE,message)else print(message)end
-end)
-concommand.Add("zc_perf2_stop",function(p)if allowed(p)then P.Stop(true)end end)
+end, nil, "Admin: profile weapons and entities: zc_perf2_capture [5-60 seconds]; report in data/zc_perf_pass2/.")
+concommand.Add("zc_perf2_stop",function(p)if allowed(p)then P.Stop(true)end end, nil, "Admin: stop a zc_perf2_capture now and save its report.")
 hook.Add("ShutDown","ZCPerfPass2",function()P.Stop(false)end)

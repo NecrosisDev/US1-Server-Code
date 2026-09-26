@@ -26,4 +26,4 @@ concommand.Add("zci_admin_trial_status",function(p)
     local I,S=ZCityInteractions,ZCityStealth
     print("[Interaction access]",version,I and I.PublicAccess and I.PublicAccess:GetBool(),
         I and I.TrialGateVersion,S and S.TrialGateVersion)
-end)
+end, nil, "Admin: print interaction public-access status.")

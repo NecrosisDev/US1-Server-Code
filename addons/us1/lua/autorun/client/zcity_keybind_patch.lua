@@ -2,7 +2,10 @@
 
 -- zcity_keybind_patch.lua
 
--- V012 (Русский / English)
+-- V012 (English / Русский)
+
+-- US1: English first (the default language; Russian second). With GoobOS loaded, the fallback keybind page and the
+-- help window draw with the GoobOS kit (theme tokens, K.Font); without it they keep the Derma defaults.
 
 --========================================================--
 
@@ -16,9 +19,31 @@ local PATCH_NAME = "ZCity_Keybind_V012"
 
 
 
+-- GoobOS kit (ZCGoobApps.Kit + ZCGoobApps.Theme) when it is loaded; nil otherwise (the Derma look below stays).
+local function Kit()
+    local A = ZCGoobApps
+    if A and A.Kit and A.Kit.Font and A.Theme and A.Theme.card then return A.Kit, A.Theme end
+end
+
+-- A DButton that keeps its own SetText label, painted as a kit button. Returns false without the kit.
+local function KitButton(btn)
+    local K, T = Kit()
+    if not K then return false end
+    btn:SetFont(K.Font(13, 600))
+    btn:SetTextColor(T.text)
+    btn.Paint = function(s, w, h)
+        draw.RoundedBox(4, 0, 0, w, h, T.card)
+        local hover = K.Hover(s)
+        if hover > 0.01 then draw.RoundedBox(4, 0, 0, w, h, K.Alpha(T.white, 13 * hover)) end
+    end
+    return true
+end
+
+
+
 --========================================================--
 
--- Файлы сохранения
+-- Save files / Файлы сохранения
 
 --========================================================--
 
@@ -32,7 +57,7 @@ local CONFIG_FILE = "zcity_config.txt"
 
 --========================================================--
 
--- Языки
+-- Languages / Языки
 
 --========================================================--
 
@@ -48,13 +73,17 @@ local LANGUAGES = {
 
 
 
-local CURRENT_LANG = "ru"
+local LANGUAGE_ORDER = {"en", "ru"}
+
+
+
+local CURRENT_LANG = "en"
 
 
 
 --========================================================--
 
--- Текст на русском и английском
+-- Text in English and Russian / Текст на русском и английском
 
 --========================================================--
 
@@ -62,45 +91,17 @@ local CURRENT_LANG = "ru"
 
 local TEXTS = {
 
-    -- Окно помощи
+    -- Help window / Окно помощи
 
     help_title = {
 
-        ru = "Помощь по привязке клавиш",
+        en = "Keybind Help",
 
-        en = "Keybind Help"
+        ru = "Помощь по привязке клавиш"
 
     },
 
     help_header = {
-
-        ru = [[
-
-Своя привязка означает клавишу, которую вы назначили в консоли с помощью команды "bind".
-
-Вы можете отменить привязку клавиши командой "unbind".
-
-Введите в консоли "key_listboundkeys", чтобы увидеть все ваши привязки через команду "bind" (и настройки Gmod).
-
-
-
-Общие подсказки по клавишам:
-
-Клавиша [Alt] + Клавиша [E]: свернуть шею со спины
-
-Клавиша [Alt] + Клавиша [R]: маскировка под одежду трупа
-
-Клавиша [E] + Клавиша [ЛКМ]: бить с приклада оружием
-
-Клавиша [ПКМ] + Клавиша [E]: обыск предметов
-
-В рэгдолле + Клавиша [E]: управлять головой
-
-В рэгдолле + Клавиша [Shift]: захват левой рукой
-
-В рэгдолле + Клавиша [Alt]: захват правой рукой
-
-]],
 
         en = [[
 
@@ -128,187 +129,215 @@ In ragdoll + Key [Shift]: Left hand grab
 
 In ragdoll + Key [Alt]: Right hand grab
 
+]],
+
+        ru = [[
+
+Своя привязка означает клавишу, которую вы назначили в консоли с помощью команды "bind".
+
+Вы можете отменить привязку клавиши командой "unbind".
+
+Введите в консоли "key_listboundkeys", чтобы увидеть все ваши привязки через команду "bind" (и настройки Gmod).
+
+
+
+Общие подсказки по клавишам:
+
+Клавиша [Alt] + Клавиша [E]: свернуть шею со спины
+
+Клавиша [Alt] + Клавиша [R]: маскировка под одежду трупа
+
+Клавиша [E] + Клавиша [ЛКМ]: бить с приклада оружием
+
+Клавиша [ПКМ] + Клавиша [E]: обыск предметов
+
+В рэгдолле + Клавиша [E]: управлять головой
+
+В рэгдолле + Клавиша [Shift]: захват левой рукой
+
+В рэгдолле + Клавиша [Alt]: захват правой рукой
+
 ]]
 
     },
 
     links_header = {
 
-        ru = "Связанные ссылки",
+        en = "Related Links",
 
-        en = "Related Links"
+        ru = "Связанные ссылки"
 
     },
 
     
 
-    -- Основное меню
+    -- Main menu / Основное меню
 
     tab_title = {
 
-        ru = "Привязка клавиш",
+        en = "Keybinds",
 
-        en = "Keybinds"
+        ru = "Привязка клавиш"
 
     },
 
     gameplay_header = {
 
-        ru = "Игровой процесс",
+        en = "Gameplay",
 
-        en = "Gameplay"
+        ru = "Игровой процесс"
 
     },
 
     
 
-    -- Кнопки
+    -- Buttons / Кнопки
 
     btn_help = {
 
-        ru = "Помощь",
+        en = "Help",
 
-        en = "Help"
+        ru = "Помощь"
 
     },
 
     btn_clear = {
 
-        ru = "Очистить",
+        en = "Clear",
 
-        en = "Clear"
+        ru = "Очистить"
 
     },
 
     btn_language = {
 
-        ru = "Язык",
+        en = "Language",
 
-        en = "Language"
+        ru = "Язык"
 
     },
 
     
 
-    -- Метки
+    -- Labels / Метки
 
     native_bind = {
 
-        ru = "Своя привязка",
+        en = "Custom bind",
 
-        en = "Custom bind"
+        ru = "Своя привязка"
 
     },
 
     
 
-    -- Консольные сообщения
+    -- Console messages / Консольные сообщения
 
     msg_reload = {
 
-        ru = "Конфигурация перезагружена",
+        en = "Configuration reloaded",
 
-        en = "Configuration reloaded"
+        ru = "Конфигурация перезагружена"
 
     },
 
     msg_reset = {
 
-        ru = "Восстановлены стандартные клавиши",
+        en = "Default keys restored",
 
-        en = "Default keys restored"
+        ru = "Восстановлены стандартные клавиши"
 
     },
 
     msg_lang_changed = {
 
-        ru = "Язык изменён на: ",
+        en = "Language changed to: ",
 
-        en = "Language changed to: "
+        ru = "Язык изменён на: "
 
     },
 
     tab_added = {
 
-        ru = "Вкладка добавлена",
+        en = "Tab added",
 
-        en = "Tab added"
+        ru = "Вкладка добавлена"
 
     },
 
     loaded = {
 
-        ru = "Загружен (Русский/English)",
+        en = "Loaded (English/Russian)",
 
-        en = "Loaded (Russian/English)"
+        ru = "Загружен (English/Русский)"
 
     },
 
     
 
-    -- Названия действий
+    -- Action names / Названия действий
 
     bind_kick = {
 
-        ru = "Пинок",
+        en = "Kick",
 
-        en = "Kick"
+        ru = "Пинок"
 
     },
 
     bind_fake = {
 
-        ru = "Рэгдолл",
+        en = "Ragdoll",
 
-        en = "Ragdoll"
+        ru = "Рэгдолл"
 
     },
 
     bind_laser = {
 
-        ru = "Вкл/Выкл лазерное крепление оружия",
+        en = "Toggle weapon laser",
 
-        en = "Toggle weapon laser"
+        ru = "Вкл/Выкл лазерное крепление оружия"
 
     },
 
     bind_leanleft = {
 
-        ru = "Наклон влево",
+        en = "Lean left",
 
-        en = "Lean left"
+        ru = "Наклон влево"
 
     },
 
     bind_leanright = {
 
-        ru = "Наклон вправо",
+        en = "Lean right",
 
-        en = "Lean right"
+        ru = "Наклон вправо"
 
     },
 
     bind_breath = {
 
-        ru = "Задержать дыхание",
+        en = "Hold breath",
 
-        en = "Hold breath"
+        ru = "Задержать дыхание"
 
     },
 
     bind_look = {
 
-        ru = "Осмотреться",
+        en = "Look around",
 
-        en = "Look around"
+        ru = "Осмотреться"
 
     },
 
     bind_zoom = {
 
-        ru = "Приблизить камеру",
+        en = "Zoom camera",
 
-        en = "Zoom camera"
+        ru = "Приблизить камеру"
 
     }
 
@@ -318,7 +347,7 @@ In ragdoll + Key [Alt]: Right hand grab
 
 --========================================================--
 
--- Функция получения текста
+-- Text lookup / Функция получения текста
 
 --========================================================--
 
@@ -332,7 +361,7 @@ local function GetText(key, ...)
 
     
 
-    local str = text[CURRENT_LANG] or text["en"] or text["ru"] or ""
+    local str = text[CURRENT_LANG] or text.en or text.ru or ""
 
     
 
@@ -350,7 +379,7 @@ end
 
 --========================================================--
 
--- Сохранение и загрузка языка
+-- Saving and loading the language / Сохранение и загрузка языка
 
 --========================================================--
 
@@ -384,7 +413,7 @@ end
 
 --========================================================--
 
--- Определения привязок
+-- Bind definitions / Определения привязок
 
 --========================================================--
 
@@ -476,7 +505,7 @@ local Binds = {
 
 
 
--- Получение названия привязки
+-- Bind title / Получение названия привязки
 
 local function GetBindTitle(command)
 
@@ -508,7 +537,7 @@ end
 
 --========================================================--
 
--- Сохранение и загрузка привязок
+-- Saving and loading binds / Сохранение и загрузка привязок
 
 --========================================================--
 
@@ -572,7 +601,7 @@ LoadLanguage()
 
 --========================================================--
 
--- Вспомогательные функции
+-- Helpers / Вспомогательные функции
 
 --========================================================--
 
@@ -592,7 +621,7 @@ end
 
 --========================================================--
 
--- Выполнение команд
+-- Running the binds / Выполнение команд
 
 --========================================================--
 
@@ -684,9 +713,13 @@ end)
 
 --========================================================--
 
--- Смена языка (ОПРЕДЕЛЯЕМ РАНЬШЕ)
+-- Language switch (defined early) / Смена языка (ОПРЕДЕЛЯЕМ РАНЬШЕ)
 
 --========================================================--
+
+
+
+local DrawKeyBindings -- defined in "Keybind page" below
 
 
 
@@ -704,7 +737,7 @@ local function RefreshAllUI()
 
     if IsValid(menu) and menu.ZCityKeybindPage and IsValid(menu.ZCityKeybindPage) then
 
-        -- Функция DrawKeyBindings будет определена позже, но вызовется только когда меню уже открыто
+        -- DrawKeyBindings is defined below; this only runs once the menu is open. / Функция DrawKeyBindings будет определена позже, но вызовется только когда меню уже открыто
 
         if DrawKeyBindings then
 
@@ -744,7 +777,7 @@ end
 
 --========================================================--
 
--- Окно помощи
+-- Help window / Окно помощи
 
 --========================================================--
 
@@ -754,9 +787,9 @@ local HELP_LINKS = {
 
     {
 
-        name_ru = "Ссылка на аддон ENG/RU",
-
         name_en = "Addon Link ENG/RU",
+
+        name_ru = "Ссылка на аддон ENG/RU",
 
         url = "https://steamcommunity.com/sharedfiles/filedetails/?id=3737887777"
 
@@ -764,9 +797,9 @@ local HELP_LINKS = {
 
     {
 
-        name_ru = "Ссылка на оригинал CN",
-
         name_en = "Original Link CN",
+
+        name_ru = "Ссылка на оригинал CN",
 
         url = "https://steamcommunity.com/sharedfiles/filedetails/?id=3736711821"
 
@@ -774,9 +807,9 @@ local HELP_LINKS = {
 
     {
 
-        name_ru = "Автор",
-
         name_en = "Author",
+
+        name_ru = "Автор",
 
         url = "https://steamcommunity.com/profiles/76561198211540476/"
 
@@ -784,9 +817,9 @@ local HELP_LINKS = {
 
     {
 
-        name_ru = "Другой автор",
-
         name_en = "Other Author",
+
+        name_ru = "Другой автор",
 
         url = "https://steamcommunity.com/id/illnk1/"
 
@@ -818,6 +851,20 @@ local function OpenHelpWindow()
 
     ZCityKeybindHelpFrame = frame
 
+    local K, T = Kit()
+    if K then
+        frame:SetTitle("")
+        frame:ShowCloseButton(false)
+        frame:DockPadding(8, 40, 8, 8)
+        frame.Paint = function(_, w, h)
+            K.Card(0, 0, w, h, T.glass, T.edge)
+            K.Text(GetText("help_title"), 16, 700, 14, 12, T.text)
+        end
+        local close = K.Button(frame, {label = "Close", kind = "quiet", size = 13, dock = false, click = function() frame:Remove() end})
+        close:SetSize(64, 26)
+        close:SetPos(frame:GetWide() - 76, 8)
+    end
+
     
 
     local left = vgui.Create("DPanel", frame)
@@ -827,6 +874,8 @@ local function OpenHelpWindow()
     left:DockMargin(5, 5, 5, 5)
 
     left.Paint = function(self, w, h)
+
+        if K then draw.RoundedBox(4, 0, 0, w, h, T.card) return end
 
         surface.SetDrawColor(35, 35, 35, 255)
 
@@ -844,15 +893,15 @@ local function OpenHelpWindow()
 
     function text:PerformLayout()
 
-        self:SetFontInternal("DermaDefault")
+        self:SetFontInternal(K and K.Font(14, 500) or "DermaDefault")
 
-        self:SetFGColor(Color(255, 255, 255))
+        self:SetFGColor(K and T.text or Color(255, 255, 255))
 
     end
 
     function text:Paint(w, h)
 
-        surface.SetDrawColor(25, 25, 25, 255)
+        if K then surface.SetDrawColor(T.bg) else surface.SetDrawColor(25, 25, 25, 255) end
 
         surface.DrawRect(0, 0, w, h)
 
@@ -876,7 +925,9 @@ local function OpenHelpWindow()
 
     header:SetText(GetText("links_header"))
 
-    header:SetFont("DermaLarge")
+    header:SetFont(K and K.Font(20, 700) or "DermaLarge")
+
+    if K then header:SetTextColor(T.text) end
 
     header:SizeToContents()
 
@@ -898,6 +949,8 @@ local function OpenHelpWindow()
 
         btn:SetText(linkName)
 
+        KitButton(btn)
+
         
 
         btn.DoClick = function()
@@ -914,7 +967,7 @@ end
 
 --========================================================--
 
--- Строка привязки
+-- Bind row / Строка привязки
 
 --========================================================--
 
@@ -932,7 +985,18 @@ local function CreateBindRow(parent, bind)
 
     
 
+    local K, T = Kit()
+
     row.Paint = function(self, w, h)
+
+        if K then
+            draw.RoundedBox(4, 0, 0, w, h, T.card)
+            draw.SimpleText(GetBindTitle(bind.command), K.Font(14, 600), 10, 10, T.text)
+            draw.SimpleText(bind.command, K.Font(12, 500), 10, 30, T.muted)
+            local kitBind = GetNativeBind(bind.command)
+            if kitBind then draw.SimpleText(GetText("native_bind") .. ": " .. kitBind, K.Font(12, 500), 10, 47, T.muted) end
+            return
+        end
 
         surface.SetDrawColor(40, 40, 40, 220)
 
@@ -962,6 +1026,13 @@ local function CreateBindRow(parent, bind)
 
     binder.Paint = function(self, w, h)
 
+        if K then
+            draw.RoundedBox(4, 0, 0, w, h, T.bg)
+            surface.SetDrawColor(self:IsHovered() and T.main or T.edge)
+            surface.DrawOutlinedRect(0, 0, w, h)
+            return
+        end
+
         if oldPaint then oldPaint(self, w, h) end
 
         surface.SetDrawColor(180, 0, 0, 255)
@@ -977,6 +1048,11 @@ local function CreateBindRow(parent, bind)
     binder:SetWide(150)
 
     binder:SetValue(bind.key)
+
+    if K then
+        binder:SetFont(K.Font(13, 600))
+        binder:SetTextColor(T.text)
+    end
 
     
 
@@ -1018,6 +1094,8 @@ local function CreateBindRow(parent, bind)
 
     
 
+    KitButton(clear)
+
     clear.DoClick = function()
 
         bind.key = KEY_NONE
@@ -1034,13 +1112,13 @@ end
 
 --========================================================--
 
--- Отображение привязок клавиш
+-- Keybind page / Отображение привязок клавиш
 
 --========================================================--
 
 
 
-local function DrawKeyBindings(parent)
+function DrawKeyBindings(parent)
 
     parent:Clear()
 
@@ -1062,7 +1140,15 @@ local function DrawKeyBindings(parent)
 
     header:SetTall(40)
 
+    local K, T = Kit()
+
     header.Paint = function(self, w, h)
+
+        if K then
+            draw.RoundedBox(4, 0, 0, w, h, T.glassHi or T.card)
+            draw.SimpleText(GetText("gameplay_header"), K.Font(15, 700), 15, h / 2, T.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+            return
+        end
 
         surface.SetDrawColor(60, 60, 60, 220)
 
@@ -1074,7 +1160,7 @@ local function DrawKeyBindings(parent)
 
     
 
-    -- Кнопка помощи
+    -- Help button / Кнопка помощи
 
     local helpBtn = vgui.Create("DButton", header)
 
@@ -1092,9 +1178,11 @@ local function DrawKeyBindings(parent)
 
     end
 
+    KitButton(helpBtn)
+
     
 
-    -- Кнопка выбора языка
+    -- Language button / Кнопка выбора языка
 
     local langBtn = vgui.Create("DButton", header)
 
@@ -1105,6 +1193,8 @@ local function DrawKeyBindings(parent)
     langBtn:SetWide(100)
 
     langBtn:SetText(GetText("btn_language") .. ": " .. LANGUAGES[CURRENT_LANG])
+
+    KitButton(langBtn)
 
     
 
@@ -1118,7 +1208,9 @@ local function DrawKeyBindings(parent)
 
         
 
-        for code, name in pairs(LANGUAGES) do
+        for _, code in ipairs(LANGUAGE_ORDER) do
+
+            local name = LANGUAGES[code]
 
             menu:AddOption(name, function()
 
@@ -1156,7 +1248,7 @@ end
 
 --========================================================--
 
--- Патч меню
+-- Menu patch / Патч меню
 
 --========================================================--
 
@@ -1201,7 +1293,7 @@ end
 
 --========================================================--
 
--- Запуск
+-- Start-up / Запуск
 
 --========================================================--
 
@@ -1229,7 +1321,7 @@ end)
 
 --========================================================--
 
--- Консольные команды
+-- Console commands / Консольные команды
 
 --========================================================--
 
@@ -1241,7 +1333,7 @@ concommand.Add("zcity_keybind_reload", function()
 
     chat.AddText(Color(0, 255, 0), GetText("msg_reload"))
 
-end)
+end, nil, "Reload your saved Z-City keybinds (data/zcity_keybinds.txt). / Перезагрузить сохранённые привязки.")
 
 
 
@@ -1269,11 +1361,13 @@ concommand.Add("zcity_keybind_reset", function()
 
     chat.AddText(Color(255, 200, 0), GetText("msg_reset"))
 
-end)
+end, nil, "Restore the default Z-City keybinds (G kick, F ragdoll, Left Alt zoom). / Восстановить стандартные клавиши.")
 
 
 
-concommand.Add("zcity_keybind_lang", function(_, lang)
+concommand.Add("zcity_keybind_lang", function(_, _, args)
+
+    local lang = args and args[1]
 
     if lang and LANGUAGES[lang] then
 
@@ -1281,17 +1375,17 @@ concommand.Add("zcity_keybind_lang", function(_, lang)
 
     else
 
-        print("Доступные языки / Available languages: ru, en")
+        print("Available languages / Доступные языки: en, ru")
 
     end
 
-end)
+end, nil, "Keybind menu language: zcity_keybind_lang en|ru. / Язык меню привязок.")
 
 
 
 concommand.Add("zcity_keybind_dump", function()
 
-    print("========== ZCity Привязки клавиш ==========")
+    print("========== ZCity keybinds / Привязки клавиш ==========")
 
     for _, bind in ipairs(Binds) do
 
@@ -1303,7 +1397,7 @@ concommand.Add("zcity_keybind_dump", function()
 
     print("============================================")
 
-end)
+end, nil, "Print your Z-City keybinds and the menu language to the console. / Показать привязки в консоли.")
 
 
 

@@ -393,4 +393,4 @@ concommand.Add("zc_round_summary_print", function(p, _, args)
         if i > 5 then break end
         out(string.format("  #%d %s points=%d kills=%d heals=%d rounds=%d wins=%d", i, e.name, e.points, e.kills, e.heals, e.rounds, e.wins))
     end
-end)
+end, nil, "Admin: print the last round summary; zc_round_summary_print send re-broadcasts it.")

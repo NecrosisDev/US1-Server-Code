@@ -152,7 +152,7 @@ concommand.Add("zc_bot_pm", function(p, _, args)
     if not human(p) then return end
     p.zcBotPMOff = args[1] == "0"
     p:ChatPrint(p.zcBotPMOff and "Bot private messages disabled for this session." or "Bot private messages enabled.")
-end)
+end, nil, "Bot private messages for this session: zc_bot_pm 0 turns them off, zc_bot_pm 1 back on.")
 
 local teamModes = {tdm=true,gwars=true,cstrike=true,hl2dm=true,criresp=true,coop=true,defense=true,riot=true,["Cops/Gangsters"]=true}
 function S.NiceKill(victim, attacker, inflictor)

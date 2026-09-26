@@ -192,4 +192,4 @@ concommand.Add("zc_specfriend_status", function(p) -- staff only: friendships ar
     end
     local text = table.concat(out, "\n")
     if IsValid(p) then p:PrintMessage(HUD_PRINTCONSOLE, text) else print(text) end
-end)
+end, nil, "Admin: print spectator-friend limits and friend pairs.")

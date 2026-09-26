@@ -426,6 +426,6 @@ concommand.Add("zc_governor_status", function(ply)
 		cvClutter:GetBool() and "ACT" or "OBSERVE (removes nothing)",
 		TickGov.clutterLast, TickGov.clutterPeak, TickGov.clutterSeen, TickGov.clutterRemoved,
 		cvClutAge:GetInt(), cvClutDist:GetInt(), cvClutMax:GetInt(), cvClutMs:GetFloat()))
-end)
+end, nil, "Superadmin: print the tick governor's state and counters.")
 
 print("[TickGov] v2.3 loaded - props + gibs (corpses owned by CorpseSleeper); clutter pass OBSERVE-ONLY until zc_governor_clutter 1. zc_governor_status to inspect.")

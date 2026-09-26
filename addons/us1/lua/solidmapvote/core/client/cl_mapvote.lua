@@ -81,8 +81,8 @@ concommand.Add( 'solidmapvote_nomination_menu', function()
     SolidMapVote.isNominating = true
     gui.EnableScreenClicker( SolidMapVote.isNominating )
     SolidMapVote.Nominate = vgui.Create( 'SolidMapVoteNomination' )
-end )
+end , nil, "Open or close the map nomination menu.")
 
 concommand.Add( 'solidmapvote_close_ui', function()
     SolidMapVote.close()
-end )
+end , nil, "Close the map vote window.")

@@ -44,7 +44,7 @@ concommand.Add("swingdoors_reset", function(ply)
         net.Start("SwingDoors_ResetClient")
         net.Send(ply)
     end
-end)
+end, nil, "Admin: reset swing-door server settings to their defaults.")
 
 concommand.Add("swingdoors_status", function(ply)
     local lines = { "[SwingDoors] current settings:" }
@@ -60,4 +60,4 @@ concommand.Add("swingdoors_status", function(ply)
         net.Start("SwingDoors_Status")
         net.Send(ply)
     end
-end)
+end, nil, "Print the current swing-door settings.")

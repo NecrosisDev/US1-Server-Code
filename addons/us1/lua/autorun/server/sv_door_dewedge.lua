@@ -236,7 +236,7 @@ local function reply(p,text) if IsValid(p) then p:ChatPrint(text) else print(tex
 concommand.Add("zc_dewedge_status",function(p)
     if IsValid(p) and not p:IsSuperAdmin() then return end
     reply(p,string.format("[DeWedge] %s enabled=%s active=%d checks=%d attempts=%d parked=%d reached-end=%d unverified=%d cancelled=%d unsupported=%d limited=%d errors=%d check-ms=%.2f",API.Version,tostring(enabled:GetBool()),count,stats.checks,stats.attempts,stats.parked,stats.relieved,stats.unverified,stats.cancelled,stats.unsupported,stats.limited,stats.errors,stats.seconds*1000))
-end)
+end, nil, "Superadmin: print DeWedge door-motor relief counters.")
 concommand.Add("zc_dewedge_debug",function(p)
     if not IsValid(p) then print("[DeWedge] Run in-game aiming at a door."); return end
     if not p:IsSuperAdmin() then return end
@@ -244,5 +244,5 @@ concommand.Add("zc_dewedge_debug",function(p)
     if not isDoor(d) then reply(p,"[DeWedge] Aim at a prop_door_rotating."); return end
     local b=blocker(d); local s=active[d]
     reply(p,string.format("[DeWedge] door=%d state=%s phase=%s blocker=%s motor-stop-fields=%s",d:EntIndex(),tostring(d:GetInternalVariable("m_eDoorState")),s and s.phase or "idle",b and (b:GetClass().." #"..b:EntIndex()) or "none",tostring(finite(d:GetInternalVariable("m_flMoveDoneTime")))))
-end)
+end, nil, "Superadmin: print DeWedge state for the door you aim at.")
 print("[DeWedge] v"..API.Version.." loaded - bounded native-blocker detection and motor relief")

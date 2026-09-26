@@ -287,4 +287,4 @@ concommand.Add("zc_bots_debug_weaponscore", function(ply, _, args)
 	end
 	table.sort(rows, function(a, b) return a.score > b.score end)
 	for _, r in ipairs(rows) do out(r.line) end
-end)
+end, nil, "Superadmin: print bot weapon scores for your weapons: zc_bots_debug_weaponscore [distance].")

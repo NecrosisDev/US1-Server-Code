@@ -1,9 +1,14 @@
 -- Restart Warning v2: persistent schedules and explicit staff controls.
 -- No os.time/os.date in the per-second loop; clock sampled on load and hourly.
 -- v2.2.0: maintenance reason (persisted), ULX !restart helpers, 15-minute notice window,
--- chat notices at 10m/5m/2m/1m/30s/10s, admin-only Cancel button request (restartwarn_cancelreq).
+-- chat notices at 10m/5m/2m/1m/30s/10s, staff-only Cancel button request (restartwarn_cancelreq).
+-- Staff rights (UI cohesion U5, zc_goobos/sv_staff.lua): scheduling needs the ULX right "ulx restart" (the !restart
+-- command's own access); cancelling also accepts "ulx restartcancel". IsAdmin() only when ULib is not installed.
 if not SERVER then return end
 AddCSLuaFile("autorun/client/cl_restart_warning.lua")
+if not ZCStaff then include("zc_goobos/sv_staff.lua") end
+local function canRestart(p) return IsValid(p) and ZCStaff.Can(p,"restart") end
+local function canCancel(p) return canRestart(p) or (IsValid(p) and ZCStaff.Allowed(p,"ulx restartcancel")) end
 local C=include("restart_warning/sv_clock.lua")
 local PATH="restart_warning/settings.json"
 local BACKUP="restart_warning/settings-backup.json" -- GMod file.Write does not permit .bak
@@ -157,7 +162,7 @@ function R.Status()
     return data
 end
 function R.Change(p,action,expected,value)
-    if not IsValid(p) or not (p:IsAdmin() or p:IsSuperAdmin()) then return false,"Admin access required." end
+    if not (canRestart(p) or (action=="cancel" and canCancel(p))) then return false,"You need the ulx restart access right." end
     if R.error or R.triggered then return false,R.error or "Restart already issued; it cannot be cancelled now." end
     if expected~=token() then return false,"Schedule changed. Review the refreshed times and try again." end
     if type(value)~="string" or #value>700 then return false,"Invalid restart request." end
@@ -245,14 +250,15 @@ net.Receive("restartwarn_ready",function(length,p)
     readyAt[p]=SysTime()+10
     sendState(p)
 end)
--- The card's Cancel button. The client only draws it for admins; authority is re-checked here and
+-- The card's Cancel button when ULX is not installed (with ULX it runs "ulx restartcancel"). The client only draws it
+-- for staff; authority is re-checked here and
 -- in R.Change, and it can only cancel a restart whose notice is currently on screen.
 local cancelAt=setmetatable({}, {__mode="k"})
 net.Receive("restartwarn_cancelreq",function(length,p)
     if length~=0 or not IsValid(p) or not p:IsPlayer() then return end
     if cancelAt[p] and SysTime()<cancelAt[p] then return end
     cancelAt[p]=SysTime()+2
-    if not (p:IsAdmin() or p:IsSuperAdmin()) then return end
+    if not canCancel(p) then return end
     local seconds=remainingTime()
     local ok,message
     if not seconds or seconds>WINDOW then ok,message=false,"No restart notice is showing."
@@ -262,7 +268,7 @@ net.Receive("restartwarn_cancelreq",function(length,p)
 end)
 -- seconds (default 30, the F8 button) and reason are optional; bounds match R.Change "next".
 function R.RequestManual(p,seconds,reason)
-    if not IsValid(p) or not (p:IsAdmin() or p:IsSuperAdmin()) then return false,"Admin access required." end
+    if not canRestart(p) then return false,"You need the ulx restart access right." end
     if R.error or R.triggered then return false,R.error or "Restart already issued." end
     if R.warningEnd or isManual() then return false,"A restart countdown is already running. Type !restart cancel (or use F8 > Server > Restarts) first." end
     if seconds==nil then seconds=30 end

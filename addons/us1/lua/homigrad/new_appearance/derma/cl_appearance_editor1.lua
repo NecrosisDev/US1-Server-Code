@@ -1055,7 +1055,7 @@ vgui.Register( "HG_AppearanceMenu", PANEL, "ZFrame")
 concommand.Add("hg_appearance_menu",function()
     if ZCGoobApps and ZCGoobApps.Launch("wardrobe") then return end
     print('use esc menu')
-end)
+end, nil, "Open the appearance editor (GoobOS Wardrobe when it is loaded).")
 
 function hg.CreateApperanceMenu(ParentPanel)
     if not IsValid(ParentPanel) then return end

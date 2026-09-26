@@ -55,7 +55,7 @@ concommand.Add("swingdoors_sv_check", function(ply)
     end
     if not ply:IsAdmin() then return end
     RunDoorCheck(ply)
-end)
+end, nil, "Admin: print server swing-door details for the door you look at.")
 
 concommand.Add("swingdoors_sv_debug", function(ply, _, args)
     if not (game.SinglePlayer() or not IsValid(ply) or ply:IsAdmin()) then return end
@@ -66,4 +66,4 @@ concommand.Add("swingdoors_sv_debug", function(ply, _, args)
     end
     local msg = "[SwingDoors] server debug logging " .. (SwingDoors.Debug.enabled and "ENABLED" or "DISABLED")
     SwingDoors.PrintTo(ply, msg)
-end)
+end, nil, "Admin: toggle swing-door server debug logging: swingdoors_sv_debug [1|0].")

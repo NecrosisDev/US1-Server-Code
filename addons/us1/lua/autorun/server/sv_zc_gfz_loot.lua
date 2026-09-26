@@ -304,6 +304,6 @@ concommand.Add("zc_gfzloot_stats", function(ply)
 			end
 		end
 	end
-end)
+end, nil, "Admin: print gun-loot control settings and counters.")
 
 print("[GFZLoot] loaded - installs on zb.modes.hmcd.Types once the gamemode exists (1s sync)")

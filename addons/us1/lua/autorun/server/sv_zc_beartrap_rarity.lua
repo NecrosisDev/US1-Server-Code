@@ -87,11 +87,11 @@ concommand.Add("zc_beartrap_rarity", function(ply)
     if IsValid(ply) and not ply:IsSuperAdmin() then return end
     apply(true)
     status()
-end)
+end, nil, "Superadmin: re-apply the bear trap loot weights and print them.")
 -- This separate command observes tables without applying or changing any weights.
 concommand.Add("zc_beartrap_rarity_status", function(ply)
     if IsValid(ply) and not ply:IsSuperAdmin() then return end
     status()
-end)
+end, nil, "Superadmin: print the bear trap loot weights without changing them.")
 startRetry()
 print("[Beartrap Rarity " .. VERSION .. "] loaded")

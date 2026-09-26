@@ -331,4 +331,4 @@ concommand.Add("zc_bots_persona_dump", function(ply)
 			record.sessions or 0, os.date("%Y-%m-%d %H:%M:%S", record.firstSeen or os.time())))
 	end
 	personaReply(ply, string.format("[zc_bots persona] %d record(s) total", #names))
-end)
+end, nil, "Superadmin: print every bot persona record.")

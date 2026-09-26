@@ -5,7 +5,7 @@ concommand.Add("smv_custom_rtv_enable", function(ply, _, args)
     if args[1] then cvAudio:SetBool(tonumber(args[1]) == 1) end
     local text = "Custom RTV songs: " .. (cvAudio:GetBool() and "ON" or "OFF")
     if IsValid(ply) then ply:PrintMessage(HUD_PRINTCONSOLE, text) else print(text) end
-end)
+end, nil, "Superadmin: custom RTV songs: smv_custom_rtv_enable [1|0].")
 function M.initialize()
     if M.initialized then return end
     M.votes, M.nominations, M.RTVs = {}, {}, {}

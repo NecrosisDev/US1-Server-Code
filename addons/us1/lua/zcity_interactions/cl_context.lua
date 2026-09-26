@@ -92,7 +92,7 @@ function I.OpenContextMenu()
     request(false,"shortcut")
 end
 I.OpenContextGroup=I.OpenContextMenu I.RequestContext=function()return request(false,"shortcut")end
-concommand.Add("zci_menu",I.OpenContextMenu)
+concommand.Add("zci_menu",I.OpenContextMenu, nil, "Open or close the interaction circle.")
 local function beginHold(automatic)
     local row=selected()
     if not row or row.reason~="" or invalid() then return end

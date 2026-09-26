@@ -756,7 +756,7 @@ concommand.Add("zc_chatguard_reload", function(ply)
     local n = G.LoadWords()
     local msg = "[ChatGuard] wordlist reloaded: " .. n .. " entries"
     if IsValid(ply) then ply:ChatPrint(msg) else print(msg) end
-end)
+end, nil, "Admin: reload the ChatGuard wordlist.")
 
 concommand.Add("zc_chatguard_stats", function(ply)
     if not staffOnly(ply) then return end
@@ -770,7 +770,7 @@ concommand.Add("zc_chatguard_stats", function(ply)
     for sid, row in pairs(G.State) do strikes[#strikes + 1] = sid .. "=" .. (row.s or 0) end
     lines[#lines + 1] = "strikes: " .. (#strikes > 0 and table.concat(strikes, " ", 1, math.min(#strikes, 12)) or "none")
     for _, l in ipairs(lines) do if IsValid(ply) then ply:ChatPrint(l) else print(l) end end
-end)
+end, nil, "Admin: print ChatGuard counters.")
 
 concommand.Add("zc_chatguard_test", function(ply, _, _, raw)
     if not staffOnly(ply) then return end
@@ -781,7 +781,7 @@ concommand.Add("zc_chatguard_test", function(ply, _, _, raw)
     local msg = "[ChatGuard] " .. verdict .. (detail and (" (" .. detail .. ")") or "") .. "  <- " .. text
         .. (hidden > 0 and ("  | links: " .. hidden .. " hidden -> " .. (shown ~= "" and shown or "(not sent)")) or "  | links: none hidden")
     if IsValid(ply) then ply:ChatPrint(msg) else print(msg) end
-end)
+end, nil, "Admin: show what ChatGuard would do with a message: zc_chatguard_test \"text\".")
 
 concommand.Add("zc_chatguard_forgive", function(ply, _, args)
     if not staffOnly(ply) then return end
@@ -791,7 +791,7 @@ concommand.Add("zc_chatguard_forgive", function(ply, _, args)
     G.SaveState()
     local msg = "[ChatGuard] strikes cleared for " .. sid
     if IsValid(ply) then ply:ChatPrint(msg) else print(msg) end
-end)
+end, nil, "Admin: clear ChatGuard strikes: zc_chatguard_forgive <steamid64>.")
 
 ----------------------------------------------------------------- boot
 file.CreateDir(DIR)

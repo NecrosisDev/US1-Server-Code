@@ -13,7 +13,7 @@ if SERVER then
 			net.Send(ply)
 		end
 	end
-	concommand.Add("checkping", CM.Ping)
+	concommand.Add("checkping", CM.Ping, nil, "Internal: answer the client's connection check (ping).")
 
 	return
 end

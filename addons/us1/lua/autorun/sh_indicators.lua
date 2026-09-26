@@ -508,7 +508,7 @@ if CLIENT then
         end
     end
 
-    concommand.Add("indicators_menu", OpenIndicatorSettings)
+    concommand.Add("indicators_menu", OpenIndicatorSettings, nil, "Open the damage indicator settings.")
 
     net.Receive("Indicator_OpenMenu", OpenIndicatorSettings)
 

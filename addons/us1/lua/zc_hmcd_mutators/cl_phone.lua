@@ -84,4 +84,4 @@ concommand.Add("zc_mutator_phone_status", function()
         .. " ringtone=" .. tostring(file.Exists("sound/" .. W.RingSound, "GAME"))
         .. " sound=" .. W.RingSound
         .. " pose_api=" .. tostring(hg ~= nil and type(hg.bone_apply_matrix) == "function"))
-end)
+end, nil, "Print the Informant phone asset check.")

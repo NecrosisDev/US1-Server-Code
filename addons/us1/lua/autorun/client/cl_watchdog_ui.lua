@@ -435,7 +435,7 @@ end
 concommand.Add("wd", function()
 	if IsValid(PANEL) then PANEL:Remove() PANEL = nil return end
 	openPanel()
-end)
+end, nil, "Open or close the Watchdog staff panel: live suspicion, dossiers and detection modules (the server checks your rank).")
 
 net.Receive("WD_UI_Data", function()
 	local kind = net.ReadUInt(8)

@@ -469,7 +469,7 @@ hook.Add("InitPostEntity", "ZCWelcome_FirstJoin", function()
     Request()
     timer.Simple(8, OpenWelcome)
 end)
-concommand.Add("zc_info", OpenWelcome)
+concommand.Add("zc_info", OpenWelcome, nil, "Open the server guide. Chat: !guide")
 hook.Add("OnPlayerChat", "ZCWelcome_ChatOpen", function(p, text)
     if p == LocalPlayer() and text:lower():Trim() == "!guide" then OpenWelcome(); return true end
 end)

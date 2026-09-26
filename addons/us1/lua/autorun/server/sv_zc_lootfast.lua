@@ -476,7 +476,7 @@ concommand.Add("zc_lootfast_stats", function(ply)
 	if s.cycles > 0 then
 		say(string.format("cost          : %.2fms avg, %.2fms peak   (stock measured 8.6ms)", s.us / s.cycles / 1000, s.peak / 1000))
 	end
-end)
+end, nil, "Admin: print loot spawn point cache stats.")
 
 concommand.Add("zc_lootfast_rebuild", function(ply)
 	if IsValid(ply) and not ply:IsAdmin() then return end
@@ -485,7 +485,7 @@ concommand.Add("zc_lootfast_rebuild", function(ply)
 	build("manual")
 	local msg = "[LootFast] rebuilding point cache..."
 	if IsValid(ply) then ply:ChatPrint(msg) else print(msg) end
-end)
+end, nil, "Admin: rebuild the loot spawn point cache for this map.")
 
 concommand.Add("zc_lootfast_show", function(ply)
 	if IsValid(ply) and not ply:IsAdmin() then return end
@@ -500,6 +500,6 @@ concommand.Add("zc_lootfast_show", function(ply)
 	end
 	local msg = "[LootFast] drew " .. n .. " points for 15s (needs `developer 1` clientside)"
 	if IsValid(ply) then ply:ChatPrint(msg) else print(msg) end
-end)
+end, nil, "Admin: draw nearby cached loot points (needs developer 1).")
 
 print("[LootFast] loaded - replaces the 17-trace loot walk once the gamemode hook exists (1s sync)")

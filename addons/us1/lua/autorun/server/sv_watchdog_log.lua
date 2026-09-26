@@ -93,6 +93,6 @@ concommand.Add("wdlog_recent", function(ply, _, args)
             os.date("%m-%d %H:%M:%S", tonumber(r.ts)), string.sub(r.name, 1, 18),
             r.rank or "?", r.module, string.sub(r.summary or "", 1, 60)))
     end
-end)
+end, nil, "Admin: print the newest Watchdog detections from the log: wdlog_recent [1-100].")
 
 print("[ULXLog] ZC Watchdog capture layer loaded - detections -> Staff Logs 'Watchdog' tab")

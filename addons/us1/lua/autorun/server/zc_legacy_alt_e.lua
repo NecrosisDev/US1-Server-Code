@@ -331,4 +331,4 @@ concommand.Add("zc_legacy_alt_e_status",function(p)
     print("[Legacy Alt+E] status",P.Version,P.InstalledVersion==P.Version and mode==P.Mode
         and mode.StartBreakingOtherNeck==P.StartNeck and I.BeginDisarm==P.BeginDisarm and I.DisarmValid==P.DisarmValid,
         "neck sessions",table.Count(P.Necks),"hostage",GetConVar("zch_gameplay_enabled"):GetString(),"stealth",GetConVar("zsf_enabled"):GetString())
-end)
+end, nil, "Admin: print the legacy Alt+E abilities status.")

@@ -368,7 +368,7 @@ concommand.Add("zc_mutator_informant_status", function(ply)
         if (d.phase == "waiting" or d.phase == "between_calls") and not d.finished then msg = msg .. " (call in " .. math.ceil(math.max(0, d.due - CurTime())) .. "s)" end
     end
     if IsValid(ply) then ply:PrintMessage(HUD_PRINTCONSOLE, msg) else print(msg) end
-end)
+end, nil, "Admin: print Informant mutator status.")
 
 M:RegisterSpecialRole({
     ID = "informant", Mutator = "informant", Title = "Informant",
@@ -449,4 +449,4 @@ concommand.Add("zc_mutator_phone_preview", function(ply, _, args)
     if not target then reply('Use zc_mutator_phone_preview "exact bot name" (for example Bot1).'); return end
     local _, message = M:StartPhonePreview(target)
     reply(message)
-end)
+end, nil, "Admin: preview the Informant phone on a bot: zc_mutator_phone_preview \"bot name\" | stop.")

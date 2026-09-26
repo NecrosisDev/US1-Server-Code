@@ -343,11 +343,11 @@ return function(B)
             if IsValid(p)then return end -- No role-sensitive metrics to playing staff.
             self:WriteStatus();print("[JusticeV3 shadow]",self.version,"enabled",self.enabled,
                 "captured",self.stats.captured,"processed",self.stats.processed,"enforcement",false)
-        end)
+        end, nil, "Server console: print Justice v3 shadow capture status.")
         concommand.Add("zcj3_shadow_stop",function(p)
             if IsValid(p)then return end
             self:Stop();print("[JusticeV3 shadow] stopped; legacy gameplay unchanged")
-        end)
+        end, nil, "Server console: stop Justice v3 shadow capture.")
         local entity=FindMetaTable("Entity")
         self:Record({kind="observer_started",coverage=self.coverage,
             origins={native_guilt=origin((hook.GetTable().HomigradDamage or {}).GuiltReg),

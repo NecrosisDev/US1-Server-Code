@@ -232,7 +232,7 @@ concommand.Add("swingdoors_cl_check", function()
     P("=== end check ===")
 
     print(table.concat(out, "\n"))
-end)
+end, nil, "Print swing-door details for the door you look at.")
 
 concommand.Add("swingdoors_cl_debug", function(_, _, args)
     if args[1] ~= nil then
@@ -241,7 +241,7 @@ concommand.Add("swingdoors_cl_debug", function(_, _, args)
         Debug.enabled = not Debug.enabled
     end
     print("[SwingDoors] client debug logging " .. (Debug.enabled and "ENABLED" or "DISABLED"))
-end)
+end, nil, "Toggle swing-door client debug logging: swingdoors_cl_debug [1|0].")
 
 net.Receive("SwingDoors_Status", function()
     local lines = { "[SwingDoors] current client settings:" }

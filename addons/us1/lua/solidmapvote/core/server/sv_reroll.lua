@@ -72,7 +72,7 @@ function M.requestReroll(ply,revision)
     if not M.performReroll()then M.sendReroll(true)end
     return true
 end
-concommand.Add("solidmapvote_reroll",function(ply,_,args)M.requestReroll(ply,args[1])end)
+concommand.Add("solidmapvote_reroll",function(ply,_,args)M.requestReroll(ply,args[1])end, nil, "Internal (map vote window): ask to reroll the ballot.")
 hook.Add("PlayerDisconnected","SolidMapVote.RerollDisconnect",function(ply)
     M.rerollRequests[ply:SteamID64()]=nil
     timer.Simple(0,function()

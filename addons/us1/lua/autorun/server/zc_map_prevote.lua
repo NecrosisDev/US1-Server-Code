@@ -292,7 +292,7 @@ concommand.Add("zc_map_prevote_print", function(p, _, _)
     else
         out("  last application: none")
     end
-end)
+end, nil, "Admin: print the map pre-vote tally.")
 
 hook.Add("ZB_StartRound", "ZCMapPrevote_StartRound", function()
     if not cv:GetBool() then return end

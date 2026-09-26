@@ -240,7 +240,7 @@ concommand.Add("zcity_guilt_admin", function(ply)
     net.Start("zcity_guilt_admin_open")
     net.WriteTable(ZCITY_GUILT.Config)
     net.Send(ply)
-end)
+end, nil, "Admin: open the guilt admin window (rules, punish presets, colours).")
 
 net.Receive("zcity_guilt_admin_save", function(_, ply)
     if not canEditGuiltConfig(ply) then return end
@@ -2086,7 +2086,7 @@ concommand.Add("zcity_guilt_menu", function(ply)
     end
 
     sendOpenPayload(ply, playerCache)
-end)
+end, nil, "Open the guilt menu: forgive or punish players who hurt you this round.")
 
 local function canUseGuiltDebug(ply)
     return IsValid(ply) and ply:IsPlayer() and ply:IsAdmin()
@@ -2261,7 +2261,7 @@ concommand.Add("zcity_guilt_debug_status", function(ply, _, args)
     if not canUseGuiltDebug(ply) then return end
 
     printDebugCaseStatus(ply, findDebugPlayer(args and args[1], ply))
-end)
+end, nil, "Admin (guilt debug): print guilt case status for a player: zcity_guilt_debug_status [name].")
 
 concommand.Add("zcity_guilt_debug_clear", function(ply, _, args)
     if not canUseGuiltDebug(ply) then return end
@@ -2275,7 +2275,7 @@ concommand.Add("zcity_guilt_debug_clear", function(ply, _, args)
     clearVictimTracking(target)
     startTrackedLife(target)
     debugOut(ply, "Cleared guilt tracking for " .. target:Nick() .. ".")
-end)
+end, nil, "Admin (guilt debug): clear a player's guilt tracking: zcity_guilt_debug_clear [name].")
 
 concommand.Add("zcity_guilt_debug_case", function(ply, _, args)
     if not canUseGuiltDebug(ply) then return end
@@ -2403,7 +2403,7 @@ concommand.Add("zcity_guilt_debug_case", function(ply, _, args)
     else
         debugOut(ply, "Failed to open debug case.")
     end
-end)
+end, nil, "Admin (guilt debug): build test case rows: zcity_guilt_debug_case [scenario] [attacker].")
 
 concommand.Add("zcity_guilt_debug_damage", function(ply, _, args)
     if not canUseGuiltDebug(ply) then return end
@@ -2440,7 +2440,7 @@ concommand.Add("zcity_guilt_debug_damage", function(ply, _, args)
 
     syncVictimState(victim)
     debugOut(ply, "Recorded " .. amount .. " debug harm from " .. attacker:Nick() .. " to " .. victim:Nick() .. " source=" .. source .. ".")
-end)
+end, nil, "Admin (guilt debug): record test harm: zcity_guilt_debug_damage [victim] [attacker] [amount] [source].")
 
 concommand.Add("zcity_guilt_debug_finalize", function(ply, _, args)
     if not canUseGuiltDebug(ply) then return end
@@ -2454,7 +2454,7 @@ concommand.Add("zcity_guilt_debug_finalize", function(ply, _, args)
     finalizeVictimDeath(victim)
     sendOpenPayload(victim, buildConnectedPlayerCache())
     debugOut(ply, "Finalized and opened case payload for " .. victim:Nick() .. ".")
-end)
+end, nil, "Admin (guilt debug): finalize a victim's death as if they died: zcity_guilt_debug_finalize [name].")
 
 local function canActOnTarget(victim, target, caseid, attackerSteamID64, action, playerCache)
     if not IsValid(victim) or not victim:IsPlayer() then return false, "Invalid victim." end
@@ -2748,7 +2748,7 @@ concommand.Add("zcity_guilt_test_menu", function(ply)
     data.case = activeCase
     syncVictimState(ply)
     sendOpenPayload(ply)
-end)
+end, nil, "Admin (zb_dev 1): open the guilt menu with test rows.")
 
 concommand.Add("zcity_guilt_preview", function(ply)
     if not IsValid(ply) or not ply:IsPlayer() or not ply:IsAdmin() then
@@ -2814,7 +2814,7 @@ concommand.Add("zcity_guilt_preview", function(ply)
     syncVictimState(ply)
     sendOpenPayload(ply)
     notifyPlayer(ply, "Opened guilt menu preview.")
-end)
+end, nil, "Admin: preview the guilt menu against the players on the server.")
 
 timer.Simple(0, function()
     sendConfig()

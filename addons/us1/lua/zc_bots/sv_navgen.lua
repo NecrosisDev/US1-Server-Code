@@ -194,13 +194,13 @@ concommand.Add("zc_bots_navgen_now", function(ply)
 	if IsValid(ply) and not ply:IsSuperAdmin() then return end
 	if navgen.HasNav() then print("[zc_bots] this map already has a navmesh") return end
 	print(begin("manual") and "[zc_bots] generation started" or "[zc_bots] not started (attempt limit, no seeds, or already running)")
-end)
+end, nil, "Superadmin: generate a navmesh for this map now.")
 
 concommand.Add("zc_bots_navgen_status", function(ply)
 	if IsValid(ply) and not ply:IsSuperAdmin() then return end
 	print(string.format("[zc_bots] map=%s hasNav=%s areas=%d generating=%s mode=%d", game.GetMap(), tostring(navgen.HasNav()), navmesh.GetNavAreaCount(), tostring(navmesh.IsGenerating()), cv_mode:GetInt()))
 	PrintTable(readState())
-end)
+end, nil, "Superadmin: print navmesh generation status.")
 
 concommand.Add("zc_bots_navgen_forget", function(ply, _, args)
 	if IsValid(ply) and not ply:IsSuperAdmin() then return end
@@ -208,4 +208,4 @@ concommand.Add("zc_bots_navgen_forget", function(ply, _, args)
 	state[args[1] or game.GetMap()] = nil
 	writeState(state)
 	print("[zc_bots] cleared navgen attempts for " .. (args[1] or game.GetMap()))
-end)
+end, nil, "Superadmin: forget failed navmesh attempts: zc_bots_navgen_forget [map].")

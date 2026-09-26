@@ -111,7 +111,7 @@ concommand.Add("zc_chat_reports", function(ply, _, args)
 				(entry.media or "") ~= "" and ("  " .. entry.media) or ""))
 		end
 	end
-end)
+end, nil, "Admin: print the newest chat reports: zc_chat_reports [count].")
 
 -- Admin media purge. Presentation only: every client takes this player's chat
 -- embeds down and keeps their links as plain text for a while. The messages
@@ -171,7 +171,7 @@ concommand.Add("zc_chat_media_purge", function(ply, _, args)
 	})
 	ZCChatReport_Announce(string.format("%s purged chat media from %s for %ds", byName, steam, seconds))
 	say(string.format("[ChatReport] purged media from %s for %d seconds", steam, seconds))
-end)
+end, nil, "Admin: hide a player's chat media: zc_chat_media_purge <steamid64|steamid|name> [seconds].")
 
 -- ZC_BALLISTICS_AUTOSWAP_BEGIN (temporary: the autoswap watcher restores this file at the next map change)
 file.CreateDir("zc_ballistics_v2")

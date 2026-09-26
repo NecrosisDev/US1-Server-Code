@@ -52,8 +52,8 @@ local function nearby(p)
 end
 -- The circle owns the shortcut: cl_context always loads first (sh_core), so the
 -- former quick-grab fallback here never ran (B7). The ring only shows offers.
-concommand.Add("+zci_action",function() if I.CirclePress then I.CirclePress("shortcut") end end)
-concommand.Add("-zci_action",function() if I.CircleRelease then I.CircleRelease() end cancel() end)
+concommand.Add("+zci_action",function() if I.CirclePress then I.CirclePress("shortcut") end end, nil, "Hold for the interaction circle; release to pick.")
+concommand.Add("-zci_action",function() if I.CircleRelease then I.CircleRelease() end cancel() end, nil, "Release half of +zci_action.")
 net.Receive("zci_quick_offer",function()
     local reply=net.ReadUInt(16) local token=net.ReadUInt(32) local target=net.ReadEntity()
     local label=net.ReadString() local duration=net.ReadFloat() local danger=net.ReadBool()

@@ -73,6 +73,6 @@ concommand.Add("zc_spit", function(ply)
             end)
         end
     end
-end)
+end, nil, "Spit at whoever is in front of you (bind a key: bind v zc_spit).")
 
 print("[ZCSpit] Loaded - bind a key to zc_spit")

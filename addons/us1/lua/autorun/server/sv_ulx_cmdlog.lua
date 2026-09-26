@@ -201,7 +201,7 @@ local function WrapConsole()
             LogCmd(ply, full, copy, allowed and "executed" or "denied")
         end
         return orig(ply, cmdStr, args, argFull)
-    end)
+    end, nil, "Run a ULX command (ulx help lists them). US1 records every call in the command log.")
     return true
 end
 
@@ -302,7 +302,7 @@ concommand.Add("ulxlog_recent", function(ply, _, args)
             tonumber(r.selftarget) == 1 and "[SELF] " or "",
             r.result))
     end
-end)
+end, nil, "Admin: print the newest ULX command log rows: ulxlog_recent [1-100].")
 
 concommand.Add("ulxlog_stats", function(ply)
     if not CanView(ply) then return end
@@ -320,7 +320,7 @@ concommand.Add("ulxlog_stats", function(ply)
             print(string.format("  %-20s %s", r.cmd, r.c))
         end
     end
-end)
+end, nil, "Admin: print ULX command log totals and the most used commands.")
 
 concommand.Add("ulxlog_export", function(ply, _, args)
     if not CanView(ply) then return end
@@ -349,6 +349,6 @@ concommand.Add("ulxlog_export", function(ply, _, args)
 
     file.Write("ulxlog_export.txt", table.concat(out, "\n"))
     print("[ULXLog] Exported " .. #rows .. " entries to data/ulxlog_export.txt")
-end)
+end, nil, "Admin: export the ULX command log to data/: ulxlog_export [days].")
 
 print("[ULXLog] Loaded - capture layer (panel pending). ulxlog_recent / ulxlog_stats / ulxlog_export")

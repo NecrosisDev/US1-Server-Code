@@ -1736,7 +1736,7 @@ concommand.Add("traitor_admin", function()
 
     OpenTraitorAdmin()
 
-end)
+end, nil, "Open the Traitor admin panel (also F8): forced roles, reinforcements, mode votes, rotations, spawns, events and restarts. Admins only; the server checks every action.")
 
 hook.Add("Think", "traitoradmin_f8", PollF8)
 

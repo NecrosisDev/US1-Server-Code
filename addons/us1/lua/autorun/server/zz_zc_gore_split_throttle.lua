@@ -43,4 +43,4 @@ concommand.Add("zc_gore_split_status", function(p)
     local line = string.format("[GoreSplitThrottle %s] every=%d hook=%s wrapped=%s", T.version, cv:GetInt(),
         fn and "present" or "absent", tostring(fn ~= nil and T.wrapped[fn] ~= nil))
     if IsValid(p) then p:PrintMessage(HUD_PRINTCONSOLE, line) else print(line) end
-end)
+end, nil, "Admin: print the gore split-physics throttle status.")

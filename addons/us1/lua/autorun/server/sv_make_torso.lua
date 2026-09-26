@@ -1,7 +1,10 @@
 -- make_torso: admin command that removes all four limbs from whoever the
 -- admin is currently carrying (RMB grab with hands), clots their bleeding,
 -- removes their pain, and keeps them conscious - a living torso.
+-- Needs the "zc staff playertools" ULX right (zc_goobos/sv_staff.lua; IsAdmin()
+-- only when ULib is not installed); every use goes to the ULX log.
 if not SERVER then return end
+if not ZCStaff then include("zc_goobos/sv_staff.lua") end
 
 local LIMBS = { "larm", "rarm", "lleg", "rleg" }
 
@@ -147,7 +150,7 @@ end
 
 concommand.Add("make_torso", function(ply, cmd, args)
     if not IsValid(ply) then print("[MakeTorso] Run in-game while carrying someone.") return end
-    if not (ply:IsAdmin() or ply:IsSuperAdmin()) then return end
+    if not ZCStaff.Can(ply, "playertools") then return end
 
     local victim = FindCarriedPlayer(ply)
     if not IsValid(victim) then
@@ -157,9 +160,10 @@ concommand.Add("make_torso", function(ply, cmd, args)
 
     if MakeTorso_Apply(victim, ply:Nick()) then
         ply:ChatPrint("[MakeTorso] " .. victim:Nick() .. " is now a torso. Tourniquets on, fentanyl administered.")
+        ZCStaff.Log(ply, "#A made #T a torso", victim)
     else
         ply:ChatPrint("[MakeTorso] Target has no organism.")
     end
-end)
+end, nil, "Staff: turn the player whose body you carry (hands, right mouse) into a living torso - limbs off, tourniquets on, bleeding stopped. Needs the 'zc staff playertools' ULX right.")
 
 print("[MakeTorso] Loaded - make_torso command available")

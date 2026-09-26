@@ -111,10 +111,10 @@ concommand.Add("zcj_ownership_status", function(ply)
         .. " lost=" .. (lost and describe(lost) or "?")
         .. " last_error=" .. tostring(runtime and runtime.last_error and runtime.last_error.code)
         .. "/" .. tostring(runtime and runtime.last_error and runtime.last_error.detail))
-end)
+end, nil, "Superadmin: print the Justice v3 bridge ownership state.")
 
 concommand.Add("zcj_ownership_repair", function(ply)
     if IsValid(ply) and not ply:IsSuperAdmin() then return end
     local ok, detail = repair("manual")
     print("[" .. NAME .. "] " .. (ok and "REPAIRED" or "not repaired") .. " -- " .. tostring(detail))
-end)
+end, nil, "Superadmin: re-run the Justice v3 ownership repair now (discards the observer session).")

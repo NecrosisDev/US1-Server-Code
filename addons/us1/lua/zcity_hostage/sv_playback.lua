@@ -68,7 +68,7 @@ concommand.Add("zch_play", function(ply, _, args)
     if not IsValid(ply) or not ply:IsAdmin() then return end
     local ok, reason = H.Play(ply, args[1])
     if not ok then ply:ChatPrint("Hostage Set: " .. reason) end
-end)
+end, nil, "Admin: play a hostage animation on yourself: zch_play <clip>.")
 concommand.Add("zch_stop", function(ply)
     if IsValid(ply) then H.Stop(ply) end
-end)
+end, nil, "Stop a hostage animation playing on you.")

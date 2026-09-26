@@ -78,7 +78,7 @@ concommand.Add("zc_micbox", function(_, _, args)
 	chat.AddText(Color(120, 165, 255), "[Mic Box] ", Color(214, 220, 232),
 		"speaking box " .. (to == 1 and "ON" or "OFF") ..
 		"  (type ", Color(255, 255, 255), "zc_micbox", Color(214, 220, 232), " to toggle)")
-end)
+end, nil, "Staff: toggle the map-wide speaking box: zc_micbox [on|off].")
 
 -- ---- colours ----
 local col_bg     = Color(20, 26, 22, 235)

@@ -338,7 +338,7 @@ concommand.Add("zc_errlog_stats", function(ply)
 		say(("%5dx [%s] %s"):format(r.count, r.realm,
 			string.sub(string.gsub(r.sig, "\n.*", ""), 1, 160)))
 	end
-end)
+end, nil, "Admin: print the most frequent server Lua errors caught this session.")
 
 concommand.Add("zc_errlog_dump", function(ply)
 	if IsValid(ply) and not ply:IsAdmin() then return end
@@ -348,12 +348,12 @@ concommand.Add("zc_errlog_dump", function(ply)
 	end
 	flush()
 	print("[errlog] flushed to data/" .. logfile())
-end)
+end, nil, "Admin: write caught Lua errors to the error log file now.")
 
 concommand.Add("zc_errlog_clear", function(ply)
 	if IsValid(ply) and not ply:IsAdmin() then return end
 	K.errs, K.order, K.overflow, K.overflowWritten, K.totalSeen = {}, {}, 0, 0, 0
 	print("[errlog] in-memory tracking cleared (log files untouched)")
-end)
+end, nil, "Admin: clear the in-memory error list (log files stay).")
 
 print("[errlog] loaded - Lua errors collect in data/" .. DIR .. "/ (test: lua_run error(\"zc_errlog test\"))")

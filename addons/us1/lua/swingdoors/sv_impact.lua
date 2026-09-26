@@ -649,10 +649,10 @@ concommand.Add("swingdoors_sv_perf", function(ply)
     SwingDoors.PrintTo(ply, string.format("[SwingDoors] over %.1f min: body-push scan %.2f ms/min, session sim %.2f ms/min (%d session-ticks)",
         minutes, perf.scan * 1000 / minutes, perf.sim * 1000 / minutes, perf.ticks))
     perf.since, perf.scan, perf.sim, perf.ticks = SysTime(), 0, 0, 0
-end)
+end, nil, "Admin: print swing-door impact CPU cost since the last call.")
 
 concommand.Add("swingdoors_sv_impact_status", function(ply)
     if IsValid(ply) and not ply:IsAdmin() then return end
     SwingDoors.PrintTo(ply, string.format("[SwingDoors] hits=%d opened=%d added=%d locked=%d weak=%d kicks=%d damage=%d shoved=%d slams=%d broken=%d",
         stats.hits, stats.opened, stats.added, stats.locked, stats.weak, stats.kicks, stats.damage, stats.shoved, stats.slams, stats.broken))
-end)
+end, nil, "Admin: print swing-door impact counters.")

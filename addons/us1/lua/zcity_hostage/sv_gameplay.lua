@@ -878,7 +878,7 @@ concommand.Add("zch_ready",function(p,_,args)
         G.Ready[p]=token
         if p:GetNWString("zch_ready_ack")~=token then p:SetNWString("zch_ready_ack",token) end
     end
-end)
+end, nil, "Internal (hostage client): report that the hostage animations loaded.")
 function G.RequestAction(p,action,arg,selected,equipment,heldKey)
     if not IsValid(p) or not p:IsPlayer() then return end
     if type(action)~="string" or #action>16 then return end
@@ -926,5 +926,5 @@ function G.RequestAction(p,action,arg,selected,equipment,heldKey)
 end
 concommand.Add("zch_action",function(p,_,args)
     G.RequestAction(p,args[1],args[2])
-end)
+end, nil, "Internal (hostage client): request a hostage action: zch_action <action> [value].")
 include("zcity_hostage/sv_handoff.lua")

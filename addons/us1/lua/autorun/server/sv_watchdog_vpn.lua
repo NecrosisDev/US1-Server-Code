@@ -103,7 +103,7 @@ concommand.Add("wd_vpn_exempt", function(p, _, a)
 	if C.vpnExempt[sid] then C.vpnExempt[sid] = nil else C.vpnExempt[sid] = true end
 	if WD.SaveConfig then WD.SaveConfig() end
 	print("[Watchdog] " .. sid .. " VPN-exempt -> " .. tostring(C.vpnExempt[sid] == true))
-end)
+end, nil, "Superadmin: toggle a player's VPN allowance: wd_vpn_exempt <SteamID|name>; no argument lists them.")
 
 local function query(ply, ip)
 	local key = apiKey()

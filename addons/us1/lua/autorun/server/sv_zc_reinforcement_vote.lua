@@ -342,5 +342,5 @@ hook.Add("HG_PlayerSay", "ZCReinforcementVote_Chat", function(ply, buffer)
     R.Command(ply, action)
     return true -- only consume our own commands; stop later modifiers restoring their text.
 end)
-concommand.Add("zc_reinforcements_vote", function(ply, _, args) R.Command(ply, args[1] or "yes") end)
+concommand.Add("zc_reinforcements_vote", function(ply, _, args) R.Command(ply, args[1] or "yes") end, nil, "Vote in the reinforcement vote: zc_reinforcements_vote [yes|no]. Chat: !reinforce")
 timer.Create(POLL, 1, 0, R.Poll)

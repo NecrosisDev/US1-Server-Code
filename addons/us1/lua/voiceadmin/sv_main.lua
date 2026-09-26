@@ -812,14 +812,14 @@ concommand.Add("voiceadmin_status", function(ply)
     end
     local msg = table.concat(lines, " | ")
     if IsValid(ply) then ply:PrintMessage(HUD_PRINTCONSOLE, msg .. "\n") else print(msg) end
-end)
+end, nil, "VoiceAdmin bridge access: print bridge status.")
 
 concommand.Add("voiceadmin_selftest", function(ply)
     if IsValid(ply) and not hasBridgeAccess(ply) then return end
     local ok = S.ready and journalSchema() and compatibilityProbe()
     local msg = ok and "VoiceAdmin self-test PASS (no moderation action executed)." or "VoiceAdmin self-test FAIL."
     if IsValid(ply) then ply:PrintMessage(HUD_PRINTCONSOLE, msg .. "\n") else print(msg) end
-end)
+end, nil, "VoiceAdmin bridge access: self-test the bridge (no moderation action runs).")
 
 function VA.Shutdown(reason)
     if not VA.Server then return end

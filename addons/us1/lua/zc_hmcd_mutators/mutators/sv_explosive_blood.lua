@@ -164,4 +164,4 @@ concommand.Add("zc_mutator_explosive_blood_status", function(p)
             #ctx.data.zones, #ctx.data.pending, math.max(0, ctx.data.armedAt - CurTime()))
     end
     if IsValid(p) then p:PrintMessage(HUD_PRINTCONSOLE, message) else print(message) end
-end)
+end, nil, "Admin: print Explosive Blood mutator status.")

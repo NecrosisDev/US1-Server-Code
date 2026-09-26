@@ -277,7 +277,7 @@ concommand.Add("zc_scanner_response_status",function(p)
     print("[ScannerResponse]",S.Version,"enabled",enabled:GetBool(),"map",game.GetMap(),
         "nodes",graph and graph.count or 0,"ground",graph and #graph.ground or 0,
         "reason",S.graphReason or "ready","pending",#S.pending,"active",S.Count())
-end)
+end, nil, "Admin: print City Scanner response status.")
 S.InstallPill()
 
 S.legacyAdopted=S.AdoptLegacyPair()

@@ -33,11 +33,11 @@ concommand.Add("zc_budget_status",function(p)
     file.Write("zc_tick_budget/status.json",util.TableToJSON(r,true))
     local text=string.format("[TickBudget] %s enabled=%s budget=%.2fms queued=%d worst-worker=%.3fms; details in data/zc_tick_budget/status.json",r.version,tostring(r.enabled),r.budgetMs,r.queued,r.worstWorkMs)
     if IsValid(p)then p:PrintMessage(HUD_PRINTCONSOLE,text)else print(text)end
-end)
+end, nil, "Admin: print the tick budget (details in data/zc_tick_budget/status.json).")
 concommand.Add("zc_budget_capture",function(p,_,args)
     if not allowed(p)then return end
     local seconds=tonumber(args[1])or 60
     if seconds~=seconds then return end
     seconds=math.Clamp(seconds,10,120)
     B.capture={finish=SysTime()+seconds,frames={}}
-end)
+end, nil, "Admin: capture tick budget frames: zc_budget_capture [10-120 seconds].")

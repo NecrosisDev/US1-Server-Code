@@ -23,7 +23,7 @@ concommand.Add(COMMAND, function(ply, _, args)
     if IsValid(ply) then return end
     local lease = state.lease
     if lease and args[1] == lease.token then lease.dispatch(args[2]) end
-end)
+end, nil, "Internal (Moon Gravity mutator): server-console acknowledgement of a gravity change.")
 M:Register({
     ID = "moon_gravity", Title = "Moon Gravity",
     Description = "Gravity is 30% of normal for players, props and ragdolls. Combat karma loss is halved.",

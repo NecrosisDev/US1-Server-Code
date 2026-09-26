@@ -475,7 +475,7 @@ concommand.Add("zc_round_guard_selftest", function(ply)
     reply(string.format("[RoundGuard] selftest: errors.txt lines before=%d after=%d, following listener ran=%s - %s",
         before, after, tostring(bRan), pass and "PASS (fenced; the round would not have been blocked)"
             or "FAIL (either no error was recorded, or the next listener did not run)"))
-end)
+end, nil, "Admin: self-test the round listener fencing (needs zc_round_guard 1).")
 
 concommand.Add("zc_round_status", function(ply)
     if IsValid(ply) and not ply:IsAdmin() then return end
@@ -495,4 +495,4 @@ concommand.Add("zc_round_status", function(ply)
     local modeCount = 0
     for _ in pairs(G.modeWraps) do modeCount = modeCount + 1 end
     reply(string.format("  mode methods fenced: %d (%s)", modeCount, table.concat(MODE_METHODS, "/")))
-end)
+end, nil, "Admin: print round state and the stuck-round watchdog.")

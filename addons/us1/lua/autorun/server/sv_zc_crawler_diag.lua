@@ -114,6 +114,6 @@ concommand.Add("zc_crawler_diag", function(ply)
     else
         print(text)
     end
-end)
+end, nil, "Superadmin: report why players can or cannot become crawlers (read-only).")
 
 print("[zc_crawler_diag] Loaded " .. VERSION)

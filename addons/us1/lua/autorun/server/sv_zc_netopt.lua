@@ -218,14 +218,14 @@ concommand.Add("zc_netopt_stats", function(ply)
 	for k, n in pairs(ZCNETOPT.tdup) do
 		say(string.format("  %-28s unchanged %6d of %6d", k, n, (ZCNETOPT.sent[k] or 0)))
 	end
-end)
+end, nil, "Admin: print netvar send/skip counters.")
 
 concommand.Add("zc_netopt_reset", function(ply)
 	if IsValid(ply) and not ply:IsAdmin() then return end
 	ZCNETOPT.sent, ZCNETOPT.skip, ZCNETOPT.since = {}, {}, CurTime()
 	ZCNETOPT.tdup, ZCNETOPT.tcost = {}, 0
 	print("[NetOpt] counters reset")
-end)
+end, nil, "Admin: reset the netvar counters.")
 
 print("[NetOpt] loaded - unchanged netvar broadcasts " .. (cv_on:GetBool() and "SKIPPED" or "passing through (zc_netopt 0)")
 	.. " | zc_netopt_stats for the breakdown")

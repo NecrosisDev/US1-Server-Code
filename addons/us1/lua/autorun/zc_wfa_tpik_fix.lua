@@ -51,7 +51,7 @@ concommand.Add("zc_wfa_tpik_fix_status", function(caller)
         end
         pending = {}
     end)
-end)
+end, nil, "Admin: collect the weapon TPIK fix status from every client.")
 
 net.Receive(NET, function(_, ply)
     if not pending[ply] or CurTime() > deadline then return end

@@ -1711,7 +1711,7 @@ concommand.Add("zc_chat_media_hidden", function(_, _, args)
     table.sort(ids)
     print(string.format("[ChatMedia] %d hidden player(s); zc_chat_media_hidden clear empties the list", #ids))
     for _, steam in ipairs(ids) do print("  " .. steam) end
-end)
+end, nil, "List players whose chat media you hid; zc_chat_media_hidden clear empties the list.")
 
 -- A re-include finds the chatbox already built and InstallButton long since
 -- called, so the pill and the Tab hook have to be put back by hand. On a first

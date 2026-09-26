@@ -155,20 +155,20 @@ concommand.Add("spikewatch_start", function(ply, _, args)
 	ZCSpike.active = true ZCSpike._last = nil ZCSpike._prevHeap = nil
 	print(string.format("[SpikeWatch] watching - threshold %dms. Play some busy rounds, then spikewatch_report.",
 		math.Round(ZCSpike.threshold * 1000)))
-end)
+end, nil, "Superadmin: start watching tick spikes: spikewatch_start [threshold ms].")
 
 concommand.Add("spikewatch_stop", function(ply)
 	if not isAdmin(ply) then return end
 	ZCSpike.active = false
 	print("[SpikeWatch] stopped. " .. #ZCSpike.spikes .. " spikes on record.")
-end)
+end, nil, "Superadmin: stop watching tick spikes.")
 
 concommand.Add("spikewatch_clear", function(ply)
 	if not isAdmin(ply) then return end
 	ZCSpike.spikes = {} ZCSpike.worst = 0
 	ZCSpike._base = { n = 0, ents = 0, rag = 0, props = 0 }
 	print("[SpikeWatch] cleared.")
-end)
+end, nil, "Superadmin: clear recorded tick spikes.")
 
 concommand.Add("spikewatch_gc", function(ply, _, args)
 	if not isAdmin(ply) then return end
@@ -177,7 +177,7 @@ concommand.Add("spikewatch_gc", function(ply, _, args)
 	else ZCSpike.gcStep = not ZCSpike.gcStep end
 	print("[SpikeWatch] live incremental-GC smoothing -> " .. (ZCSpike.gcStep and "ON" or "OFF") ..
 		(ZCSpike.gcStep and "  (spikewatch_clear, let it run, spikewatch_report - did the GC % and spike rate drop?)" or ""))
-end)
+end, nil, "Superadmin: toggle incremental GC smoothing: spikewatch_gc [on|off].")
 
 concommand.Add("spikewatch_report", function(ply)
 	if not isAdmin(ply) then return end
@@ -233,6 +233,6 @@ concommand.Add("spikewatch_report", function(ply)
 	local fn = "spikewatch/report_" .. os.time() .. ".txt"
 	file.Write(fn, table.concat(out, "\n"))
 	print("[SpikeWatch] written to data/" .. fn)
-end)
+end, nil, "Superadmin: print and save the tick-spike report.")
 
 print("[SpikeWatch] v2 loaded - superadmin: spikewatch_start ... spikewatch_report ... spikewatch_gc 1 to test the GC fix")

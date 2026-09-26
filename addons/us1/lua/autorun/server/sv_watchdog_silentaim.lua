@@ -55,7 +55,7 @@ concommand.Add("wd_debug_silent", function(p, _, a)
 	if IsValid(p) and not p:IsSuperAdmin() then return end
 	DEBUG = (a[1] == "1" or a[1] == "true")
 	print("[wd/silent] debug logging -> " .. tostring(DEBUG))
-end)
+end, nil, "Superadmin: Watchdog silent-aim debug logging: wd_debug_silent 1|0.")
 local function dbg(msg) print("[wd/silent] " .. msg) end
 
 local function psSample(ply, cmd, t)

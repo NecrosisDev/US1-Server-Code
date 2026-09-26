@@ -321,7 +321,7 @@ concommand.Add("ulx_logs", function(ply)
         return
     end
     ply:ConCommand("ulx_logs_open")
-end)
+end, nil, "Staff: open the ULX log panel (checks access, then runs ulx_logs_open). Chat: !logs")
 
 hook.Add("HG_PlayerSay", "ULXLogPanel_Chat", function(ply, text, rawtext)
     if istable(text) then text = text[1] or rawtext end

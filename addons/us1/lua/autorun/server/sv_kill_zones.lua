@@ -61,7 +61,7 @@ concommand.Add("zkill_corner1", function(ply)
     if not IsValid(ply) then print("[KillZones] Run in-game (needs your position).") return end
     ply.KillZoneCorner1 = ply:GetPos()
     ply:ChatPrint("[KillZones] Corner 1 set at " .. tostring(ply.KillZoneCorner1) .. ". Move to the opposite corner and run zkill_corner2.")
-end)
+end, nil, "Admin: set kill zone corner 1 at your position (then zkill_corner2).")
 
 concommand.Add("zkill_corner2", function(ply)
     if not IsAdmin(ply) then return end
@@ -83,7 +83,7 @@ concommand.Add("zkill_corner2", function(ply)
     SaveZones()
     ply.KillZoneCorner1 = nil
     ply:ChatPrint("[KillZones] Zone #" .. #KillZones.Zones .. " created and saved for " .. game.GetMap() .. ".")
-end)
+end, nil, "Admin: set corner 2 at your position and save the kill zone for this map.")
 
 concommand.Add("zkill_list", function(ply)
     if not IsAdmin(ply) then return end
@@ -93,7 +93,7 @@ concommand.Add("zkill_list", function(ply)
         say(string.format("[KillZones] #%d  min(%d %d %d)  max(%d %d %d)",
             i, z.min.x, z.min.y, z.min.z, z.max.x, z.max.y, z.max.z))
     end
-end)
+end, nil, "Admin: list this map's kill zones with their ids.")
 
 concommand.Add("zkill_remove", function(ply, cmd, args)
     if not IsAdmin(ply) then return end
@@ -103,7 +103,7 @@ concommand.Add("zkill_remove", function(ply, cmd, args)
     table.remove(KillZones.Zones, id)
     SaveZones()
     say("[KillZones] Zone #" .. id .. " removed.")
-end)
+end, nil, "Admin: remove a kill zone: zkill_remove <id> (see zkill_list).")
 
 concommand.Add("zkill_clear", function(ply)
     if not IsAdmin(ply) then return end
@@ -111,7 +111,7 @@ concommand.Add("zkill_clear", function(ply)
     KillZones.Zones = {}
     SaveZones()
     say("[KillZones] All zones cleared for " .. game.GetMap() .. ".")
-end)
+end, nil, "Admin: remove every kill zone on this map.")
 
 -- The actual killing
 local function InZone(pos, z)
@@ -161,7 +161,7 @@ end
 concommand.Add("zkill_menu", function(ply)
     if not IsValid(ply) or not IsAdmin(ply) then return end
     SendZoneList(ply)
-end)
+end, nil, "Admin: open the kill zone editor (also in the GoobOS Staff app).")
 
 net.Receive("zkill_action", function(len, ply)
     if not IsValid(ply) or not IsAdmin(ply) then return end

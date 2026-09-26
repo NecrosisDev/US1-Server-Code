@@ -10,7 +10,7 @@ wp.BreakBoneMul = 8000
 wp.Penetration = 8000
 wp.DamageMul = 8000
 
-end)
+end, nil, "Superadmin: give your hands extreme strength (StrengthNo resets it).")
 
 
 concommand.Add('StrengthNo', function(ply)
@@ -25,4 +25,4 @@ wp.BreakBoneMul = 0.33
 wp.Penetration = 1
 wp.DamageMul = 1
 
-end)
+end, nil, "Superadmin: reset your hands' strength to normal.")

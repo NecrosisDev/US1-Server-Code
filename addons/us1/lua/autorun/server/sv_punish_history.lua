@@ -325,7 +325,7 @@ concommand.Add("punish_history", function(ply, _, args)
     RunLookup(target, function(line)
         if IsValid(ply) then ply:PrintMessage(HUD_PRINTCONSOLE, line) else print(line) end
     end)
-end)
+end, nil, "Staff: print a player's permanent punishment history: punish_history <name|SteamID>.")
 
 -- chat command: !history <target>
 hook.Add("HG_PlayerSay", "PunishHist_Chat", function(ply, text, rawtext)

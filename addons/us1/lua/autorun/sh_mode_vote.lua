@@ -398,7 +398,7 @@ if SERVER then
 			or "[ModeVote] skip cancelled - votes run normally"
 		print(msg)
 		if IsValid(ply) then ply:ChatPrint(msg) end
-	end)
+	end, nil, "Admin: skip the next mode vote (run again to cancel).")
 
 	-- the streak lock a mode falls under: Homicide family -> locked[1], FFA/TDM family -> the shared PvP lock
 	local function FamilyLocked(key)

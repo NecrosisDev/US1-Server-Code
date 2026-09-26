@@ -470,4 +470,4 @@ concommand.Add("zc_mutator_postmortem_status",function(p)
             say("[Postmortem] "..who:Nick()..": "..s.phase..(s.reason and " reason="..s.reason or "").." karma="..ZC_POSTMORTEM_KARMA.Status(who)..progress)
         end
     end
-end)
+end, nil, "Admin: print Postmortem mutator status.")

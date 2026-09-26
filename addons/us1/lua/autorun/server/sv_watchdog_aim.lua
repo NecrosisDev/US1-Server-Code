@@ -40,7 +40,7 @@ concommand.Add("wd_debug_aim", function(p, _, a)
 	if IsValid(p) and not p:IsSuperAdmin() then return end
 	DEBUG = (a[1] == "1" or a[1] == "true")
 	print("[wd/aim] debug logging -> " .. tostring(DEBUG))
-end)
+end, nil, "Superadmin: Watchdog aim-module debug logging: wd_debug_aim 1|0.")
 local function dbg(msg) print("[wd/aim] " .. msg) end
 
 -- Did the aim ray from `eye` along `dir` land on `other`'s body? True if it

@@ -2,16 +2,17 @@
 -- Normal crusher role + abilities, PLUS 10 Fury-13 doses of strength
 -- (berserk +20), with the berserk screen effect suppressed for the wearer.
 --
--- Commands (admin/superadmin only):
+-- Commands (the "zc staff playertools" ULX right, zc_goobos/sv_staff.lua; IsAdmin()
+-- only when ULib is not installed; the server console always may). Logged to ULX:
 --   give_supercrusher [name]    - grant (self if no name, in-game)
 --   remove_supercrusher [name]  - remove
 if not SERVER then return end
+if not ZCStaff then include("zc_goobos/sv_staff.lua") end
 
 local BERSERK_POWER = 20  -- 10 Fury-13 doses (each dose = +2)
 
-local function IsAdmin(ply)
-    if not IsValid(ply) then return true end -- server console
-    return ply:IsAdmin() or ply:IsSuperAdmin()
+local function Allowed(ply)
+    return ZCStaff.Can(ply, "playertools") -- true for the server console
 end
 
 local function FindTarget(caller, args)
@@ -34,13 +35,13 @@ local function Say(caller, msg)
 end
 
 concommand.Add("give_supercrusher", function(caller, cmd, args)
-    if not IsAdmin(caller) then return end
+    if not Allowed(caller) then return end
 
     local target = FindTarget(caller, args)
     if not IsValid(target) then Say(caller, "[SuperCrusher] Player not found.") return end
 
-    -- normal crusher role/abilities
-    game.ConsoleCommand('give_crusher "' .. target:Nick() .. '"\n')
+    -- normal crusher role/abilities (as the console, without pasting the name into a console line)
+    if not ZCStaff.RunOn("give_crusher", target) then Say(caller, "[SuperCrusher] give_crusher did not run; strength only.") end
 
     -- strength without the light show
     target:SetNWBool("SilentBerserk", true)
@@ -52,15 +53,16 @@ concommand.Add("give_supercrusher", function(caller, cmd, args)
     end
 
     Say(caller, "[SuperCrusher] " .. target:Nick() .. " is now a Super Crusher.")
-end)
+    ZCStaff.Log(caller, "#A made #T a super crusher", target)
+end, nil, "Staff: make a player a Super Crusher - crusher role plus berserk strength without the screen effect, no dismemberment. give_supercrusher [name]; no name = yourself. Needs the 'zc staff playertools' ULX right.")
 
 concommand.Add("remove_supercrusher", function(caller, cmd, args)
-    if not IsAdmin(caller) then return end
+    if not Allowed(caller) then return end
 
     local target = FindTarget(caller, args)
     if not IsValid(target) then Say(caller, "[SuperCrusher] Player not found.") return end
 
-    game.ConsoleCommand('remove_crusher "' .. target:Nick() .. '"\n')
+    ZCStaff.RunOn("remove_crusher", target)
 
     target.SuperCrusher = nil
 
@@ -83,7 +85,8 @@ concommand.Add("remove_supercrusher", function(caller, cmd, args)
     end)
 
     Say(caller, "[SuperCrusher] Removed from " .. target:Nick() .. ".")
-end)
+    ZCStaff.Log(caller, "#A removed #T's super crusher", target)
+end, nil, "Staff: remove Super Crusher (and the crusher role) from a player. remove_supercrusher [name]; no name = yourself. Needs the 'zc staff playertools' ULX right.")
 
 -- Keep the power topped up (berserk depletes as a resource) and make sure
 -- it clears if the flag is gone

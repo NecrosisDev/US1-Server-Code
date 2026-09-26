@@ -474,6 +474,6 @@ concommand.Add("zc_lockstep_status", function(ply)
 		r.baselineBudgetMs or -1, r.fireShedByUs, r.taskSkips, #L.order, r.lastDecision)
 	if IsValid(ply) then ply:PrintMessage(HUD_PRINTCONSOLE, text) else print(text) end
 	print("[Lockstep] details in data/zc_lockstep/status.json")
-end)
+end, nil, "Admin: print Lockstep load level and budget (also written to data/zc_lockstep/status.json).")
 
 print("[Lockstep] " .. L.Version .. " loaded - zc_lockstep_status to inspect, zc_lockstep 0 to revert")

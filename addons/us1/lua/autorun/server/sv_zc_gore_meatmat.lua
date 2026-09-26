@@ -143,4 +143,4 @@ concommand.Add("zc_gore_meatmat_status", function(ply)
 		M.stats.chunks, M.stats.failed, M.stats.installs)
 
 	if IsValid(ply) then ply:PrintMessage(HUD_PRINTCONSOLE, line) else print(line) end
-end)
+end, nil, "Superadmin: print the gore meat-material fix status.")

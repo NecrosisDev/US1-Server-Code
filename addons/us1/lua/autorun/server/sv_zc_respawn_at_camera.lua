@@ -255,7 +255,7 @@ concommand.Add("zc_respawn_at_camera_status", function(ply)
 		M.stats.installs, M.stats.respawns, M.stats.unbound, M.stats.noSpot)
 
 	if IsValid(ply) then ply:PrintMessage(HUD_PRINTCONSOLE, line) else print(line) end
-end)
+end, nil, "Superadmin: print the !respawn-at-camera fix status.")
 
 concommand.Add("zc_respawn_at_camera_restore", function(ply)
 	if IsValid(ply) and not ply:IsSuperAdmin() then return end
@@ -267,7 +267,7 @@ concommand.Add("zc_respawn_at_camera_restore", function(ply)
 	hook.Remove("OnReloaded", "ZCRespawnAtCamera_Install")
 	COMMANDS.respawn = M.Stock
 	print("[zc_respawn_at_camera] restored zcity's own !respawn")
-end)
+end, nil, "Superadmin: restore the stock !respawn command.")
 
 M.Receipt("file loaded")
 print("[zc_respawn_at_camera] Loaded " .. VERSION)

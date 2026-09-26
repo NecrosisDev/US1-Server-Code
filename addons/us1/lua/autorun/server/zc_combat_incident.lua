@@ -98,4 +98,4 @@ concommand.Add("zc_combat_incident_dump",function(p)
     if IsValid(p) then return end -- server console only; private state is not networked.
     for _,human in ipairs(player.GetHumans()) do safe(D.Record,"manual_snapshot",human) end
     safe(save)
-end)
+end, nil, "Server console: snapshot every human's combat state and save the incident file.")

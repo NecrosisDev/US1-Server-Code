@@ -81,20 +81,20 @@ concommand.Add("solidmapvote_vote", function(ply, _, args)
         if args[2]~=nil or (M.rerolls or 0)>0 then return end
     end
     M.vote(ply:SteamID64(), args[1])
-end)
+end, nil, "Internal (map vote window): vote for a map.")
 concommand.Add("solidmapvote_nominate", function(ply, _, args)
     if not M.acceptRequest(ply, "nominate", 1) or not M.Config["Nomination Permissions"](ply) then return end
     local changed = M.playerHasNominated(ply:SteamID64()) ~= nil
     if M.nominate(ply:SteamID64(), args[1]) then
         M.sendMessage({color_white, ply:Nick() .. (changed and " changed their nomination to " or " nominated ") .. args[1]}, true)
     else M.sendMessage({color_white, "That nomination is unavailable, unchanged, or the six nomination slots are full."}, false, ply) end
-end)
+end, nil, "Internal (map vote window): nominate a map.")
 concommand.Add("solidmapvote_request_mappool", function(ply)
     if M.acceptRequest(ply, "pool", 3) then M.sendMapPool(false, ply) end
-end)
+end, nil, "Internal (map vote window): request the map pool.")
 concommand.Add("solidmapvote_request_nominations", function(ply)
     if M.acceptRequest(ply, "nominations", 1) then M.sendNominations(false, ply) end
-end)
+end, nil, "Internal (map vote window): request the nominations.")
 concommand.Add("solidmapvote_ready", function(ply)
     if M.acceptRequest(ply, "sync", 2) then M.sync(ply) end
-end)
+end, nil, "Internal (map vote window): request the current vote state.")

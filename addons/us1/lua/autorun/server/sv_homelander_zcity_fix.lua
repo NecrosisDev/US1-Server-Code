@@ -542,29 +542,22 @@ hook.Add("KeyPress", "Homelander_GrabKey", function(ply, key)
     end
 end)
 
--- Console commands for crush/neckbreak (matches crusher binds: [ and ])
-concommand.Add("crusher_crush", function(ply)
+-- Console commands for crush/neckbreak. Gameplay binds, not staff tools: each works only while the caller holds the
+-- Homelander SWEP. homelander_crush is the command; crusher_crush is the same command under the crusher bind's name
+-- (matches crusher binds: [ and ]), and likewise the neckbreak pair.
+local function Crush(ply)
     if not IsHomelander(ply) then return end
     CrushHead(ply)
-end)
-
-concommand.Add("+crusher_neckbreak", function(ply)
+end
+local function NeckBreak(ply)
     if not IsHomelander(ply) then return end
     BreakNeck(ply)
-end)
-
-concommand.Add("-crusher_neckbreak", function() end)
-
--- Additional binds specifically for Homelander
-concommand.Add("homelander_crush", function(ply)
-    if not IsHomelander(ply) then return end
-    CrushHead(ply)
-end)
-
-concommand.Add("homelander_neckbreak", function(ply)
-    if not IsHomelander(ply) then return end
-    BreakNeck(ply)
-end)
+end
+concommand.Add("homelander_crush", Crush, nil, "Homelander: crush the head of the player you are holding (Alt+E grab first).")
+concommand.Add("crusher_crush", Crush, nil, "Alias of homelander_crush, for the crusher's [ bind.")
+concommand.Add("homelander_neckbreak", NeckBreak, nil, "Homelander: break the neck of the player you are holding (Alt+E grab first).")
+concommand.Add("+crusher_neckbreak", NeckBreak, nil, "Alias of homelander_neckbreak, for the crusher's ] bind.")
+concommand.Add("-crusher_neckbreak", function() end, nil, "Release half of +crusher_neckbreak (does nothing).")
 
 -- Manage grab state - only handles laser kill (positioning is handled by hg.SetCarryEnt2)
 hook.Add("Think", "Homelander_GrabHold", function()

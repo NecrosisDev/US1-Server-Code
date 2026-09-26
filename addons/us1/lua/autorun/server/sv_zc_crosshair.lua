@@ -211,4 +211,4 @@ end, HOOK_HIGH)
 concommand.Add("zc_crosshair_sv_version", function(ply)
     if IsValid(ply) and not ply:IsAdmin() then return end
     print("[zc_crosshair] server " .. ZC_CROSSHAIR_SV_VERSION .. " | aim-assist tester " .. cvTester:GetString())
-end)
+end, nil, "Admin: print the crosshair server version and aim-assist tester.")

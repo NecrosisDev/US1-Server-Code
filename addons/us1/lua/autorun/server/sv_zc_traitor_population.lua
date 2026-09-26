@@ -79,5 +79,5 @@ concommand.Add("zc_traitor_population_status", function(ply)
         K.Version, tostring(enabled:GetBool()), tostring(installed == true), count, threshold:GetInt(), K.Target(count))
     if K.last then message = message .. string.format(" last selection: %d participants -> target %d", K.last.participants, K.last.target) end
     if IsValid(ply) then ply:PrintMessage(HUD_PRINTCONSOLE, message) else print(message) end
-end)
+end, nil, "Admin: print the Homicide traitor population target.")
 print("[Traitor Population] v" .. K.Version .. " loaded; applies at the next ordinary Homicide selection")

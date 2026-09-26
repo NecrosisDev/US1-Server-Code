@@ -375,7 +375,7 @@ concommand.Add("voiceadmin_ipc_status", function()
         "[VoiceAdmin] version=%s session=%s expected=%d out=%d",
         VA.VERSION, tostring(C.session), C.expectedSeq, C.outSeq
     ))
-end)
+end, nil, "Print the VoiceAdmin client bridge status.")
 
 function VA.Shutdown(reason)
     timer.Remove("VoiceAdmin.IPCPoll")

@@ -1,7 +1,8 @@
 -- ULX Log Panel - client GUI
 -- Two tabs: Command Log (filter/group/paginate the 7-day ulx_cmdlog) and
 -- Punishments (permanent punish_history lookup). Admin+ (server enforces).
--- Open: console "ulx_logs" or chat "!logs". Export writes a text file to
+-- Open: console "ulx_logs_open", chat "!logs", or the GoobOS Staff app ("ulx_logs" is the server-side
+-- opener behind !logs: it checks access, then runs ulx_logs_open). Export writes a text file to
 -- YOUR local garrysmod/data/.
 if not CLIENT then return end
 
@@ -501,4 +502,4 @@ local function Open()
     SetTab("log")
 end
 
-concommand.Add("ulx_logs_open", Open)
+concommand.Add("ulx_logs_open", Open, nil, "Open the ULX log panel: the 7-day command log and the punishment history (staff; the server checks access on every query). Chat: !logs")

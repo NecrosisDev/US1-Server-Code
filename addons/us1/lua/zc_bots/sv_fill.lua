@@ -311,7 +311,7 @@ concommand.Add("zc_bots_add", function(ply, _, args)
 	if mode and not hg.botfill.SupportedModes[mode] then
 		reply(ply, "[zc_bots] note: current mode '" .. tostring(mode) .. "' has no bot profile - added bot(s) will be benched to TEAM_SPECTATOR (see zc_bots_list/zc_bots_diagnose)")
 	end
-end)
+end, nil, "Superadmin: add bots: zc_bots_add [1-32]; auto-fill never removes them.")
 
 -- Who is a bot? Bots are deliberately hard to spot in-game, so this is the
 -- authoritative answer. Prints to the caller's own console.
@@ -337,11 +337,11 @@ concommand.Add("zc_bots_list", function(ply)
 	end
 	if #bots == 0 then reply(ply, "  (none -- zc_bots_enable is " .. tostring(hg.botdriver.Enabled()) .. ")") end
 	reply(ply, "[zc_bots] other tells: console 'status' shows BOT in the steamid column; bots have no SteamID64.")
-end)
+end, nil, "Superadmin: list the bots on the server.")
 
 concommand.Add("zc_bots_kick", function(ply)
 	if not allowed(ply) then return end
 	for _, bot in ipairs(managedBots()) do
 		bot:Kick("zc_bots_kick")
 	end
-end)
+end, nil, "Superadmin: kick every managed bot.")

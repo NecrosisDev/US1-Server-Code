@@ -305,7 +305,7 @@ if SERVER then
         if IsValid(p) and not p:IsAdmin() then return end
         print("[KarmaBounty]",K.Version,"active",K.Active(),"round",K.RoundKey())
         for _,point in ipairs(knots) do print("[KarmaBounty] target",point[1],"value",K.Value(point[1])) end
-    end)
+    end, nil, "Admin: print the karma bounty curve.")
     K.Publish()
     ZCityMetaSafety.Tick()
 else

@@ -88,4 +88,4 @@ concommand.Add("zc_bots_difficulty_status", function(ply)
 	local msg = string.format("[zc_bots] adaptive=%s offset=%.3f history=%d rounds",
 		tostring(cv_adaptive:GetBool()), hg.botdriver.difficultyOffset or 0, #history)
 	if IsValid(ply) then ply:PrintMessage(HUD_PRINTCONSOLE, msg) else print(msg) end
-end)
+end, nil, "Superadmin: print the adaptive bot difficulty offset.")

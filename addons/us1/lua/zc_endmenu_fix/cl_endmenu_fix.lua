@@ -101,4 +101,4 @@ CloseMenu("addon loaded or reloaded")
 concommand.Add("zc_endmenu_fix_status", function()
     print(string.format("[zc_endmenu_fix] v%s | closed: %d | last: %s | menu open: %s",
         VERSION, closed, lastReason, tostring(IsValid(hmcdEndMenu))))
-end)
+end, nil, "Print the end-menu fix status.")

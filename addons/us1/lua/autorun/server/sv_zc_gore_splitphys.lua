@@ -260,7 +260,7 @@ concommand.Add("zc_gore_splitgate_status", function(ply)
         tostring(G.installed), stats.installs, stats.reinstalls, G.why))
     log(("frames %d | upper skip %d / work %d | lower skip %d / work %d | redundant %.1f%% of %d half-updates"):format(
         stats.frames, su, wu, sl, wl, pct, total))
-end)
+end, nil, "Superadmin: print the gore split-physics gate status.")
 
 -- Live rollback lever: hand the original registration back, untouched.
 concommand.Add("zc_gore_splitgate_restore", function(ply)
@@ -275,7 +275,7 @@ concommand.Add("zc_gore_splitgate_restore", function(ply)
     G.installed, G.ours = false, nil
     G.why = "restored by command"
     log("restore: original ZCity Gore V2 registration is live again")
-end)
+end, nil, "Superadmin: remove the split-physics gate and restore Gore V2's original.")
 
 log(("loaded %s -- arming, retry every %ds for up to %ds"):format(
     VERSION, RETRY_EVERY, RETRY_EVERY * RETRY_MAX))
