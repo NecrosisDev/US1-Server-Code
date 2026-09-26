@@ -1496,7 +1496,7 @@ local function aliveVoteKeys() return GetGlobalBool("zc_postround_alive_vote", f
 -- ballot_alive_20260926: the MAP ballot is the one vote a living player has no other way to cast (the addon's own menu
 -- is blocked while this panel holds the vote, and the side card has no cursor), so its number keys are always taken
 -- while it is open. zc_postround_alive_vote still governs the mode vote.
-local function aliveMapKeys() return aliveVoteKeys() or (RE.MapVote.active and RE.MapVote.result == nil) end
+local function aliveMapKeys() return aliveVoteKeys() or (RE.MapVote.active and RE.MapVote.result == nil and roundState() == 3) end -- final review 2026-09-26: never during prep (state 0), where 1-9 pick weapons
 -- postround2_20260925 (owner 2026-09-25: living players vote with the number keys, zc_postround_alive_vote 1): the
 -- open map ballot as numbered choices, in ballot order (ballotChoices: maps, then extend, then random), wrapped over at
 -- most three rows; the last row is trimmed to the card if a long ballot still overflows.
