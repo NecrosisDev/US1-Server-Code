@@ -53,10 +53,10 @@ class CheckTests(unittest.TestCase):
             self.assertEqual(len(check.check_secrets([f])), 1)
 
 
-def killcam_viewer_sha256(root=ROOT):
-    """SHA-256 of the killcam viewer as the client assembles it (cl_viewer.lua): each viewer_parts file returns a Lua long
-    string minus its first character; Lua drops a newline right after the opening bracket and turns CRLF into LF."""
-    import hashlib, re
+def killcam_viewer_source(root=ROOT):
+    """The killcam viewer as the client assembles it (cl_viewer.lua): each viewer_parts file returns a Lua long string
+    minus its first character; Lua drops a newline right after the opening bracket and turns CRLF into LF."""
+    import re
     out = []
     for i in range(1, 10):
         s = (root / f"addons/us1/lua/zc_killcam/viewer_parts/cl_part_{i:02d}.lua").read_bytes().decode("utf8")
@@ -67,7 +67,12 @@ def killcam_viewer_sha256(root=ROOT):
         elif body[:1] in ("\r", "\n"):
             body = body[1:]
         out.append(re.sub(r"\r\n|\n\r|\r", "\n", body)[1:])
-    return hashlib.sha256("".join(out).encode()).hexdigest()
+    return "".join(out)
+
+
+def killcam_viewer_sha256(root=ROOT):
+    import hashlib
+    return hashlib.sha256(killcam_viewer_source(root).encode()).hexdigest()
 
 
 class KillcamDeliveryTests(unittest.TestCase):
@@ -76,6 +81,19 @@ class KillcamDeliveryTests(unittest.TestCase):
         digest = killcam_viewer_sha256()
         for f in ["addons/us1/lua/zc_killcam/cl_viewer.lua", "addons/us1/lua/autorun/server/zc_killcam_viewer_delivery.lua"]:
             self.assertIn(f'local VERSION="{digest}"', (ROOT / f).read_text(), f)
+
+    def test_viewer_compiles_in_luajit(self):
+        """The assembled viewer is one chunk near LuaJIT's 200-local limit; glualint does not check that limit."""
+        import shutil, subprocess
+        exe = shutil.which("luajit")
+        if not exe:
+            self.skipTest("luajit not installed")
+        with tempfile.NamedTemporaryFile("w", suffix=".lua", delete=False) as f:
+            f.write(killcam_viewer_source())
+        r = subprocess.run([exe, "-e", f"local f, e = loadfile({f.name!r}) if not f then io.stderr:write(e) os.exit(1) end"],
+                           capture_output=True, text=True)
+        Path(f.name).unlink()
+        self.assertEqual(r.returncode, 0, r.stderr)
 
 
 class LayoutTests(unittest.TestCase):

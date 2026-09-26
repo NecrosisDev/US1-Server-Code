@@ -1025,6 +1025,9 @@ end
 -- motion blur) works on the WHOLE framebuffer, so it bloomed and blurred every panel part painted before the inset
 -- (the title, the left column) and brightened the world behind. For the inset render those calls are no-ops; each
 -- muted call is counted in V.MutedPost (zc_killcam_impact_print prints them).
+-- Scoped in do ... end: the assembled viewer is ONE chunk sitting at LuaJIT's 200-local limit (review 2026-09-26: six
+-- file-scope locals here made it 204 and the viewer stopped compiling on every client). Only V.MutePostProcess escapes.
+do
 local POST_FUNCS = {"DrawBloom", "DrawToyTown", "DrawMotionBlur", "DrawSunbeams", "DrawColorModify", "DrawSharpen", "DrawSobel", "DrawTexturize", "DrawMaterialOverlay"}
 V.MutedPost = V.MutedPost or {}
 local mutedFns = {}
@@ -1084,6 +1087,7 @@ function V.MutePostProcess()
             MsgN("[Killcam] inset post-processing muted: " .. table.concat(parts, " "))
         end
     end
+end
 end
 -- Renders the replay's current frame into a SCREEN-space rect (pixels; from a panel's Paint use its LocalToScreen),
 -- exactly as the fullscreen path does: same camera, ghosts, scope, cinematic cutaway, live entities hidden. Returns
