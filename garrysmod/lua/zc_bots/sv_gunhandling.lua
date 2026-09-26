@@ -374,6 +374,155 @@ function gh.CombatStance(bot, brain, now, dist, preferRange, aggr, firing)
 end
 
 ----------------------------------------------------------------------
+-- 2026-09-26 presentation parity: the lean keys. US1 leans on IN_ALT1
+-- (right) / IN_ALT2 (left) (weapons/homigrad_base/sh_anim.lua "Bones"
+-- hook: server reads KeyDown, bends spine/head/arm bones, networks
+-- PlayerLean). Nothing in this package ever pressed them, so a bot was the
+-- only "player" on the server that never leaned. Two habits:
+--   * peek lean: after the D2 peek cycle steps back out from cover, lean
+--     away from the cover for the rest of that exposure;
+--   * strafe lean: some players lean into their strafe in a close/mid
+--     fight. Rolled per strafe segment, so it comes and goes.
+-- How much a bot leans at all is a per-personality habit (leanHabit),
+-- rolled lazily so existing personalities pick it up without a re-roll.
+----------------------------------------------------------------------
+
+hg.botdriver.DeclareBrainState("gunhandling_lean", { fields = { "leanSegDir", "leanSegOn" } })
+
+local LEAN_HABIT = { tryhard = { .55, .9 }, oldhand = { .5, .85 }, hothead = { .3, .7 }, gremlin = { .3, .75 } }
+
+function gh.LeanHabit(brain)
+	local p = brain.personality
+	if not p then return 0.3 end
+	if not p.leanHabit then
+		local range = LEAN_HABIT[p.archetype] or { .1, .6 }
+		p.leanHabit = math.Rand(range[1], range[2])
+	end
+	return p.leanHabit
+end
+
+local function leanKey(dir)
+	return dir > 0 and IN_ALT1 or IN_ALT2
+end
+
+function gh.ApplyLean(bot, brain, now, dist, buttons)
+	if bit.band(buttons, IN_SPEED) ~= 0 then return buttons end
+	local habit = gh.LeanHabit(brain)
+	local peekDir = brain.peekCoverDir or 0
+	if peekDir ~= 0 and now >= (brain.peekStepUntil or 0) and now < (brain.peekNextHideAt or 0)
+		and (now >= (brain.peekHiddenUntil or 0)) and habit > 0.35 then
+		return bit.bor(buttons, leanKey(-peekDir))
+	end
+	local strafeDir = brain.cmStrafeDir or 0
+	if strafeDir ~= 0 and (dist or 0) < 900 then
+		if brain.leanSegDir ~= strafeDir then
+			brain.leanSegDir = strafeDir
+			brain.leanSegOn = math.random() < habit * 0.45
+		end
+		if brain.leanSegOn then return bit.bor(buttons, leanKey(strafeDir)) end
+	end
+	return buttons
+end
+
+----------------------------------------------------------------------
+-- 2026-09-26: tube-fed shotguns and stripper-clip rifles (the US1 SWEPs
+-- whose Reload runs the "shootgunReload" insert loop) only keep inserting
+-- while IN_RELOAD is still HELD when each shell lands
+-- (weapon_remington870.lua reloadFunc: hg.KeyDown(owner, IN_RELOAD)). The
+-- dry-clip branch stopped asking for IN_RELOAD the moment one shell was in,
+-- so bots fought an entire round one shell at a time -- start anim, one
+-- shell, fire, repeat -- which no person does. A loader now commits to a
+-- shell goal: a few under pressure, the whole tube when nobody is around.
+----------------------------------------------------------------------
+
+local SHELL_LOADERS = {
+	weapon_remington870 = true, weapon_remington870_roullet = true, weapon_m590a1 = true,
+	weapon_spas12 = true, weapon_xm1014 = true, weapon_ks23 = true,
+	weapon_kar98 = true, weapon_mosin = true,
+}
+
+hg.botdriver.DeclareBrainState("gunhandling_shells", { fields = { "shellGoal" } })
+
+function gh.IsShellLoader(wep)
+	if not IsValid(wep) then return false end
+	return SHELL_LOADERS[wep:GetClass()] == true
+end
+
+local function clipInfo(wep)
+	local clip = wep:Clip1() or 0
+	local size = (wep.GetMaxClip1 and wep:GetMaxClip1()) or (wep.Primary and wep.Primary.ClipSize) or math.max(clip, 1)
+	return clip, math.max(size, 1)
+end
+
+-- Called when a loader starts reloading. Under fire it wants enough to win
+-- the next exchange; patient bots and long ranges load a little more.
+function gh.SetShellGoal(bot, brain, wep, underFire, dist)
+	if not gh.IsShellLoader(wep) then return end
+	local _, size = clipInfo(wep)
+	if not underFire then
+		brain.shellGoal = size
+		return
+	end
+	local patience = (brain.personality and brain.personality.patience) or 1
+	local goal = 2 + math.floor(patience * 1.5 + math.random()) + ((dist or 0) > 900 and 2 or 0)
+	brain.shellGoal = math.min(size, goal)
+end
+
+-- True while a loader should keep IN_RELOAD held instead of firing: a reload
+-- is in progress and the goal is not reached, unless the target is already
+-- close enough that a person would stop loading and shoot what they have.
+function gh.ShellReloadHold(bot, brain, now, wep, dist)
+	if not gh.IsShellLoader(wep) or not wep.GetNetVar then return false end
+	if (wep:GetNetVar("shootgunReload", 0) or 0) <= now then
+		brain.shellGoal = nil
+		return false
+	end
+	local clip, size = clipInfo(wep)
+	local goal = brain.shellGoal or size
+	-- A quiet top-up that gets interrupted by a visible enemy settles for a
+	-- few shells rather than finishing the whole tube in their sights.
+	if (dist or math.huge) < 1500 then goal = math.min(goal, 4) end
+	if clip >= goal then return false end
+	if clip >= 1 and (dist or math.huge) < 380 then return false end
+	return true
+end
+
+----------------------------------------------------------------------
+-- 2026-09-26: launcher self-preservation. rpg_projectile.lua blasts ~7 m
+-- (BlastDis 7, ~367 u) and does not even arm inside SafetyDistance (the same
+-- 7 m); weapon_hg_rpg.lua also burns anything in a 128 u cone BEHIND the
+-- shooter. EquipForRange only excluded launchers under 200 u, so a bot fired
+-- rockets at point blank or into a wall in front of its own face, and
+-- happily torched a teammate standing behind it. Hold fire (and open the
+-- distance) instead.
+----------------------------------------------------------------------
+
+local LAUNCHER_MIN = 520
+local BACKBLAST = 150
+
+function gh.LauncherUnsafe(bot, brain, wep, dist, aimPos, allyOf)
+	local prof = hg.botdriver.WeaponProfile and hg.botdriver.WeaponProfile(wep)
+	if not prof or prof.role ~= "launcher" then return false end
+	if (dist or 0) < LAUNCHER_MIN then return true end
+	local eye = bot:EyePos()
+	if isvector(aimPos) then
+		local tr = util.TraceLine({ start = eye, endpos = aimPos, filter = { bot, brain.target }, mask = MASK_SHOT })
+		if tr.Hit and tr.HitPos:DistToSqr(eye) < LAUNCHER_MIN * LAUNCHER_MIN then return true end
+	end
+	if allyOf then
+		local back = -bot:GetAimVector()
+		for _, ply in ipairs(player.GetAll()) do
+			if ply ~= bot and ply:Alive() and allyOf(ply) then
+				local delta = ply:GetPos() + Vector(0, 0, 40) - eye
+				local d = delta:Length()
+				if d < BACKBLAST and d > 1 and back:Dot(delta / d) > 0.6 then return true end
+			end
+		end
+	end
+	return false
+end
+
+----------------------------------------------------------------------
 -- Top-up reload: when a bot has had no target for 3s and its active gun's
 -- clip is under 50%, tap a reload without waiting for a dry clip. Runs as a
 -- non-exclusive SUPPORT-band pass (mirrors reflex.damage-response's pattern
@@ -424,12 +573,16 @@ hg.botdriver.RegisterBehavior({
 
 		local clip = wep:Clip1() or 0
 		local clipSize = (wep.GetMaxClip1 and wep:GetMaxClip1()) or (wep.Primary and wep.Primary.ClipSize) or math.max(clip, 1)
-		local threshold = tidyQuirk and 1.0 or 0.5 -- the quirk fires even on a near-full mag
+		-- The quirk fires even on a near-full mag; a shell loader is always
+		-- topped off when it is quiet (and must keep R held to do it).
+		local loader = gh.IsShellLoader(wep)
+		local threshold = (tidyQuirk or loader) and 1.0 or 0.5
 		if clipSize <= 0 or clip / clipSize >= threshold then return false end
 
 		local reserve = hg.botdriver.EffectiveReserve and hg.botdriver.EffectiveReserve(bot, wep) or 0
 		if reserve <= 0 then return false end
 
+		if loader then brain.shellGoal = clipSize end
 		brain.buttons = bit.bor(brain.buttons or 0, IN_RELOAD)
 		return false -- never claims the tick; IDLE/ACQUIRE still run this pass
 	end,

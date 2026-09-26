@@ -198,6 +198,13 @@ hook.Add("StartCommand", "zc_bots_control", function(ply, cmd)
 		finalButtons = bit.band(finalButtons, bit.bnot(bit.bor(IN_ATTACK, IN_ATTACK2)))
 	end
 
+	-- 2026-09-26: crouch/lean dances (sv_emote.lua) press their keys at
+	-- command rate -- a decision-rate (~6 Hz) button could not hold the
+	-- rhythm of someone hammering crouch.
+	if brain.emote and hg.botdriver.emote and hg.botdriver.emote.Buttons then
+		finalButtons = hg.botdriver.emote.Buttons(brain, now, finalButtons)
+	end
+
 	-- Rule 3, enforced again at command rate: IN_SPEED/IN_USE never ride
 	-- along with IN_ATTACK, and IN_WALK never rides with IN_RELOAD or
 	-- IN_SPEED (sv_movement.lua authors IN_WALK for the slow-walk gait since

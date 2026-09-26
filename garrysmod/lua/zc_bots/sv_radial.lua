@@ -38,12 +38,9 @@
 --   whether it is even client- or server-registered; NOT used here), and
 --   `RunConsoleCommand("hg_hand_gesture", ...)` for point/thumb_up/fuckyou,
 --   whose handler IS in this tree and IS server-side
---   (main-design-source/lua/homigrad/zmanip/sv_zmanip.lua:55) and, better
---   still, just calls the plain global `hg.RunZManipAnim(ply, anim, reverse)`
---   (sv_zmanip.lua:3) -- called directly here, skipping the concommand
---   string-parse entirely. "fuckyou" is available but deliberately unused
---   below (profanity, matches this package's existing chat-line convention
---   of never swearing).
+--   (addons/zcity/lua/homigrad/zmanip/sv_zmanip.lua) and maps each name to
+--   its animation sequence before calling `hg.RunZManipAnim`. Bots run that
+--   same command via concommand.Run (see playGesture below).
 --
 -- WHAT BOTS DO WITH THIS: sparse, event-driven, hard rate-limited (global
 -- cooldown + per-bot cooldown + a per-round budget, same three-layer shape
@@ -92,10 +89,13 @@ local CONTEXT = {
 	push = "Cheer",
 }
 
--- Verified gesture names (sv_zmanip.lua's `gestures` table). "fuckyou"
--- omitted deliberately -- see file header.
+-- Verified gesture names (sv_zmanip.lua's `gestures` table). 2026-09-26:
+-- "fuckyou" is now used too, by crude/ragey temperaments only
+-- (sv_personality.lua) -- real players on this server flip each other off
+-- constantly, and a bot population that never does is its own tell.
 local GESTURE_POINT = "point"
 local GESTURE_THUMBUP = "thumb_up"
+local GESTURE_FINGER = "fuckyou"
 
 local globalVoiceLastAt = -math.huge
 local globalGestureLastAt = -math.huge
@@ -111,11 +111,29 @@ local function playVoice(bot, context)
 	return concommand.Run(bot, "hg_phrase_context", { context }, context) == true
 end
 
+-- 2026-09-26: the radial's gesture names are NOT the animation names --
+-- sv_zmanip.lua's hg_hand_gesture maps "thumb_up" to the sequence
+-- "thump_up" (sic; cl_zmanip.lua only knows "thump_up"), so calling
+-- hg.RunZManipAnim(bot, "thumb_up") directly played nothing on any client and
+-- every bot thumbs-up since 2026-09-22 was silently invisible. Go through the
+-- same server-side command a human's radial click runs (mapping, 2 s
+-- handGestureCD and all); the direct call remains only as a fallback, with
+-- the corrected sequence names.
+local GESTURE_SEQUENCE = { thumb_up = "thump_up", point = "point", fuckyou = "fuckyou" }
+
 local function playGesture(bot, gesture)
-	if not IsValid(bot) or not isfunction(hg.RunZManipAnim) then return false end
-	hg.RunZManipAnim(bot, gesture, false)
+	if not IsValid(bot) then return false end
+	if (bot.handGestureCD or 0) > CurTime() then return false end
+	if concommand and isfunction(concommand.Run)
+		and concommand.Run(bot, "hg_hand_gesture", { gesture }, gesture) == true then
+		return true
+	end
+	if not isfunction(hg.RunZManipAnim) then return false end
+	hg.RunZManipAnim(bot, GESTURE_SEQUENCE[gesture] or gesture, false)
+	bot.handGestureCD = CurTime() + 2
 	return true
 end
+radial.PlayGesture = playGesture
 
 local function budgetOf(personality, chattyCount, plainCount)
 	if not (personality and personality.chatty) then return plainCount end
@@ -205,12 +223,15 @@ hook.Add("PlayerDeath", "zc_bots_radial_death", function(victim, _inflictor, att
 		if brain then
 			local personality = brain.personality or (hg.botdriver.GetPersonality and hg.botdriver.GetPersonality(attacker))
 			local sportsmanship = (personality and personality.sportsmanship) or 0.5
+			local temper = personality and personality.temperament
 			if math.random() < (1 - sportsmanship) * 0.5 then
 				-- Low sportsmanship: taunt, either voice or gesture, not both.
+				-- Crude and ragey players reach for the finger instead of a point.
+				local rude = (temper == "crude" or temper == "ragey") and math.random() < 0.6
 				if math.random() < 0.5 then
 					tryVoice(attacker, brain, CONTEXT.kill, 1)
 				else
-					tryGesture(attacker, brain, GESTURE_POINT, 1)
+					tryGesture(attacker, brain, rude and GESTURE_FINGER or GESTURE_POINT, 1)
 				end
 			elseif math.random() < sportsmanship * 0.3 then
 				-- High sportsmanship: a plain acknowledge instead of a taunt.

@@ -187,11 +187,16 @@ end
 -- (tagged ply.zcBot = true) and let Think/StartCommand early-return elsewhere.
 ----------------------------------------------------------------------
 
+-- Every bot departure uses the reason a real client's quit produces. The
+-- kick reason is broadcast in the "left the game (...)" chat line, so any
+-- package-specific wording there named the player as a bot.
+hg.botdriver.LEAVE_REASON = "Disconnect by user."
+
 local function kickDisabledBots()
 	if cv_enable:GetBool() then return end
 	for _, ply in ipairs(player.GetAll()) do
 		if IsValid(ply) and ply:IsBot() and ply.zcBot then
-			ply:Kick("zc_bots_enable is 0")
+			ply:Kick(hg.botdriver.LEAVE_REASON)
 		end
 	end
 end

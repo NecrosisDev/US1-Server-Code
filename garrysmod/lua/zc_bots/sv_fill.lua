@@ -155,7 +155,7 @@ local function removeOneBot(bots)
 	end
 	victim = victim or bots[#bots]
 	if IsValid(victim) then
-		victim:Kick("zc_bots population adjustment")
+		victim:Kick(hg.botdriver.LEAVE_REASON or "Disconnect by user.")
 		return true
 	end
 	return false
@@ -342,6 +342,6 @@ end)
 concommand.Add("zc_bots_kick", function(ply)
 	if not allowed(ply) then return end
 	for _, bot in ipairs(managedBots()) do
-		bot:Kick("zc_bots_kick")
+		bot:Kick(hg.botdriver.LEAVE_REASON or "Disconnect by user.")
 	end
 end)

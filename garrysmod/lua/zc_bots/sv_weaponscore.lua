@@ -164,10 +164,15 @@ function hg.botdriver.HasCQBAlternative(bot)
 	return false
 end
 
+-- 2026-09-26: a launcher's own blast (~367 u, rpg_projectile.lua BlastDis 7)
+-- and arming distance reach far past CQB_DIST, so it is put away much sooner.
+local CQB_DIST_LAUNCHER = 560
+
 function hg.botdriver.CQBExcluded(bot, wep, dist)
-	if (dist or math.huge) >= CQB_DIST then return false end
 	local prof = hg.botdriver.WeaponProfile(wep)
 	if not prof or (prof.role ~= "sniper" and prof.role ~= "launcher") then return false end
+	local limit = prof.role == "launcher" and CQB_DIST_LAUNCHER or CQB_DIST
+	if (dist or math.huge) >= limit then return false end
 	return hg.botdriver.HasCQBAlternative(bot)
 end
 

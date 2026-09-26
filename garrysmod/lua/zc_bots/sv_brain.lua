@@ -1449,10 +1449,22 @@ function lib.Engage(bot, brain, now, skill, target, dist, behavior, buttons)
 			-- path node) while reloading.
 			if hg.botdriver.gunhandling then
 				hg.botdriver.gunhandling.RetreatWhileReloading(bot, brain, now, target, dist)
+				if hg.botdriver.gunhandling.SetShellGoal and not brain.shellGoal then
+					hg.botdriver.gunhandling.SetShellGoal(bot, brain, wep, true, dist)
+				end
 			end
 			return bit.bor(buttonsNoFire, IN_RELOAD)
 		end
 		return buttonsNoFire
+	end
+
+	-- 2026-09-26: a tube/stripper loader mid-reload keeps R held until its
+	-- shell goal (sv_gunhandling.lua ShellReloadHold) instead of firing the
+	-- first shell that lands.
+	local ghMod = hg.botdriver.gunhandling
+	if ghMod and ghMod.ShellReloadHold and ghMod.ShellReloadHold(bot, brain, now, wep, dist) then
+		ghMod.RetreatWhileReloading(bot, brain, now, target, dist)
+		return bit.bor(bit.band(buttons, bit.bnot(bit.bor(IN_ATTACK, IN_SPEED))), IN_RELOAD)
 	end
 
 	local scared = 1 - ammoRatio
@@ -1471,6 +1483,20 @@ function lib.Engage(bot, brain, now, skill, target, dist, behavior, buttons)
 		brain.path = nil
 		brain.state = "disengage"
 		return bit.band(buttons, bit.bnot(bit.bor(IN_ATTACK, IN_ATTACK2, IN_SPEED)))
+	end
+
+	-- 2026-09-26: never fire a launcher inside its own blast/arming radius,
+	-- into a wall at arm's length, or with a teammate in the backblast
+	-- (sv_gunhandling.lua LauncherUnsafe). Back off to open the range.
+	if ghMod and ghMod.LauncherUnsafe
+		and ghMod.LauncherUnsafe(bot, brain, wep, dist, visibleAim, (behavior and behavior.allyOf) or hg.botdriver.AllyOf(bot)) then
+		brain.fireUntil = 0
+		brain.path = nil
+		brain.moveAngles = Angle(0, (target:GetPos() - bot:GetPos()):Angle().y, 0)
+		brain.forward = (dist or 0) < 520 and -200 or 0
+		brain.side = (bot:EntIndex() % 2 == 0) and 140 or -140
+		if lib.SafeCombatMove then lib.SafeCombatMove(bot, brain, now) end
+		return bit.band(buttons, bit.bnot(bit.bor(IN_ATTACK, IN_SPEED)))
 	end
 
 	brain.fireGatedUntil = now + 0.3
@@ -1581,6 +1607,12 @@ function lib.Engage(bot, brain, now, skill, target, dist, behavior, buttons)
 			brain.forward = -150
 			brain.side = math.sin(now * 2 + bot:EntIndex()) * 200
 		end
+	end
+
+	-- 2026-09-26: lean habits (peek lean / strafe lean), authored after the
+	-- stance above has picked this decision's strafe direction.
+	if ghMod and ghMod.ApplyLean then
+		buttons = ghMod.ApplyLean(bot, brain, now, dist, buttons)
 	end
 
 	return buttons
