@@ -31,6 +31,11 @@ NEVER_DELETE = ("removed-stock-gmod", "vendor-external")
 OVERLAID = ("removed-identical-to-upstream", "upstream-local-edit-as-patch")
 PROTECTED_ROOTS = ("garrysmod/data/", "garrysmod/cfg/")
 ARCHIVE = "/_archive/us1_cutover"
+# Files whose repo copy has a credential blanked out (README "Local credentials"). Live differs by design: the
+# drift check reports them as expected, and CUTOVER.md says to carry the live value into the installed copy.
+SECRET_FILES = {"garrysmod/lua/zc_chat_media/giphy_config.lua": "addons/us1/lua/zc_chat_media/giphy_config.lua",
+                "garrysmod/addons/zc_watchdog/lua/autorun/server/sv_watchdog_vpn.lua":
+                    "addons/us1/lua/autorun/server/sv_watchdog_vpn.lua"}
 
 
 def git(*args, binary=False):
@@ -217,7 +222,10 @@ def main():
                 continue
             want = expected_bytes(model[p])
             if want is not None and sha256(want) != hashes[p]:
-                drifted.append(p)
+                if p in SECRET_FILES:
+                    print(f"note: {p} differs on live (expected: it holds the real API key)")
+                else:
+                    drifted.append(p)
         problems += [f"{p}: changed on live since it was last shipped; port it or confirm it can go" for p in drifted]
         unknown = sorted(p for p in hashes if p not in model and p not in dist_files and virtual(p))
         if unknown:
@@ -250,6 +258,7 @@ def main():
     (out / "KEEP.txt").write_text("\n".join(sorted(keep)) + "\n")
     (out / "cleanup_winscp.txt").write_text(winscp(delete))
     addons = sorted({rel.split("/")[2] for rel in tree if rel.startswith("garrysmod/addons/")})
+    secrets = "\n".join(f"   - `{ARCHIVE}/{old}` -> `garrysmod/{new}`" for old, new in SECRET_FILES.items())
     (out / "CUTOVER.md").write_text(f"""# US1 cutover {head[:7]} (live was {deployed[:7]})
 
 Installs {len([r for r in tree if r.startswith('garrysmod/addons/')])} files into `garrysmod/addons/{{{','.join(addons)}}}`,
@@ -259,6 +268,8 @@ removes {len(delete)} old files, leaves {len(keep)} listed files alone (stock GM
 2. Workshop dependencies in `manifests/dependencies.json` are in the server collection and loading.
 3. WinSCP terminal: paste `cleanup_winscp.txt`. It MOVES the {len(delete)} files in `DELETE.txt` to `{ARCHIVE}/`.
 4. Unzip `install.zip` over the server root (its `garrysmod/` lands on `garrysmod/`); overwrite when asked.
+   Then put the API keys back: open each archived file below and copy its key into the installed copy.
+{secrets}
 5. Start. Server console: `us1_status` shows every module loaded; the boot log has no Lua errors.
 6. Play one homicide round and one team round (bots are fine); open a replay; die once.
 7. Rollback if anything fails: stop, restore the copy from step 1, start (about 5 minutes).
