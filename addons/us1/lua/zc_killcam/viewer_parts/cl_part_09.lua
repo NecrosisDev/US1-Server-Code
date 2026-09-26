@@ -754,6 +754,13 @@ function R.Keys(rs, L)
     if P(KEY_Q) then R.Cycle(rs, L, -1) end
     if P(KEY_E) then R.Cycle(rs, L, 1) end
 end
+-- replay_close_20260926 (owner: "the full round replay does NOT let you close it"): Z-City replaces the game menu -
+-- its OnPauseMenuShow opens ZMainMenu and returns false - so gui.IsGameUIVisible() never turns true on Esc and the
+-- check in R.Advance below never fired: Esc was the viewer's only way out. Z-City asks OnShowZCityPause first; while
+-- a round replay is open, Esc closes it and the menu stays shut.
+hook.Add("OnShowZCityPause", "ZCKillcam.RoundEsc", function()
+    if R.open then R.Close("esc") return false end
+end)
 -- Returns false when the viewer closed. Runs inside the life player's fenced Think.
 function R.Advance(L, me)
     local rs = L.round
