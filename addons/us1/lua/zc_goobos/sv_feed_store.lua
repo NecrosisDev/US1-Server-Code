@@ -114,7 +114,11 @@ end
 function F.Feed(sid, before, author, tab)
     F.Require(F.Integer(before or 0, 0, 2147483647), "Invalid page.")
     F.Require(not author or F.Account(author), "Invalid profile.")
-    local kindWhere = tab == "events" and " AND kind='event'" or " AND kind IN ('post','clip')"
+    -- U2 "clips" tab: posts carrying a killcam clip, or a !clip / !replay chat link in their text (share.lua writes
+    -- a round moment as a !replay link in the body; no schema change).
+    local kindWhere = tab == "events" and " AND kind='event'"
+        or tab == "clips" and " AND kind IN ('post','clip') AND (clip<>'' OR body LIKE '%!clip %' OR body LIKE '%!replay %')"
+        or " AND kind IN ('post','clip')"
     local where = "removed=0" .. kindWhere .. ((before or 0) > 0 and " AND id<" .. before or "") .. (author and " AND author=" .. q(author) or "")
     local rows = F.Query("SELECT id FROM zc_feed_posts WHERE " .. where .. " ORDER BY id DESC LIMIT 5")
     local out = {posts = {}, more = #rows > 4}
@@ -140,7 +144,7 @@ function F.Publish(p, body, token, jpeg, thumb, clip)
         local valid, w, h = F.JPEG(thumb)
         F.Require(valid and #thumb <= 1800 and w <= 160 and h <= 90, "Invalid photo preview.")
     end
-    -- B1 killcam-clip reference: read-side only today (no client compose path exists yet; see REPLY).
+    -- B1 killcam-clip reference; U2 (2026-09-26): share.lua sets it, sv_feed.lua checks the poster may share it.
     F.Require(not clip or (not jpeg and isstring(clip) and #clip <= 24 and clip:match("^%d+_%d+$") ~= nil), "Invalid clip reference.")
     local old = F.Query("SELECT id FROM zc_feed_posts WHERE author=" .. q(sid) .. " AND nonce=" .. q(token))[1]
     if old then return tonumber(old.id) end
@@ -197,6 +201,24 @@ function F.PublishSystem(kind, body, clip)
         F.Query("INSERT INTO zc_feed_posts(author,name,body,thumb,nonce,created,kind,clip) VALUES (" .. q(F.SystemAuthor) .. "," .. q(F.SystemName) .. "," .. q(body) .. ",''," .. q(token) .. "," .. os.time() .. "," .. q(kind) .. "," .. q(clip or "") .. ")")
         return scalar("SELECT last_insert_rowid() n")
     end)
+end
+-- U2 sharing (read by zc_killcam/sv_net.lua): which clips live posts carry. A removed post stops sharing its clip.
+function F.ClipPosted(id)
+    F.Storage()
+    return F.Query("SELECT id FROM zc_feed_posts WHERE removed=0 AND clip=" .. q(id) .. " LIMIT 1")[1] ~= nil
+end
+-- Clips on live posts made at or after `since` (the age sweep's keep list).
+function F.SharedClipIds(since)
+    F.Storage()
+    local out = {}
+    for _, row in ipairs(F.Query("SELECT DISTINCT clip FROM zc_feed_posts WHERE removed=0 AND clip<>'' AND created>=" .. math.floor(tonumber(since) or 0))) do out[#out + 1] = row.clip end
+    return out
+end
+-- One row per clip on a live post (its newest post), newest first: the Replays "Clips" list.
+function F.SharedClipPosts(offset, limit)
+    F.Storage()
+    return F.Query("SELECT p.id,p.author,p.name,p.body,p.created,p.clip FROM zc_feed_posts p JOIN (SELECT MAX(id) m FROM zc_feed_posts WHERE removed=0 AND clip<>'' GROUP BY clip) g ON p.id=g.m ORDER BY p.id DESC LIMIT "
+        .. math.Clamp(math.floor(tonumber(limit) or 0), 1, 100) .. " OFFSET " .. math.max(0, math.floor(tonumber(offset) or 0)))
 end
 function F.React(p, id, reaction)
     F.Post(id); F.Require(F.Integer(reaction, 0, 4), "Invalid reaction.")

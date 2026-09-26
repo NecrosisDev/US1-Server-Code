@@ -8,6 +8,14 @@ F.Reactions = {"Like", "Love", "Laugh", "Wow"}
 -- requires 17 digits), so no real player row can ever match it through F.Account-gated paths
 -- (comment/react/report/profile). Only F.PublishSystem (sv_feed_store.lua) may write it as author.
 F.SystemAuthor, F.SystemName = "system:city", "City"
+-- UI cohesion U2 (2026-09-26): one switch for sharing killcam clips and round moments - CityLeak clip posts, the
+-- "!clip" / "!replay" chat links (links.lua) and any player watching a shared clip (zc_killcam/sv_net.lua). Created
+-- here because this file runs in both realms first; replicated, so clients hide share actions while it is 0.
+CreateConVar("zc_goobos_share", "1", {FCVAR_ARCHIVE, FCVAR_REPLICATED}, "Sharing killcam clips and round moments (CityLeak clip posts, !clip / !replay chat links): 0 off, 1 on")
+function F.ShareOn()
+    local cv = GetConVar("zc_goobos_share")
+    return cv ~= nil and cv:GetBool()
+end
 function F.Text(value, limit, empty)
     if not isstring(value) or #value > limit or value:find("[%z\1-\8\11\12\14-\31\127]") then return nil end
     if utf8 and utf8.len and not utf8.len(value) then return nil end

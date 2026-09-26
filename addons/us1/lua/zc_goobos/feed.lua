@@ -15,13 +15,14 @@ local function nextSerial() C.serial = C.serial % 4294967294 + 1; return C.seria
 local function sendRequest(id, json)
     net.Start("GoobOS.Feed.Request"); net.WriteUInt(id, 32); net.WriteString(json); net.SendToServer()
 end
-function C.Request(data, done)
+-- fail(message), optional (U2 share sheet): called instead of done when the server refuses or the request times out.
+function C.Request(data, done, fail)
     if C.Busy() then return false end
     if not C.Available() then C.Note("CityLeak is waiting for its server or isolation integration."); return false end
     local json = util.TableToJSON(data)
     if not json or #json > 8192 then C.Note("This request is too large."); return false end
     local id = nextSerial()
-    C.pending = {id = id, sent = RealTime(), data = data, done = done}
+    C.pending = {id = id, sent = RealTime(), data = data, done = done, fail = fail}
     sendRequest(id, json)
     return true
 end
@@ -38,7 +39,11 @@ local function finish(result)
     local pending = C.pending
     C.pending = nil
     if result.blocked then blockedReset() end
-    if result.error then C.Note(result.error); return end
+    if result.error then
+        C.Note(result.error)
+        if pending and pending.fail then pending.fail(result.error) end
+        return
+    end
     C.blocked = false
     if result.kind == "published" then
         if pending and C.draft.nonce == pending.data.nonce then C.draft = {body = ""} end

@@ -93,22 +93,155 @@ function K.LiveIndex(sid)
     return kept
 end
 
+----------------------------------------------------------------- sharing (UI cohesion U2, 2026-09-26)
+-- Owner: "players must have access to the funny and embarrassing moments and be able to easily share them with
+-- friends." A clip is SHARED when a party to it posts it to CityLeak (sv_feed.lua, the zc_feed_posts.clip column) or
+-- copies its chat link ("!clip <id>", zckc_share below, kept in data/zc_killcam/shared.json as id -> until). A shared
+-- clip may be fetched by ANY player; every other zckc_clip refusal (alive in a live round, expired, busy, the rate
+-- limit) still applies. zc_goobos_share (feed_rules.lua, replicated, default 1) turns sharing off: nothing new is
+-- shared and non-parties are refused again. What was shared stays protected from the age sweep either way (K.SharedSet).
+K.StatusText = {[1] = "You are not a party to that clip.", [2] = "That clip has expired.", [3] = "Clips cannot be opened while you are alive in a live round.", [4] = "Still sending the previous clip."} -- the viewer's STATUS_TEXT (cl_part_02.lua), word for word
+K.ShareLinkKeep = 14 * 86400 -- a chat link keeps its clip watchable (and out of the age sweep) this long after it was copied
+K.SharePostKeep = 45 * 86400 -- a live CityLeak post keeps its clip out of the age sweep this long after it was posted (a report pin is 45 days too)
+local SHARED_FILE = K.Root .. "/shared.json"
+local function validId(id) return isstring(id) and #id <= 24 and string.match(id, "^%d+_%d+$") ~= nil end
+function K.ShareOn()
+    local cv = GetConVar("zc_goobos_share")
+    return cv ~= nil and cv:GetBool()
+end
+local function clipLive(id)
+    local size = file.Exists(clipPath(id), "DATA") and file.Size(clipPath(id), "DATA") or 0
+    return size > 0 and size <= MAX_FILE
+end
+local function feed() local F = rawget(_G, "ZCGoobFeed") return istable(F) and F or nil end
+
+-- A party to a clip: it is in your own record list (you were its victim, or its killer in an innocent-kills-innocent
+-- clip), or you are the owner its sidecar names (a death sequence you saved, even after your 15-row list rotated it
+-- out). This is the "You are not a party to that clip" rule of K.MayView without the staff, highlight and review
+-- widening: those may WATCH a clip, they do not make it theirs to publish.
+function K.IsClipParty(p, id)
+    if not IsValid(p) or not validId(id) then return false end
+    local sid = p:SteamID64()
+    if not sid then return false end
+    for _, e in ipairs(K.Index(sid)) do if e.clip == id then return true end end
+    local meta = util.JSONToTable(file.Read(K.Root .. "/clips/" .. id .. ".meta.json", "DATA") or "")
+    return istable(meta) and meta.owner == sid
+end
+local function inIndex(owner, id)
+    for _, e in ipairs(K.Index(owner)) do if e.clip == id then return true end end
+    return false
+end
+-- May `p` share (post or link) clip `id`? Returns ok, the refusal text. A saved round highlight was already shown to
+-- the whole server, so anyone may pass it on; everything else needs a party.
+function K.MayShare(p, id)
+    if not K.ShareOn() then return false, "Sharing is turned off on this server." end
+    if not validId(id) then return false, "Invalid clip reference." end
+    if not clipLive(id) then return false, K.StatusText[2] end
+    if K.IsClipParty(p, id) or inIndex(K.HIGHLIGHT_OWNER, id) then return true end
+    return false, K.StatusText[1]
+end
+
+-- data/zc_killcam/shared.json: {[clip id] = unix time the chat link lapses}. Lapsed entries are dropped on write.
+function K.SharedLinks()
+    local t = util.JSONToTable(file.Read(SHARED_FILE, "DATA") or "")
+    return istable(t) and t or {}
+end
+function K.ShareLink(id, now)
+    now = now or os.time()
+    local links, kept = K.SharedLinks(), {}
+    for clip, till in pairs(links) do if validId(clip) and isnumber(till) and till >= now then kept[clip] = till end end
+    kept[id] = math.max(tonumber(kept[id]) or 0, now + K.ShareLinkKeep)
+    file.CreateDir(K.Root)
+    file.Write(SHARED_FILE, util.TableToJSON(kept))
+end
+-- May anyone at all fetch clip `id`? A live chat link, or a live (not removed) CityLeak post that carries it.
+function K.SharedClip(id, now)
+    if not K.ShareOn() or not validId(id) then return false end
+    local till = K.SharedLinks()[id]
+    if isnumber(till) and till >= (now or os.time()) then return true end
+    local F = feed()
+    if not (F and isfunction(F.ClipPosted)) then return false end
+    local ok, posted = pcall(F.ClipPosted, id)
+    return ok and posted == true
+end
+-- For the age sweep (sv_clips.lua K.Sweep): every clip a share is still protecting, as a set. Independent of
+-- zc_goobos_share on purpose - switching sharing off must not quietly delete what players already posted.
+function K.SharedSet(now)
+    now = now or os.time()
+    local set = {}
+    for id, till in pairs(K.SharedLinks()) do if validId(id) and isnumber(till) and till >= now then set[id] = true end end
+    local F = feed()
+    if F and isfunction(F.SharedClipIds) then
+        local ok, ids = pcall(F.SharedClipIds, now - K.SharePostKeep)
+        if ok and istable(ids) then for _, id in ipairs(ids) do if validId(id) then set[id] = true end end end
+    end
+    return set
+end
+
+-- Paging (U2): zckc_index answers at most 31 rows (the count is a UInt(5)), so a request may carry an optional
+-- trailing UInt(16) offset and the reply ends with an optional trailer saying where to ask from next. The killcam
+-- viewer (cl_part_03.lua) sends no offset and stops reading before the trailer, so it keeps working unchanged.
+-- K.PageRows walks source positions offset+1..count, keeps up to `limit` rows `keep` accepts, and returns them, the
+-- position to ask from next, and whether any source entries are left.
+K.PAGE = 31
+function K.PageRows(count, at, keep, offset, limit)
+    local page, i = {}, math.max(0, math.floor(offset or 0))
+    limit = limit or K.PAGE
+    while i < count and #page < limit do
+        i = i + 1
+        local row = keep(at(i))
+        if row then page[#page + 1] = row end
+    end
+    return page, i, i < count
+end
+
+-- The "shared" scope: clips on live CityLeak posts, newest post first, one row per clip. `other` is the poster and
+-- the caption; the paging trailer adds the post id and whether the asker is a party (so the client can offer Post).
+local function sharedRows(p, offset)
+    local F = feed()
+    if not (K.ShareOn() and F and isfunction(F.SharedClipPosts)) then return {}, offset, false end
+    local ok, rows = pcall(F.SharedClipPosts, offset, 64)
+    if not ok or not istable(rows) then return {}, offset, false end
+    local maps, mine, sid = nil, {}, p:SteamID64()
+    for _, e in ipairs(sid and K.Index(sid) or {}) do if isstring(e.clip) then mine[e.clip] = true end end
+    local page, used, left = K.PageRows(#rows, function(i) return rows[i] end, function(r)
+        if not validId(r.clip) or not file.Exists(clipPath(r.clip), "DATA") then return nil end
+        if not maps then
+            maps = {}
+            for _, e in ipairs(K.AllIndex()) do if isstring(e.clip) and maps[e.clip] == nil then maps[e.clip] = e.map end end
+        end
+        local caption = string.Trim(string.gsub(tostring(r.body or ""), "[%c]", " "))
+        if #caption > 120 then caption = string.sub(caption, 1, 117) .. "..." end
+        return {clip = r.clip, t = tonumber(r.created) or 0, map = maps[r.clip] or "", tag = "shared", role = "",
+            other = tostring(r.name or "?") .. (caption ~= "" and (": " .. caption) or ""), kind = "shared",
+            post = tonumber(r.id) or 0, mine = r.author == sid or mine[r.clip] == true}
+    end, 0)
+    return page, offset + used, left or #rows == 64
+end
+
 net.Receive("zckc_index", function(_, p)
-    if not K.CanUse(p) or throttled(p, "index", 1) then return end
     local target = net.ReadString()
+    local offset = (net.BytesLeft and (net.BytesLeft() or 0) or 0) >= 2 and net.ReadUInt(16) or 0
+    -- The shared list is as public as CityLeak itself: it needs sharing on, not the killcam records.
+    if not (K.CanUse(p) or (target == "shared" and IsValid(p) and K.ShareOn())) or throttled(p, "index", 1) then return end
     local sid, scope = p:SteamID64(), "mine"
-    local list
+    local list, nextAt, more
+    local function fromAll(pinned)
+        local all = K.AllIndex()
+        return K.PageRows(#all, function(i) return all[i] end, function(e)
+            if not isstring(e.clip) or (pinned and not pinned[e.clip]) or not file.Exists(clipPath(e.clip), "DATA") then return nil end
+            return {clip = e.clip, t = e.t, map = e.map, tag = e.tag, role = "", other = tostring(e.killer) .. " killed " .. tostring(e.victim), reported = pinned ~= nil}
+        end, offset)
+    end
     if target == "all" and K.IsStaff(p) then
-        scope, list = "all", {}
-        for _, e in ipairs(K.AllIndex()) do
-            if #list < 31 and file.Exists(clipPath(e.clip), "DATA") then list[#list + 1] = {clip = e.clip, t = e.t, map = e.map, tag = e.tag, role = "", other = tostring(e.killer) .. " killed " .. tostring(e.victim)} end
-        end
+        scope = "all"
+        list, nextAt, more = fromAll(nil)
     elseif target == "submitted" and K.IsOperator(p) then
-        scope, list = "submitted", {}
-        local pinned = K.Submitted()
-        for _, e in ipairs(K.AllIndex()) do
-            if pinned[e.clip] and #list < 31 and file.Exists(clipPath(e.clip), "DATA") then list[#list + 1] = {clip = e.clip, t = e.t, map = e.map, tag = e.tag, role = "", other = tostring(e.killer) .. " killed " .. tostring(e.victim), reported = true} end
-        end
+        scope = "submitted"
+        list, nextAt, more = fromAll(K.Submitted())
+    elseif target == "shared" then
+        scope = "shared"
+        list, nextAt, more = sharedRows(p, offset)
     elseif target == "highlights" then
         -- P1 (killcam_revitalize, 2026-09-24): the round highlights saved by zc_killcam_persist_missed, newest first,
         -- for ANY player who may use the records at all (every one of them was shown to the whole server). Filed
@@ -117,12 +250,16 @@ net.Receive("zckc_index", function(_, p)
     elseif target ~= "" and K.IsStaff(p) and #target <= 20 and string.match(target, "^%d+$") then
         sid, scope = target, target
     end
-    list = list or (sid and K.LiveIndex(sid) or {})
+    if not list then
+        local live = sid and K.LiveIndex(sid) or {}
+        list, nextAt, more = K.PageRows(#live, function(i) return live[i] end, function(e) return e end, offset)
+    end
+    local n = math.min(#list, 31)
     net.Start("zckc_index")
     net.WriteString(scope)
     net.WriteBool(K.ViewLocked(p))
-    net.WriteUInt(math.min(#list, 31), 5)
-    for i = 1, math.min(#list, 31) do
+    net.WriteUInt(n, 5)
+    for i = 1, n do
         local e = list[i]
         net.WriteString(e.clip)
         net.WriteUInt(tonumber(e.t) or 0, 32)
@@ -135,11 +272,21 @@ net.Receive("zckc_index", function(_, p)
     -- P1: an additive TRAILER, one entry per row above, after all of them - a client that predates it stops reading
     -- at the last row and never sees it. Per row: missed (Bool), kind ("life" / "highlight" / "" for an older row),
     -- reason (why it was missed, "" if it was not). Only rows written by persist() since this landed carry them.
-    for i = 1, math.min(#list, 31) do
+    for i = 1, n do
         local e = list[i]
         net.WriteBool(e.missed == true)
         net.WriteString(tostring(e.kind or ""))
         net.WriteString(tostring(e.reason or ""))
+    end
+    -- U2 paging TRAILER, after the P1 one (readers of either older shape stop before it): UInt(16) the offset to ask
+    -- from for the next page, Bool whether there may be more, then per row UInt(32) the CityLeak post (0 = none) and
+    -- Bool whether the asker is a party to it (shared rows only; every other scope is the asker's own or staff's).
+    net.WriteUInt(math.min(nextAt or 0, 65535), 16)
+    net.WriteBool(more == true)
+    for i = 1, n do
+        local e = list[i]
+        net.WriteUInt(math.Clamp(tonumber(e.post) or 0, 0, 4294967295), 32)
+        net.WriteBool(e.mine == true)
     end
     net.Send(p)
 end)
@@ -233,9 +380,17 @@ net.Receive("zckc_clip", function(_, p)
         if K.TapeRequest then K.TapeRequest(p, id) end
         return
     end
-    if not K.CanUse(p) or throttled(p, "clip", 2) then return end
+    -- U2: a SHARED clip (K.SharedClip) may be fetched by anyone, records access or not; nothing else changes. A
+    -- player without records access now spends the same 2 s throttle slot before the shared check, so a stream of
+    -- requests cannot turn into a stream of lookups.
+    local canUse = K.CanUse(p)
+    if not IsValid(p) or throttled(p, "clip", 2) then return end
     if #id > 24 or not string.match(id, "^%d+_%d+$") then return end -- the id becomes a file name: digits only
-    if not K.MayView(p, id) then return refuse(p, id, STATUS.denied) end
+    local mayView = canUse and K.MayView(p, id)
+    if not mayView and not K.SharedClip(id) then
+        if not canUse then return end -- as before: no records access and nothing shared is silence
+        return refuse(p, id, STATUS.denied)
+    end
     if K.ViewLocked(p) then return refuse(p, id, STATUS.locked) end
     if K.Busy(p) then return refuse(p, id, STATUS.busy) end
     local blob = file.Read(clipPath(id), "DATA")
@@ -258,4 +413,45 @@ net.Receive("zckc_clip", function(_, p)
         net.WriteString(K.IsStaff(p) and tostring(item.attackerId or "") or "")
     end
     net.Send(p)
+end)
+
+-- U2 share requests (share.lua, ZCGoobApps.Share): make a clip ready to share and say which id it goes out under.
+--   client -> server: String kind ("life" = the death sequence the server holds for you, by its id; "clip" = a stored
+--                     clip), String id, Bool link (true = the player is copying a chat link: record it as shared).
+--   server -> client: String the id asked about, String the clip id to share ("" when refused), UInt(3) code, String
+--                     the refusal in words. Codes: 0 ok, 1 not a party, 2 gone / expired, 3 sharing off, 4 slow down.
+-- "life" SAVES the held sequence first (the zckc_save path: sv_life.lua persist, exported as K.Persist) - a saved
+-- sequence is stored under its own id, so the reply names the same id. Posting to CityLeak is not done here: the
+-- client publishes through CityLeak's own request, which runs K.MayShare again (sv_feed.lua).
+util.AddNetworkString("zckc_share")
+K.ShareCode = {ok = 0, denied = 1, gone = 2, off = 3, slow = 4}
+local SHARE = K.ShareCode
+net.Receive("zckc_share", function(_, p)
+    if not IsValid(p) then return end
+    local kind, id, link = net.ReadString(), net.ReadString(), net.ReadBool()
+    if not validId(id) or (kind ~= "life" and kind ~= "clip") then return end
+    local function reply(clip, code, text)
+        net.Start("zckc_share")
+        net.WriteString(id)
+        net.WriteString(clip or "")
+        net.WriteUInt(code, 3)
+        net.WriteString(text or "")
+        net.Send(p)
+    end
+    if throttled(p, "share", 1) then return reply("", SHARE.slow, "Slow down a moment, then try again.") end
+    if not K.ShareOn() then return reply("", SHARE.off, "Sharing is turned off on this server.") end
+    if kind == "life" then
+        if not (K.LifeAllowed and K.LifeAllowed(p)) then return reply("", SHARE.denied, "Death replays are not open to you yet.") end
+        local sid = p:SteamID64()
+        local h = sid and K.Held and K.Held[sid]
+        if h and h.id ~= id then h = h.prev end -- the one it replaced on screen, when zc_killcam_persist_missed keeps it
+        if h and h.id == id and not h.saved and K.Persist then K.Persist(sid, h) end
+        if h and h.id == id and not h.saved then return reply("", SHARE.gone, "The replay is still saving. Try again in a moment.") end
+        -- not held any more (a newer death replaced it): it can still be shared if it was saved before
+        if not (h and h.id == id) and not clipLive(id) then return reply("", SHARE.gone, "That replay is gone: a newer death replaced it before it was saved.") end
+    end
+    local ok, why = K.MayShare(p, id)
+    if not ok then return reply("", why == K.StatusText[2] and SHARE.gone or SHARE.denied, why) end
+    if link then K.ShareLink(id) end
+    reply(id, SHARE.ok, "")
 end)

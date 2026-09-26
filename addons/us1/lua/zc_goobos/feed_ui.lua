@@ -92,6 +92,27 @@ local function reactionPill(i, count, selected, x, y)
     return pw
 end
 
+-- U2 (2026-09-26): the clip or round moment a post points at - its killcam clip, else the first "!clip" / "!replay"
+-- link in its text (share.lua posts a round moment that way) - or nil. Cached on the post table it was read from.
+local function postLink(post)
+    if post._link == nil then
+        if isstring(post.clip) and post.clip ~= "" then post._link = {kind = "clip", id = post.clip}
+        else post._link = A.Share and A.Share.FindLink and A.Share.FindLink(post.body) or false end
+    end
+    return post._link or nil
+end
+-- Watch it: the one clip player (media.lua Media.OpenClip) or the round replay, both through share.lua.
+local function watchPost(post)
+    local link = postLink(post)
+    if not link then return false end
+    if A.Share and A.Share.OpenLink then return A.Share.OpenLink(link) end
+    return link.kind == "clip" and A.Media and A.Media.OpenClip and A.Media.OpenClip(link.id) or false
+end
+local function linkText(link)
+    if link.kind == "round" then return "!replay " .. link.round .. " " .. (link.time or "0:00") end
+    return "!clip " .. link.id
+end
+
 function C.ComposePhoto(name)
     if C.Busy() then C.Note("Wait for the current CityLeak action before choosing another photo."); return false end
     C.draft.photoName, C.draft.jpeg, C.draft.thumb, C.draft.nonce = name, nil, nil, nil
@@ -133,7 +154,7 @@ local function build(root, phone)
         else
             local lines = post.body ~= "" and wrapLines(post.body, K.Font(13, 500), w, 6) or {}
             local mediaH = (post.photo or post.kind == "clip") and math.min(110, math.floor(w * 9 / 16)) or 0
-            local kcH = post.kind == "clip" and KC_H or 0
+            local kcH = postLink(post) and KC_H or 0
             local h = PAD * 2 + HEADER_H + (#lines > 0 and (#lines * 16 + 6) or 0) + (mediaH > 0 and (mediaH + 8) or 0)
                 + (kcH > 0 and (kcH + 6) or 0) + REACT_H + 6 + REPLY_H + 4
             m = {w = w, lines = lines, mediaH = mediaH, kcH = kcH, h = h}
@@ -191,14 +212,31 @@ local function build(root, phone)
             end, danger = true}
         })
     end
-    local function overflow(kind, id, mine)
-        local sheet, shade = K.Sheet(root, mine and 160 or 110)
+    -- U2: a post that carries a clip or a round moment also offers "Watch in Replays" (clips) and its chat link.
+    local function overflow(kind, id, mine, post)
+        local link = kind == "post" and post and postLink(post) or nil
+        local extra = link and (link.kind == "clip" and 2 or 1) or 0
+        local sheet, shade = K.Sheet(root, (mine and 160 or 110) + extra * 43)
         local head = K.Panel(sheet); head:Dock(TOP); head:SetTall(24)
         head.Paint = function(_, w) K.Text(kind == "post" and "Post options" or "Comment options", 15, 700, 0, 2, T.text) end
+        if link and link.kind == "clip" then
+            kitButton(sheet, "Watch in Replays", function()
+                shade:Close()
+                local me = LocalPlayer()
+                if not (A.Replays and A.Replays.Show and A.Replays.Show(link.id, {name = post.name, body = post.body, created = post.created,
+                    post = post.id, mine = IsValid(me) and post.author == me:SteamID64()})) then watchPost(post) end
+            end)
+        end
+        if link then
+            kitButton(sheet, "Copy chat link", function()
+                shade:Close()
+                SetClipboardText(linkText(link))
+                C.Note("Link copied: " .. linkText(link))
+            end)
+        end
         kitButton(sheet, "Report " .. kind, function() shade:Close(); report(kind, id) end)
         if mine then kitButton(sheet, "Remove " .. kind, function() shade:Close(); remove(kind, id) end, false, true) end
     end
-    local function watchClip(clipID) return A.Media and A.Media.OpenClip and A.Media.OpenClip(clipID) end
 
     -- ------------------------------------------------------------------------------------------
     -- Masthead + tabs
@@ -224,9 +262,9 @@ local function build(root, phone)
         local mx = select(1, s:CursorPos())
         if mx >= s:GetWide() - 30 and not C.Busy() then C.before, C.feedItems = nil, {}; load() end
     end
-    local tabLabels = {"Latest", "Events", "Create", "My profile"}
-    local tabViews = {"feed", "feed", "compose", "profile"}
-    local tabFeedKind = {"posts", "events"}
+    local tabLabels = {"Latest", "Events", "Clips", "Create", "My profile"}
+    local tabViews = {"feed", "feed", "feed", "compose", "profile"}
+    local tabFeedKind = {"posts", "events", "clips"}
     C.feedTab = C.feedTab or "posts"
     local tabsSelected = 1
     for i, v in ipairs(tabViews) do
@@ -293,7 +331,7 @@ local function build(root, phone)
             K.Text("...", 15, 700, w - 6, PAD, T.muted, TEXT_ALIGN_RIGHT)
             if zones then
                 zones[#zones + 1] = {x = w - 30, y = 0, w = 30, h = HEADER_H, action = function()
-                    overflow("post", post.id, post.author == LocalPlayer():SteamID64() or C.admin)
+                    overflow("post", post.id, post.author == LocalPlayer():SteamID64() or C.admin, post)
                 end}
             end
             local y = PAD + HEADER_H
@@ -302,7 +340,9 @@ local function build(root, phone)
             if m.mediaH > 0 then
                 if post.kind == "clip" then
                     K.Card(PAD, y, m.w, m.mediaH, CLIP_MEDIA_FILL)
+                    K.Glyph("play", PAD + m.w / 2, y + m.mediaH / 2, 28, K.Alpha(T.white, 170))
                     K.Text("KILLCAM CLIP", 10, 600, PAD + 8, y + m.mediaH - 20, K.Alpha(T.white, 190))
+                    if zones then zones[#zones + 1] = {x = PAD, y = y, w = m.w, h = m.mediaH, action = function() watchPost(post) end} end
                 else
                     if not s.Thumb then s.Thumb = rawImagePanel(s) end
                     if s.ThumbFor ~= post.id and post.thumb and post.thumb ~= "" then
@@ -315,11 +355,12 @@ local function build(root, phone)
                 y = y + m.mediaH + 8
             elseif s.Thumb then s.Thumb:SetVisible(false) end
             if m.kcH > 0 then
-                K.Text("KILLCAM", 10, 600, PAD, y + 4, T.red)
+                local link = postLink(post)
+                K.Text(link.kind == "round" and ("ROUND REPLAY · " .. (link.time or "")) or "KILLCAM", 10, 600, PAD, y + 4, T.red)
                 local watchW = 60
-                draw.RoundedBox(4, w - PAD - watchW, y, watchW, m.kcH, T.main)
+                draw.RoundedBox(T.radius and T.radius.card or 4, w - PAD - watchW, y, watchW, m.kcH, T.main)
                 K.Text("Watch", 12, 600, w - PAD - watchW / 2, y + m.kcH / 2, T.white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-                if zones then zones[#zones + 1] = {x = w - PAD - watchW, y = y, w = watchW, h = m.kcH, action = function() watchClip(post.clip) end} end
+                if zones then zones[#zones + 1] = {x = w - PAD - watchW, y = y, w = watchW, h = m.kcH, action = function() watchPost(post) end} end
                 y = y + m.kcH + 6
             end
             -- reaction pills
@@ -599,6 +640,10 @@ local function build(root, phone)
         A.Status(card, os.date("%b %d · %H:%M", post.created) .. " · #" .. post.id)
         if post.body ~= "" then A.Label(card, post.body, K.Font(14, 500)) end
         if post.photo then image(card, post.thumb) end
+        local link = postLink(post)
+        if link then
+            kitButton(card, link.kind == "round" and ("Watch the round at " .. (link.time or "")) or "Watch clip", function() watchPost(post) end, true)
+        end
         local reacts = K.Panel(card); reacts:Dock(TOP); reacts:SetTall(REACT_H); reacts:DockMargin(0, 4, 0, 4)
         reacts:SetMouseInputEnabled(true)
         reacts.Paint = function(s, w)
@@ -626,7 +671,7 @@ local function build(root, phone)
                 end
             end
         end
-        kitButton(card, "···  Post options", function() overflow("post", post.id, post.author == LocalPlayer():SteamID64() or C.admin) end)
+        kitButton(card, "···  Post options", function() overflow("post", post.id, post.author == LocalPlayer():SteamID64() or C.admin, post) end)
 
         local tops, byParent, orphans = {}, {}, {}
         for _, c in ipairs(threadData.comments or {}) do
@@ -708,6 +753,8 @@ local function build(root, phone)
             elseif #C.feedItems == 0 then
                 if C.feedTab == "events" then
                     K.EmptyState(content, "empty", "No round events yet", "Round summaries will appear here once posted.")
+                elseif C.feedTab == "clips" then
+                    K.EmptyState(content, "play", "No clips shared yet", "Share a death or a highlight from Replays.", "Open Replays", function() A.Launch("replays") end)
                 else
                     K.EmptyState(content, "empty", "Nothing leaked yet", "Be the first to post something from the city.", "Create a post", function()
                         C.view = "compose"; render()

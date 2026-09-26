@@ -903,10 +903,13 @@ function K.Sweep(now)
         if isnumber(till) and till < now then pinned[id] = nil lapsed = true end
     end
     if lapsed then file.Write(ROOT .. "/pinned.json", util.TableToJSON(pinned)) end
+    -- UI cohesion U2 (sharing): a clip on a live CityLeak post (up to K.SharePostKeep after posting) or behind a live chat
+    -- link (K.ShareLinkKeep after copying) is kept like a pinned one (sv_net.lua K.SharedSet; never raises).
+    local shared = isfunction(K.SharedSet) and K.SharedSet(now) or {}
     for _, name in ipairs(file.Find(ROOT .. "/clips/*.dat", "DATA")) do
         local id = string.sub(name, 1, -5)
         local born = tonumber(string.match(id, "^(%d+)_")) or now
-        if now - born > MAX_AGE and not pinned[id] then file.Delete(ROOT .. "/clips/" .. name) file.Delete(ROOT .. "/clips/" .. id .. ".meta.json") removed = removed + 1 end
+        if now - born > MAX_AGE and not pinned[id] and not shared[id] then file.Delete(ROOT .. "/clips/" .. name) file.Delete(ROOT .. "/clips/" .. id .. ".meta.json") removed = removed + 1 end
     end
     -- Global cap: oldest unpinned clips go first. Map load only, never mid-round.
     local files, total = {}, 0
@@ -918,7 +921,7 @@ function K.Sweep(now)
     table.sort(files, function(a, b) return a.born < b.born end)
     for _, f in ipairs(files) do
         if total <= (K.MaxBytes or MAX_BYTES) then break end
-        if not pinned[string.sub(f.name, 1, -5)] then file.Delete(ROOT .. "/clips/" .. f.name) file.Delete(ROOT .. "/clips/" .. string.sub(f.name, 1, -5) .. ".meta.json") total = total - f.size removed = removed + 1 end
+        if not pinned[string.sub(f.name, 1, -5)] and not shared[string.sub(f.name, 1, -5)] then file.Delete(ROOT .. "/clips/" .. f.name) file.Delete(ROOT .. "/clips/" .. string.sub(f.name, 1, -5) .. ".meta.json") total = total - f.size removed = removed + 1 end
     end
     return removed
 end

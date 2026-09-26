@@ -144,8 +144,17 @@ function F.Dispatch(p, request, data)
         local previous = F.Query("SELECT id FROM zc_feed_posts WHERE author=" .. F.Quote(sid) .. " AND nonce=" .. F.Quote(data.nonce))[1]
         if previous then return send(p, request, {kind = "published", id = tonumber(previous.id)}) end
         F.Require(F.CanWrite(p), "You are muted and cannot publish to CityLeak.")
-        -- B1 killcam-clip reference: F.Publish validates+stores data.clip when present. No client UI sets it
-        -- yet (see REPLY: killcam has no share-to-CityLeak entry point today); the wire is ready regardless.
+        -- B1 killcam-clip reference: F.Publish validates+stores data.clip when present. U2 (2026-09-26): the share
+        -- sheet (share.lua) sets it. Only a party to the clip may post it (ZCKillcam.MayShare, zc_killcam/sv_net.lua:
+        -- in your own records, or a round highlight everyone saw), it must still be on disk, and zc_goobos_share must be on.
+        if data.clip == "" then data.clip = nil end
+        if data.clip ~= nil then
+            F.Require((data.bytes or 0) == 0 and isstring(data.clip) and #data.clip <= 24 and data.clip:match("^%d+_%d+$") ~= nil, "Invalid clip reference.")
+            local KC = rawget(_G, "ZCKillcam")
+            F.Require(istable(KC) and isfunction(KC.MayShare), "Killcam clips are unavailable right now.")
+            local ok, why = KC.MayShare(p, data.clip)
+            F.Require(ok, tostring(why or "You are not a party to that clip."))
+        end
         if (data.bytes or 0) == 0 then return send(p, request, {kind = "published", id = F.Publish(p, data.body, data.nonce, nil, nil, data.clip)}) end
         F.Require(F.Integer(data.bytes, 16, F.PhotoLimit), "Photo exceeds the sharing limit.")
         -- 1800 raw bytes -> ceil(1800/3)*4 = 2400 base64 chars exactly; the client now encodes this
