@@ -109,7 +109,17 @@
  		render.UpdateScreenEffectTexture()
  		render.UpdateFullScreenDepthTexture()
  		
-@@ -706,7 +733,7 @@
+@@ -703,10 +730,17 @@
+ end
+ 
+ hook.Add("PreDrawOpaqueRenderables", "renderblindnessflash", function()
++	-- US1: inside a killcam replay pass (e.g. the round-end panel's inset) render.GetViewSetup is the REPLAY camera; the
++	-- blindness light would be moved there and blow the replay's nearby geometry out to white. Dark for that pass only:
++	-- the next live pass sets it back.
++	if ZCKillcamView and (ZCKillcamView.SceneDepth or 0) > 0 then
++		if IsValid(lply.blindflash) then lply.blindflash:SetBrightness(0) lply.blindflash:Update() end
++		return
++	end
  	local spect = IsValid(lply:GetNWEntity("spect")) and lply:GetNWEntity("spect")
  	
  	if !lply:Alive() and !IsValid(spect) then removeflash() return end

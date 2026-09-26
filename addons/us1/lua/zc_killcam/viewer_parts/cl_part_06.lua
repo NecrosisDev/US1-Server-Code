@@ -1036,22 +1036,31 @@ local function mutedFor(name)
     end
     return fn
 end
--- The whole RenderScreenspaceEffects event is skipped as well: most of Z-City's screen effects (O2/unconscious noise,
--- berserk, noradrenaline, fear) paint the full screen with render.DrawScreenQuad from inside it. hook.Call is read from
--- the global table on every engine call, so the swap covers the gamemode and every hook for the inset render only; it
--- chains whatever hook.Call is installed (ulx_zchat_bridge replaces it) and is put back right after.
-local SKIP_EVENTS = {RenderScreenspaceEffects = true}
-local mutedCall
+-- Whole events are skipped as well, for the inset render only:
+--   RenderScreenspaceEffects: Z-City's O2/unconscious noise, berserk, noradrenaline and fear paint the full screen with
+--     render.DrawScreenQuad from inside it.
+--   PostDrawEffects / PreDrawHalos: THE superbright blur (review 2026-09-26, three independent reads). halo.Render
+--     copies the WHOLE framebuffer, clears only the inset's viewport, then adds the blurred copy back three times over
+--     the full screen - so everything the panel painted before the inset (its title, left column) and the live world
+--     behind it were blurred and brightened. Halos come from the killcam's own "this is you" marker (cl_part_07), Temp V
+--     vials and the Homelander x-ray; Z-City's outline library (admin ESP) does the same full-frame copy there.
+-- hook.Call is read from the global table on every engine call (and by ULib's hook.Run), so the swap covers the
+-- gamemode and every hook; it chains whatever hook.Call is installed and is put back right after.
+local SKIP_EVENTS = {RenderScreenspaceEffects = true, PostDrawEffects = true, PreDrawHalos = true}
+local mutedCall, mutedFor_ -- the wrapper is built once per underlying hook.Call, not every frame
 function V.MutePostProcess()
     local saved = {}
     local call = hook.Call
     if isfunction(call) and call ~= mutedCall then
-        local original = call
-        mutedCall = function(event, ...)
-            if SKIP_EVENTS[event] then V.MutedPost[event] = (V.MutedPost[event] or 0) + 1 return end
-            return original(event, ...)
+        if mutedFor_ ~= call then
+            local original = call
+            mutedFor_ = call
+            mutedCall = function(event, ...)
+                if SKIP_EVENTS[event] then V.MutedPost[event] = (V.MutedPost[event] or 0) + 1 return end
+                return original(event, ...)
+            end
         end
-        saved.hookCall = original
+        saved.hookCall = call
         hook.Call = mutedCall
     end
     for i = 1, #POST_FUNCS do
@@ -1087,17 +1096,27 @@ function V.RenderInset(x, y, w, h)
     local began = SysTime()
     local fov = math.deg(2 * math.atan(math.tan(math.rad(replayFov(false)) / 2) * (w / h) / (4 / 3)))
     local looker = L.ghosts and L.ghosts[L.clip.pov or 0]
+    -- The mute covers the scope pass too (itself a RenderView from the panel's Paint). Everything between setting
+    -- `rendering` and clearing it is protected: an error left it true for good (no inset, no fullscreen replay, and
+    -- PrePlayerDraw hiding every player) while P.RenderInset's pcall swallowed the message.
     rendering = true
-    if V.BulletWeight(L.bullet) == 0 and IsValid(looker) and looker.zcScope and (L.zoom or 0) > 0.01 then
-        V.WithReplayScene(function() renderScope(looker, origin, angles, fov, L.cs) end)
-    end
-    local restoreCutaway = V.Cinema and V.Cinema.BeginCutaway(L)
     local restorePost = V.MutePostProcess()
-    local ok = V.WithReplayScene(function() render.RenderView({origin = origin, angles = angles, x = math.floor(x), y = math.floor(y), w = math.floor(w), h = math.floor(h), fov = fov, znear = 1,
-        drawhud = false, drawviewmodel = false, drawmonitors = false, dopostprocess = false}) end)
+    local fine, ok = pcall(function()
+        if V.BulletWeight(L.bullet) == 0 and IsValid(looker) and looker.zcScope and (L.zoom or 0) > 0.01 then
+            V.WithReplayScene(function() renderScope(looker, origin, angles, fov, L.cs) end)
+        end
+        local restoreCutaway = V.Cinema and V.Cinema.BeginCutaway(L)
+        local drawn = V.WithReplayScene(function() render.RenderView({origin = origin, angles = angles, x = math.floor(x), y = math.floor(y), w = math.floor(w), h = math.floor(h), fov = fov, znear = 1,
+            drawhud = false, drawviewmodel = false, drawmonitors = false, dopostprocess = false, bloomtone = false}) end)
+        if restoreCutaway then restoreCutaway() end
+        return drawn
+    end)
     restorePost()
-    if restoreCutaway then restoreCutaway() end
     rendering = false
+    if not fine then
+        if not V.InsetErrSaid then V.InsetErrSaid = true print("[Killcam] inset render: " .. tostring(ok)) end
+        return false
+    end
     return ok, V.BookRender(V.InsetStats, began)
 end
 -- What a panel needs to draw its own HUD. ONE table, refilled on every call: read it, do not keep it.
@@ -1153,6 +1172,9 @@ function V.Report(index, text)
     end
     if IsValid(L.dialog) then return false end
     L.dialog = V.ReportDialog(L.id, index, inst, function() if L then L.dialog = nil end end)
+    -- A GoobOS panel holding the screen is SetDrawOnTop: the dialog would open invisibly underneath it, freezing the
+    -- replay (L.dialog pauses it) and taking keyboard focus (review 2026-09-26).
+    if IsValid(L.dialog) and V.UIActive() then L.dialog:SetDrawOnTop(true) end
     return true
 end
 concommand.Add("zc_killcam_render_stats", function()

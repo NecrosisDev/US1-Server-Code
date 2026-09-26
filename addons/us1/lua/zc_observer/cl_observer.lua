@@ -29,6 +29,9 @@ local function pretty(value)
     return tostring(value or "Unknown"):gsub("^weapon_", ""):gsub("_", " ")
 end
 local function roundId() return math.floor(zb and zb.ROUND_START or 0) end
+-- The server floors a double ROUND_START; the client's arrives as a float32 (net.WriteFloat), so the two floors can
+-- differ by one. Same round = within a second.
+local function sameRound(value) return math.abs((tonumber(value) or -1e9) - roundId()) <= 1 end
 local function close()
     if IsValid(O.Frame) then O.Frame:Remove() end
     O.Frame=nil
@@ -73,7 +76,7 @@ net.Receive("ZCObserverSnapshot",function()
     local value=raw and util.JSONToTable(raw)
     if not istable(value) or not enabled() then return end
     if value.clear then O.Pending=nil; O.Snapshot=nil; O.Revision=(O.Revision or 0)+1; close(); return end
-    if value.map~=game.GetMap() or tonumber(value.round)~=roundId() then return end
+    if value.map~=game.GetMap() or not sameRound(value.round) then return end
     if not istable(value.injuries) or #value.injuries>24 or not istable(value.condition) then return end
     if LocalPlayer():Alive() then O.Pending=value; O.PendingUntil=RealTime()+2; return end
     O.Snapshot=value; O.ReceivedAt=RealTime(); O.Revision=(O.Revision or 0)+1
@@ -273,12 +276,12 @@ hook.Add("Think","ZCObserver.Lifecycle",function()
     local me=LocalPlayer()
     if me:Alive() then O.DeadSince=nil else O.DeadSince=O.DeadSince or RealTime() end
     if O.Pending then
-        if RealTime()>O.PendingUntil or O.Pending.round~=roundId() then O.Pending=nil
+        if RealTime()>O.PendingUntil or not sameRound(O.Pending.round) then O.Pending=nil
         elseif not me:Alive() then
             O.Snapshot=O.Pending; O.Pending=nil; O.ReceivedAt=RealTime(); O.Revision=(O.Revision or 0)+1
         end
     end
-    if O.Snapshot and (me:Alive() or O.Snapshot.round~=roundId()) then O.Snapshot=nil; O.Revision=(O.Revision or 0)+1; close() end
+    if O.Snapshot and (me:Alive() or not sameRound(O.Snapshot.round)) then O.Snapshot=nil; O.Revision=(O.Revision or 0)+1; close() end
     local chat=hg and hg.chat
     installApp(chat)
     if IsValid(O.Tile) and IsValid(chat) then
@@ -425,11 +428,13 @@ hook.Add("HUDPaint","ZCObserver.Dock",function()
         dockClearAvatar(); dockTarget=nil; dockShown=nil; dockPhase="hidden"; O.DockShownPly=nil
         return
     end
-    if IsValid(O.Frame) or gui.IsGameUIVisible() or input.IsKeyDown(KEY_TAB) then return end
-    if RealTime()-(O.DeadSince or RealTime())<6 then return end
-    if hg and IsValid(hg.chat) and hg.chat:GetActive() then return end
+    -- 2026-09-26 review: every early return clears DockShownPly, or GoobOS voice keeps leaving that player's plate
+    -- to a dock that is not drawn (you could not see who was talking while TAB was held or a replay played).
+    if IsValid(O.Frame) or gui.IsGameUIVisible() or input.IsKeyDown(KEY_TAB) then O.DockShownPly=nil; return end
+    if RealTime()-(O.DeadSince or RealTime())<6 then O.DockShownPly=nil; return end
+    if hg and IsValid(hg.chat) and hg.chat:GetActive() then O.DockShownPly=nil; return end
     local state=replay()
-    if state.active then return end -- replay/highlight UI owns its entire handoff
+    if state.active then O.DockShownPly=nil; return end -- replay/highlight UI owns its entire handoff
     local target=me:GetNWEntity("spect")
     if not IsValid(target) or not target:IsPlayer() then target=nil end
     -- free roam (gamemode viewmode 3 = OBS_MODE_ROAMING; the NW entity keeps the last target) watches nobody:
