@@ -22,7 +22,8 @@
 --     had a bad week and cleaned up drops off the list, and a regular with a thousand clean rounds cannot hide a
 --     fresh spree behind them. Lifetime counters are kept alongside for context.
 --   * CONDUCT (owner, same day): starting trouble without a kill - knocking down an idle player (and searching
---     them), baiting somebody into firing by holding a gun on them, breaking a box somebody else is looting. These
+--     them), baiting somebody into a fight by holding a gun on them, breaking a box somebody else is looting and a
+--     fight following. Bait and loot are flags until a fight follows (sv_intent.lua); only then do they arrive. These
 --     come from sv_intent.lua's ZCKillcam_Conduct hook. Each counts toward the rate at zc_killcam_karma_conduct of a
 --     bad kill (default half): enough that a player who does it every round shows up, not so much that one
 --     scuffle over a crate puts anyone on the list. A traitor killed after being ambushed idle is not a good act.
@@ -201,7 +202,7 @@ hook.Add("ZCKillcam_Death", "ZCKillcam.Karma", function(victim, killer, tag)
     local why, ambush
     if K.JudgeDeath then why, ambush = K.JudgeDeath(victim, killer, tag) end
     if tag == "ivi" then why = why or "unprovoked" end
-    if why == "defense" or why == "stopped" or why == "threatened" then
+    if why == "defense" or why == "stopped" or why == "threatened" or why == "provoked" then
         -- Kept, so staff can still see a player whose every teamkill is somehow "self-defence", but never rated.
         e.d = (e.d or 0) + 1
         stats.contested = (stats.contested or 0) + 1
@@ -366,9 +367,10 @@ concommand.Add("zc_killcam_karma", function(p, _, args)
                 e.xa or 0, e.xb or 0, e.xl or 0))
             say("  recent rate: " .. (rate and string.format("%.2f bad/round%s", rate, rate >= FLOOR:GetFloat() and " ** review context **" or "")
                     or string.format("too few rounds to judge (needs %d, has %d)", MIN_ROUNDS:GetInt(), entry and entry.r or 0)))
-            local mark = {defense = " [self-defence: victim struck first]", threatened = " [victim held a gun on them first]",
+            local mark = {defense = " [self-defence: victim struck first]", threatened = " [victim held a gun on them / squared up first]",
+                provoked = " [victim broke the box they were looting]",
                 stopped = " [stopped the victim attacking someone]"}
-            local verb = {ambush = "knocked down idle player", bait = "baited (held a gun on)", loot = "broke the box being looted by"}
+            local verb = {ambush = "knocked down idle player", bait = "baited into a fight (held a gun on / squared up to)", loot = "broke the box being looted by (a fight followed)"}
             for _, inc in ipairs(e.i or {}) do
                 say(string.format("    %s  %s %s on %s%s%s%s%s", os.date("%Y-%m-%d %H:%M", inc.t), verb[inc.k] or "killed", inc.v or "?", inc.m or "?",
                     mark[inc.w] or "", inc.s and " [then searched them]" or "", inc.tr and " [victim was a traitor]" or "", inc.f and " [forgiven]" or ""))

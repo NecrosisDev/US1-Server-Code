@@ -59,7 +59,14 @@ function V:Distance(b) return (self - b):Length() end
 WALL = false
 weapons = {GetStored = function() return {Category = "Melee"} end}
 util = {AddNetworkString = function() end, TableToJSON = function() return "{}" end, JSONToTable = function() return {} end,
-    TraceLine = function(t) return {Hit = WALL, Entity = nil} end}
+    TraceLine = function(t) return {Hit = WALL, Entity = nil} end,
+    DistanceToLine = function(a, b, p)
+        local ab, ap = b - a, p - a
+        local len2 = ab:Dot(ab)
+        local t = len2 > 0 and math.max(0, math.min(1, ap:Dot(ab) / len2)) or 0
+        local c = Vector(a.x + ab.x * t, a.y + ab.y * t, a.z + ab.z * t)
+        return (p - c):Length(), c, t
+    end}
 net = {Receive = function() end}
 file = {Read = function() end, Write = function() end, CreateDir = function() end, Exists = function() return false end, Find = function() return {} end}
 game = {GetMap = function() return "test_map" end}
@@ -70,6 +77,7 @@ function ErrorNoHalt(m) print(m) end
 function isstring(x) return type(x) == "string" end
 function istable(x) return type(x) == "table" end
 function isnumber(x) return type(x) == "number" end
+function isfunction(x) return type(x) == "function" end
 function IsValid(x) return type(x) == "table" and x.valid ~= false end
 
 LOG = {}
@@ -141,6 +149,16 @@ function Kill(t, a, v)
     return tag
 end
 function Include(path) return dofile(LUA_ROOT .. "/" .. path) end
+INCIDENTS = {}
+hook.Add("ZCKillcam_Incident", "test", function(kind, a, b, info)
+    INCIDENTS[#INCIDENTS + 1] = kind .. ":" .. (a and a.uid or "?") .. ">" .. (b and b.uid or "?") .. (info.kind and ("/" .. info.kind) or "")
+end)
+-- A missed bullet from `a` past `v`, about `off` units to one side of them (it keeps going the same distance again).
+function MissNear(t, a, v, off)
+    SetNow(t)
+    local from = a.pos
+    hook.Run("PostEntityFireBullets", {}, {Attacker = a, Trace = {StartPos = from, HitPos = Vector(2 * v.pos.x - from.x, 2 * off, 0)}})
+end
 GUN = {valid = true, ishgweapon = true, Primary = {Ammo = "9x19"}}
 function Tick(t) SetNow(t) TIMERS["ZCKillcam.IntentTick"]() end
 -- Point `a` straight at `v` (they sit on the x axis, 100 units per UserID).
@@ -276,24 +294,75 @@ class KillcamScoringTests(unittest.TestCase):
         ''')
         self.assertEqual(got, 0)
 
-    def test_breaking_a_box_someone_is_looting(self):
+    def test_breaking_a_box_someone_is_looting_flags_and_only_trips_if_a_fight_follows(self):
         got = self.run_lua('''
             local looter, thief, other = MakePlayer(1, "s1"), MakePlayer(2, "s2"), MakePlayer(3, "s3")
             local conduct = {}
             hook.Add("ZCKillcam_Conduct", "t", function(kind, off) conduct[#conduct + 1] = kind .. ":" .. off.uid end)
             hook.Run("ZB_PreRoundStart") hook.Run("ZB_StartRound")
-            local box, far = Box(), Box()
+            local box, far, own = Box(), Box(), Box()
             looter.pos = Vector(50, 0, 0)
             SetNow(10) hook.Run("ZB_InventoryOpened", looter, box)
-            SetNow(15) hook.Run("PropBreak", thief, box)                 -- under the looter: counts
+            SetNow(15) hook.Run("PropBreak", thief, box)                 -- under the looter: flagged
+            local afterFlag = #conduct
             SetNow(20) hook.Run("ZB_InventoryOpened", looter, far) far.pos = Vector(5000, 0, 0)
-            SetNow(21) hook.Run("PropBreak", other, far)                  -- looter walked away: does not
-            local own = Box()
+            SetNow(21) hook.Run("PropBreak", other, far)                  -- looter walked away: not even a flag
             SetNow(30) hook.Run("ZB_InventoryOpened", looter, own)
-            SetNow(31) hook.Run("PropBreak", looter, own)                 -- breaking your own box: does not
-            return table.concat(conduct, ",")
+            SetNow(31) hook.Run("PropBreak", looter, own)                 -- breaking your own box: nothing
+            Hit(35, looter, thief) Kill(36, looter, thief)                -- the looter goes for the thief: it trips
+            return afterFlag, table.concat(conduct, ","), K.KillIntent(1, 2)
         ''')
-        self.assertEqual(got, 'loot:2')
+        self.assertEqual(tuple(got), (0, 'loot:2', 'provoked'))
+
+    def test_a_flag_that_nothing_follows_costs_nothing(self):
+        got = self.run_lua('''
+            local a, b = MakePlayer(1, "s1"), MakePlayer(2, "s2")
+            local n = 0
+            hook.Add("ZCKillcam_Conduct", "t", function() n = n + 1 end)
+            hook.Run("ZB_PreRoundStart") hook.Run("ZB_StartRound")
+            AimAt(a, b)
+            for t = 10, 14, 0.25 do Tick(t) end
+            Hit(40, b, a)                                 -- long after the flag went stale
+            return n, INCIDENTS[1], K.Intent.pairs[2][1].first
+        ''')
+        self.assertEqual(tuple(got), (0, 'flag:1>2/aim', True))
+
+    def test_a_lowered_gun_is_not_aiming_at_anyone(self):
+        got = self.run_lua('''
+            local a, b = MakePlayer(1, "s1"), MakePlayer(2, "s2")
+            hook.Run("ZB_PreRoundStart") hook.Run("ZB_StartRound")
+            AimAt(a, b)
+            a.wep = {valid = true, ishgweapon = true, Primary = {Ammo = "9x19"}, ReadyStance = function() return true end}
+            for t = 10, 14, 0.25 do Tick(t) end
+            return #INCIDENTS
+        ''')
+        self.assertEqual(got, 0)
+
+    def test_squaring_up_with_fists_at_arms_reach_is_a_flag(self):
+        got = self.run_lua('''
+            local a, b = MakePlayer(1, "s1"), MakePlayer(2, "s2")
+            hook.Run("ZB_PreRoundStart") hook.Run("ZB_StartRound")
+            b.pos = Vector(160, 0, 0)                     -- 60 units away
+            AimAt(a, b)
+            a.wep = {valid = true, GetClass = function() return "weapon_hands_sh" end, GetFists = function() return true end}
+            for t = 10, 14, 0.25 do Tick(t) end
+            Hit(14.5, b, a) Kill(15, b, a)
+            return INCIDENTS[1], K.KillIntent(2, 1)
+        ''')
+        self.assertEqual(tuple(got), ('flag:1>2/melee', 'threatened'))
+
+    def test_a_missed_shot_counts_as_going_first(self):
+        got = self.run_lua('''
+            local shooter, target, bystander = MakePlayer(1, "s1"), MakePlayer(2, "s2"), MakePlayer(9, "s9")
+            hook.Run("ZB_PreRoundStart") hook.Run("ZB_StartRound")
+            MissNear(10, shooter, target, 40)             -- misses, 40 units from the target
+            Hit(11, target, shooter) Kill(12, target, shooter)
+            local first = K.KillIntent(2, 1)
+            MissNear(20, bystander, target, 400)          -- nowhere near: nothing
+            Hit(21, target, bystander) Kill(22, target, bystander)
+            return first, K.KillIntent(2, 9)
+        ''')
+        self.assertEqual(tuple(got), ('defense', 'unprovoked'))
 
     def test_traitors_are_not_charged_with_conduct(self):
         got = self.run_lua('''
