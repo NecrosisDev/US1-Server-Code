@@ -27,9 +27,13 @@ It touches only `garrysmod/addons/{zcity,ulx,ulib,us1}` (and `.us1/`, its cache)
    - `US1_BRANCH` = `release` (optional), `US1_PIN` = empty, `US1_UPDATE` = `1`
 3. **The script.** Download `us1_update.sh` from the `release` branch once and upload it to the server root (the folder
    that holds `garrysmod/`). After that it keeps itself up to date.
-4. **Startup command.** Put `sh ./us1_update.sh;` in front of the existing command, unchanged otherwise:
-   `sh ./us1_update.sh; <the command that is there now>`. If the panel doesn't allow editing it, ask Physgun support
-   to run a pre-start script, or use their git-pull option pointed at the same URL and branch (then skip step 3).
+4. **The hook.** Physgun's startup box can't be edited, so the updater hooks into `srcds_run` instead (the startup
+   command runs it; it is a plain text script in the server root). Open it in the panel's file manager and add this
+   line directly under the first line (`#!/bin/bash`):
+   `[ -f "$(dirname "$0")/us1_update.sh" ] && sh "$(dirname "$0")/us1_update.sh"`
+   A Garry's Mod update can replace `srcds_run` and drop the line. Then the console says
+   `[US1] WARNING: the auto-updater did not run at this start` at boot: add the line again. (If Physgun support will
+   add `sh ./us1_update.sh;` to the front of the startup command for you, that survives game updates; prefer it.)
 5. **The cutover (GATE 1).** The live server still has the old layout (~50 folders + loose `lua/`). Once only:
    - Take a panel backup. Stop the server.
    - `python3 tools/cutover.py --plan out/` on a checkout gives `CUTOVER.sh`, `UNDO.sh`, `CUTOVER.txt` (the list).

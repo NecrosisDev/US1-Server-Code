@@ -29,5 +29,11 @@ if SERVER then
     if istable(info) and isstring(info.main) then
         US1.Release = info
         MsgN("[US1] running release " .. string.sub(info.main, 1, 7) .. (isstring(info.built) and (" built " .. info.built) or ""))
+        -- installed by the updater once, but it did not run at THIS start: its hook line is gone (a game update
+        -- rewrites srcds_run). See docs/DEPLOY.md "The hook".
+        local ran = tonumber(file.Read("us1_updater_ran.txt", "DATA") or "")
+        if not ran or os.time() - ran > 600 then
+            MsgN("[US1] WARNING: the auto-updater did not run at this start - re-add its line to srcds_run (docs/DEPLOY.md)")
+        end
     end
 end

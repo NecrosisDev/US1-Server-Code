@@ -13,6 +13,7 @@
 # Optional: US1_ROOT (default: the folder this script is in), US1_TIMEOUT seconds (default 60).
 set -u
 ROOT=${US1_ROOT:-$(cd "$(dirname "$0")" && pwd)}
+# log() and the heartbeat below need ROOT; everything else is defined after them
 GMOD="$ROOT/garrysmod"
 CACHE="$ROOT/.us1"
 BRANCH=${US1_BRANCH:-release}
@@ -20,6 +21,9 @@ TIMEOUT=${US1_TIMEOUT:-60}
 ADDONS="zcity ulx ulib us1"
 
 log() { echo "[US1 update] $*"; }
+# a heartbeat on EVERY run (even a skipped one), so the server can tell at boot whether this script ran at all:
+# us1_boot.lua warns when it is stale, e.g. after a game update replaced a srcds_run that carried the hook line
+[ -d "$ROOT/garrysmod/data" ] && date +%s > "$ROOT/garrysmod/data/us1_updater_ran.txt" 2>/dev/null
 quit() { log "$1 - starting with the files already installed"; exit 0; }
 
 [ "${US1_UPDATE:-1}" = "0" ] && quit "US1_UPDATE=0"
