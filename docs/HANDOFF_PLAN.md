@@ -465,6 +465,40 @@ From WP-0.3 on, also `python3 -m unittest tests.test_lua_harness` (the stub harn
   player's unassisted-equivalent hit rate sits above the human median for their class; no watchdog dossier cites an
   assisted shot.
 
+### Phase 8: UI cohesion (2026-09-26; implemented on `claude/hopeful-dirac-nsfltg`)
+
+Why: the player UI grew as separate efforts with three palettes (ZCity red, cyan forensics, blue chrome), three font
+families, the cause of death drawn four times on one screen, "round over" announced three times, six button painters,
+a clip player that Replays called but nobody had written, no way to share a clip, and ~10 admin windows reachable only
+from the console. Owner decisions: one theme (ZCity red, cyan only as a data accent); sharing = CityLeak clip posts and
+chat links played in-server; the death panel gets a damage timeline with a translucent body and its organs and absorbs
+the Afterlife debrief; admin tools move into a staff-only GoobOS app gated by ULX access.
+
+Principles (every WP): one kit (`zc_goobos/kit.lua`: theme tokens, `K.Scaler`, `K.Button`, `K.Clock`, fonts through
+`K.Font` / `hg_font`); say each fact once per screen; one hint row per screen (keycap + verb, `·`); one key, one meaning
+across viewers (Space play/next, Q back, Esc close, S share, V save, G report, F forgive, ← → 5 s, `, .` frames); a
+destructive key needs a second press; no flavour text on functional screens; every "in Replays" promise is true.
+`tools/check.py` `theme` ratchets colour literals / `CreateFont` / hard-coded families in UI files down, never up.
+
+| WP | What | Files (single writer) |
+| --- | --- | --- |
+| 8.0 | Kit foundation: tokens, painters, one button, `Media.OpenClip`, Settings › Replays & killcam, theme check, LuaJIT UI tests | `zc_goobos/kit.lua`, `apps.lua`, `media.lua`, `settings.lua`, `tools/check.py`, `tests/lua/` |
+| 8.1 | Death panel: one header line, one hint row, damage timeline scrubbing every hit of the life, translucent body with organs tinting as damage builds, cause of death + final vitals + contributions (from the observer debrief), Afterlife frame retired | `zc_goobos/deathpanel.lua`, `deathbody.lua`, `zc_observer/`, `zc_killcam/cl_analysis.lua`; recorder: `e.organs` per hit (`sv_recorder.lua`, `sv_clips.lua`) |
+| 8.2 | Sharing: share sheet (CityLeak post, chat link), `!clip` / `!replay` links, shared clips watchable by anyone, Replays Clips filter / paging / share / report | `zc_goobos/share.lua`, `replays.lua`, `feed*.lua`, `sv_feed*.lua`, `links.lua`, `zc_killcam/sv_net.lua` |
+| 8.3 | Round end: one announcement, no stamp / fake "Runner-Up", one vote-hint wording, theme tokens | `zc_goobos/roundend.lua`, `notify.lua` |
+| 8.4 | Killcam viewers: theme palette + fonts (Tahoma gone), one hint row per stage, key conventions, N confirm, one `V.Note`, share key | `zc_killcam/viewer_parts/`, `cl_life.lua` (re-stamp VERSION) |
+| 8.5 | Staff app: every admin tool in one GoobOS app, ULX access rights instead of raw `IsAdmin()`, help text, aliases | `zc_goobos/staff.lua`, `sv_staff.lua`, admin files in `autorun/` |
+
+**GATE 8 checklist** (owner, in game)
+- [ ] Die to a rifle: the death panel says how in one line; the hint row appears once; scrub the timeline and the
+      organs inside the translucent body redden hit by hit; the cause-of-death card matches what happened.
+- [ ] Press S on the death panel: post to CityLeak; a friend opens the post and watches the clip; `!clip <id>` in chat
+      opens it too.
+- [ ] Round end: announced once; vote hints read the same everywhere; no "ZCITY US1" stamp.
+- [ ] Killcam: Q always goes back; N needs two presses; the bullet camera is red/black with cyan only on data.
+- [ ] Change `hg_font`: every screen changes font together.
+- [ ] Staff app: an admin sees every tool; a regular player does not see the app; tools still work.
+
 ---
 
 ## 6. Owner gates and live procedures
@@ -519,6 +553,11 @@ Anything that looked or felt wrong:
 | Tape disk budget (2000 MB) | Open (ask before GATE 5) |
 | Spectator ESP obeys `zc_observer_mode 0` | Open |
 | Map search box typeable in game | Open (owner tests at GATE 0) |
+| UI: one theme (ZCity red, cyan data accent only) | Owner, 2026-09-26 |
+| UI: sharing = CityLeak clip posts + chat links, played in-server | Owner, 2026-09-26 |
+| UI: death panel damage timeline with translucent body and organs; absorbs the Afterlife debrief | Owner, 2026-09-26 |
+| UI: admin tools in a staff-only GoobOS app, ULX access rights | Owner, 2026-09-26 |
+| Living players' number keys take the map ballot only after the round ends (never in prep) | Decided by the implementer on the owner's "handle it as you see appropriate", 2026-09-26 |
 
 ---
 
