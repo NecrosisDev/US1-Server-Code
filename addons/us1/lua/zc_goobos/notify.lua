@@ -13,7 +13,7 @@ local A = ZCGoobApps
 if not A then return end
 local N = A.Notify or {}
 A.Notify = N
-N.Version = "20260924.notify2"
+N.Version = "20260926.notify3"
 N.Stack, N.Banners, N.VMState, N.Wraps = N.Stack or {}, N.Banners or {}, N.VMState or {}, N.Wraps or {}
 -- Recent pushes for the home-screen tray (mockup 00: CityLeak reactions etc. with a time). Votes and
 -- private-message pushes stay out: votes expire, and unread threads already feed the tray directly.
@@ -29,13 +29,35 @@ function N.Enabled()
     return cv ~= nil and cv:GetBool() and A.Kit ~= nil
 end
 
+-- UI cohesion U3.3 (2026-09-26): the one vote hint on every GoobOS vote surface - the number keys as one keycap and
+-- the verb ("1–6 Vote"), plus "Click a tile" where a click casts too - drawn with the kit's hint row (K.Scaler hints).
+-- This card and the round-end panel, side card and compact mode vote (roundend.lua) all draw this list. Read-only.
+function N.VoteKeys(n)
+    n = math.floor(tonumber(n) or 0)
+    if n <= 1 then return "1" end
+    if n >= 10 then return "1–9, 0" end -- ULX: key 0 is option 10
+    return "1–" .. n
+end
+local voteHintCache = {}
+function N.VoteHints(n, clicks)
+    local keys = N.VoteKeys(n)
+    local key = keys .. (clicks and "+click" or "")
+    local hints = voteHintCache[key]
+    if not hints then
+        hints = {{keys, "Vote"}}
+        if clicks then hints[2] = {nil, "Click a tile"} end
+        voteHintCache[key] = hints
+    end
+    return hints
+end
+
 local function optionRows(entry)
     local n = math.min(#entry.options, 10)
     return math.max(1, math.ceil(n / math.min(n, 4)))
 end
 
 local function cardHeight(entry)
-    if entry.options then return A.Kit.NoticeHeight + optionRows(entry) * (OPTION_H + 6) + 16 end
+    if entry.options then return A.Kit.NoticeHeight + optionRows(entry) * (OPTION_H + 6) + 34 end -- + the bar and a keycap row
     return A.Kit.NoticeHeight
 end
 
@@ -109,13 +131,25 @@ local function paintVoteExtras(K, entry, x, y, w)
     local barY = y + K.NoticeHeight - 4 + optionRows(entry) * (OPTION_H + 6) + 2
     draw.RoundedBox(2, x + 10, barY, w - 20, 4, K.Alpha(T.ink, 235))
     draw.RoundedBox(2, x + 10, barY, math.max(4, (w - 20) * math.Clamp(left / span, 0, 1)), 4, T.accent)
-    local hint = entry.voted and ("You voted " .. tostring(options[entry.voted])) or (#options >= 10 and "Press 1–9 or 0 to vote" or "Press 1–" .. #options .. " to vote")
     local queued
     for _, e in ipairs(N.VMState) do
-        if e.queued then queued = e.title break end
+        if e.queued then queued = "Queued: " .. tostring(e.title) break end
     end
-    if queued then hint = hint .. "  ·  Queued: " .. tostring(queued) end
-    draw.SimpleText(K.Fit(hint, K.Font(11, 600), w - 20), K.Font(11, 600), x + w / 2, barY + 6, T.muted, TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP)
+    -- U3.3: the vote hint as keycap + verb (N.VoteHints); once voted, the choice (and the queue) as a plain line
+    local rowY = barY + 8
+    if entry.voted then
+        local line = "You voted " .. tostring(options[entry.voted]) .. (queued and ("  ·  " .. queued) or "")
+        draw.SimpleText(K.Fit(line, K.Font(11, 600), w - 20), K.Font(11, 600), x + w / 2, rowY + 10, T.muted, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+        return
+    end
+    local S = N.Scaler or K.Scaler(1)
+    N.Scaler = S
+    local hints = N.VoteHints(#options)
+    if queued then
+        local room = w - 20 - S.hintWidth(hints) - S.u(16)
+        hints = {hints[1], {nil, S.fit(queued, 11, 500, math.max(40, room))}}
+    end
+    S.hints(hints, x + w / 2, rowY, TEXT_ALIGN_CENTER)
 end
 
 local function paintLane(panel, w)
@@ -281,7 +315,7 @@ hook.Add("ZC_ULXVoteStarted", "GoobOS.Notify.ULXVote", function(title, timeout, 
         end
     end)
     entry = N.Push({kind = "vote", key = "ulx", app = "Vote", glyph = "check", title = title,
-        body = #options .. " options · " .. math.floor(timeout) .. " s", options = options,
+        body = #options .. " options · " .. A.Kit.Clock(timeout), options = options,
         endsAt = CurTime() + timeout, duration = timeout})
     if entry then
         entry.onVote = function(id)
@@ -306,6 +340,14 @@ net.Receive("GoobOS.Notify", function()
 end)
 
 -- Round start / end banners from the round state everyone already has.
+-- U3.1 (UI cohesion 2026-09-26): one announcement per round end. With the GoobOS panels on, the round-end winner card
+-- (roundend.lua) announces the result at this same ROUND_STATE 1 -> 3 edge, so the "round over" banner would say it a
+-- second time. Its phase may not be set yet when this poll runs first, hence P.Enabled() - the gate it enters on.
+function N.RoundEndOwned()
+    local P, RE = A.Panels, A.RoundEnd
+    if not (istable(RE) and istable(P) and isfunction(P.Enabled)) then return false end
+    return RE.Phase == "winner" or RE.Phase == "panel" or P.Enabled() == true
+end
 local lastRound
 local function roundBanner()
     if not istable(zb) then return end
@@ -316,7 +358,7 @@ local function roundBanner()
     if previous == nil or not N.Enabled() then return end
     local mode = zb.CROUND and (string.gsub(string.gsub(tostring(zb.CROUND), "_", " "), "^%l", string.upper)) or "Round"
     if state == 1 then N.Banner(mode .. " · round started", "round")
-    elseif state == 3 and previous == 1 then N.Banner(mode .. " · round over", "round") end
+    elseif state == 3 and previous == 1 and not N.RoundEndOwned() then N.Banner(mode .. " · round over", "round") end
 end
 timer.Create("GoobOS.Notify.Round", 0.5, 0, roundBanner)
 

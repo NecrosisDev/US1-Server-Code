@@ -25,7 +25,7 @@ if not K or not T or not P then return end
 
 local RE = A.RoundEnd or {}
 A.RoundEnd = RE
-RE.Version = "20260926.roundend13+modevote6"
+RE.Version = "20260926.roundend14+modevote6"
 -- Autorefresh reinstalls this file while the old panel lives on with the old painters (LESSONS.md): drop it so the next
 -- phase entry rebuilds it from this file's code (ensurePanel).
 if IsValid(RE.Panel) then RE.Panel:Remove() end
@@ -121,6 +121,7 @@ local function onRoundState(state, prev)
     if state == 3 and prev == 1 and P.Enabled() then
         RE.Phase = "winner"
         RE.WinnerBorn = RealTime()
+        RE.WinnerToldFrom, RE.WinnerToldTo = nil, nil -- U3.1: this round's winner card has not told anyone yet
         local _, zbT = roundState()
         local mode = zbT and zbT.CROUND
         local length
@@ -590,28 +591,13 @@ local function mapInfo(mapname)
 end
 
 -- === drawing helpers =========================================================================
-local U = 1
-local function u(n) return math.floor(n * U + 0.5) end
-local function font(size, weight) return K.Font(math.max(8, u(size)), weight) end
-local function text(str, size, weight, x, y, color, ax, ay)
-    return draw.SimpleText(str, font(size, weight), x, y, color or T.text, ax or TEXT_ALIGN_LEFT, ay or TEXT_ALIGN_TOP)
-end
-local function fit(str, size, weight, width) return K.Fit(str, font(size, weight), width) end
-local function measure(str, size, weight)
-    surface.SetFont(font(size, weight))
-    return surface.GetTextSize(str)
-end
+-- UI cohesion U3 (2026-09-26): the kit's painter set (K.Scaler: u/font/text/fit/measure/chip/keycap/hint row), K.Clock
+-- and K.Initial replace this file's own copies. Each paint entry sets S.U = P.Unit(); the aliases read it per call.
+local S = K.Scaler()
+RE.Scaler = S
+local u, text, fit, measure = S.u, S.text, S.fit, S.measure
 
-local function fmtClock(seconds)
-    seconds = math.max(0, math.floor(tonumber(seconds) or 0))
-    return string.format("%i:%02i", math.floor(seconds / 60), seconds % 60)
-end
-
-local function initial(name)
-    name = tostring(name or "")
-    return string.upper(string.sub(name, 1, 1) ~= "" and string.sub(name, 1, 1) or "?")
-end
-
+-- data colours (initials avatars, map tiles without an image): a palette, not chrome
 local avatarHues = {Color(122, 59, 59), Color(59, 90, 122), Color(90, 122, 59), Color(122, 106, 59), Color(106, 59, 122), Color(59, 122, 114)}
 local function avatarColor(index) return avatarHues[((index - 1) % #avatarHues) + 1] end
 local tileHues = {Color(70, 34, 34), Color(34, 50, 70), Color(48, 66, 34), Color(70, 60, 34), Color(60, 34, 70), Color(34, 68, 62)}
@@ -645,18 +631,57 @@ local function winnerLabel()
     return winner == "nobody" and "Nobody wins" or (winner .. " win")
 end
 
+-- U3.1 (UI cohesion 2026-09-26, "say it once"): the winner card is the round end's one announcement. Both cards note
+-- how long they have shown the result; the panel header and the side card's title repeat it only for a player whose
+-- card never did (a late joiner, a highlight that cut the card short, a result that arrived after the card), and they
+-- never say "Round over".
+local function noteWinner(label)
+    if not label then return end
+    local now = RealTime()
+    RE.WinnerToldFrom = RE.WinnerToldFrom or now
+    RE.WinnerToldTo = now
+end
+local function winnerTold()
+    return RE.WinnerToldFrom ~= nil and (RE.WinnerToldTo or 0) - RE.WinnerToldFrom >= 1
+end
+RE.WinnerTold = winnerTold
+
+-- The round's mode as players read it: zc_round_summary's display name, else zb.CROUND ("the_hunt" -> "The hunt").
+local function modeLabel()
+    local mode = (RE.Summary and RE.Summary.mode ~= "" and RE.Summary.mode) or (RE.RoundMeta and RE.RoundMeta.mode) or ""
+    return (string.gsub(string.gsub(tostring(mode), "_", " "), "^%l", string.upper))
+end
+
+-- The header's words: info = {winner, told, mode, map, final, extended, voteOpen}. Returns the title, whether the title
+-- is the result, and the caption line (upper case, "   ·   " between parts). Pure: the tests call it directly.
+function RE.HeaderText(info)
+    local caption, title, isResult = {}, "", false
+    local mode, map = tostring(info.mode or ""), tostring(info.map or "")
+    if info.winner and not info.told then
+        title, isResult = tostring(info.winner), true
+        if mode ~= "" then caption[#caption + 1] = string.upper(mode) end
+    elseif mode ~= "" then
+        title = mode
+    else
+        title, map = map, ""
+    end
+    if map ~= "" then caption[#caption + 1] = string.upper(map) end
+    if info.final then
+        -- the pill says "Map extended" while the ballot is open; the caption only once it has closed
+        if not info.extended then caption[#caption + 1] = "LAST ROUND"
+        elseif not info.voteOpen then caption[#caption + 1] = "MAP EXTENDED" end
+    end
+    return title, isResult, table.concat(caption, "   ·   ")
+end
+
 -- === panel painting ==========================================================================
--- Colours not already on A.Theme/kit, hoisted here so Paint never allocates one (KIT_API.md).
-local INSET_BG = Color(24, 21, 19, 235)
-local INSET_DIM = Color(12, 10, 10, 215)
-local CHIP_BG = Color(10, 9, 9)
-local SCRIM = Color(0, 0, 0)
-local TILE_SHADE = Color(0, 0, 0)
-local LOCKED = Color(110, 110, 115)
+-- Colours not already on A.Theme/kit, hoisted here so Paint never allocates one (KIT_API.md). U3.4: the inset, scrims,
+-- chips and keycaps read the theme (T.inset, T.dim, T.ink, T.chip, T.line); what is left derives from its tokens.
+local LOCKED = Color(T.muted.r, T.muted.g, T.muted.b, 150) -- a locked option's text (reads ~110 grey over a tile)
 -- K.Alpha returns ONE shared scratch colour, so a call that needs two tinted colours at once (K.Card fill + edge) gets
 -- real Color tables hoisted here (adversarial review 2026-09-25).
 -- roundend_polish_20260925: opaque, so K.Card's edge (painted under the whole fill) shows as a 1 px border only
-local DOCK_FILL = Color(18, 16, 16)
+local DOCK_FILL = Color(T.glass.r, T.glass.g, T.glass.b)
 local DOCK_EDGE = Color(T.edge.r, T.edge.g, T.edge.b, 120)
 -- roundend_polish_20260925 (canvas RoundEnd): neutral tiles, red only for your own vote. Opaque, because K.Card paints
 -- the edge colour under the whole fill and a translucent fill turned every tile red.
@@ -664,7 +689,6 @@ local TILE_FILL = Color(34, 31, 31)
 local TILE_FILL_MINE = Color(77, 23, 23)
 local TILE_EDGE = Color(T.edge.r, T.edge.g, T.edge.b, 200)
 local TILE_EDGE_LOCKED = Color(T.edge.r, T.edge.g, T.edge.b, 70)
-local KEY_FILL, KEY_EDGE = Color(29, 26, 26), Color(90, 20, 20)
 
 -- Hit areas reuse their tables between frames; fn(arg) runs on click, so call sites pass a shared function and its
 -- argument instead of building a closure every frame.
@@ -683,25 +707,18 @@ local function clearHits(panel)
     for i = #hits, 1, -1 do hits[i] = nil end
 end
 local function callSkip() P.Call("Skip") end
+local SKIP_HINTS = {{"Space", "Skip"}}
 local function openPlayerMenu(r) P.PlayerMenu(r.sid, r.ply) end
 
-local function chip(label, x, y, color, align)
-    local tw = measure(label, 10, 700) + u(14)
-    local bx = align == TEXT_ALIGN_RIGHT and x - tw or (align == TEXT_ALIGN_CENTER and x - tw / 2 or x)
-    draw.RoundedBox(3, bx, y, tw, u(18), K.Alpha(CHIP_BG, 190))
-    text(label, 10, 700, bx + tw / 2, y + u(9), color or T.text, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-    return tw
+-- U3.3 (UI cohesion 2026-09-26): one vote hint everywhere - the number keys as one keycap and the verb ("1–6 Vote"),
+-- plus "Click a tile" where a click casts too - drawn with S.hints. The list is notify.lua's (N.VoteHints, the ULX vote
+-- card draws the same); notify.lua loads before this file (autorun/zc_goobos_apps.lua), the fallback is for a broken load.
+local function voteHints(n, clicks)
+    local N = A.Notify
+    if istable(N) and isfunction(N.VoteHints) then return N.VoteHints(n, clicks) end
+    return {{"1–" .. tostring(n), "Vote"}}
 end
-
-local function keycap(panel, label, action, x, y, fn)
-    local kw = measure(label, 11, 700) + u(10)
-    draw.RoundedBox(3, x, y, kw, u(18), K.Alpha(T.edge, 200))
-    text(label, 11, 700, x + kw / 2, y + u(9), T.text, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-    text(action, 11, 500, x + kw + u(6), y + u(9), T.muted, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-    local aw = measure(action, 11, 500)
-    if fn then addHit(panel, x, y, kw + u(6) + aw, u(18), fn) end
-    return x + kw + u(6) + aw + u(18)
-end
+RE.VoteHints = voteHints
 
 -- The caption line over the inset. A map reel (sv_highlight.lua hl7: seq.reel, one instance per round) captions each
 -- part from its own instance (star / kills / victims / round); a single highlight reads the sequence as before.
@@ -738,11 +755,27 @@ end
 
 -- The round recap: winner, the star of the round (top summary row), totals and survivors, drawn inside the inset
 -- when there is no replay to show. `finished` = a highlight already played; otherwise the line says why none is up.
-local function noHighlightReason()
+local function killcamsOff()
     local cv = GetConVar("zc_killcam_show")
-    if cv and not cv:GetBool() then return "Killcams are off for you (Settings > Gameplay)" end
+    return cv ~= nil and not cv:GetBool()
+end
+local function noHighlightReason()
+    if killcamsOff() then return "Killcams are off for you · Settings › Replays & killcam" end
     if RE.Summary and (RE.Summary.totalKills or 0) == 0 then return "A quiet round: nothing to replay" end
     return "No highlight cleared the bar this round"
+end
+RE.NoHighlightReason = noHighlightReason
+-- U3 "every promise resolves": the client cannot tell whether this round's highlight was saved (the server's
+-- zc_killcam_persist_missed is not replicated), so the recap points at Replays only when the Replays app's own index
+-- (replays.lua, scope "highlights") has listed round highlights - i.e. the server keeps them. Otherwise: no line.
+function RE.ReplaysLine()
+    local state = istable(A.State) and A.State.replays or nil
+    local rows = istable(state) and istable(state.rows) and state.rows.highlights or nil
+    if not istable(rows) then return nil end
+    for _, row in ipairs(rows) do
+        if istable(row) and (row.kind == "highlight" or row.tag == "highlight") then return "Find it in Replays › Highlights" end
+    end
+    return nil
 end
 local function paintRecap(x, y, w, h, finished)
     local pad = u(16)
@@ -750,13 +783,15 @@ local function paintRecap(x, y, w, h, finished)
     local star = rows and rows[1]
     local ty = y + pad
     -- the winner and the round length are in the header already; this frame is the star and the totals
-    chip(finished and "HIGHLIGHT PLAYED" or "NO HIGHLIGHT THIS ROUND", x + pad, ty)
-    text(finished and "Saved in Replays" or noHighlightReason(), 10, 500, x + w - pad, ty + u(4), T.muted, TEXT_ALIGN_RIGHT)
+    S.chip(finished and "HIGHLIGHT PLAYED" or "NO HIGHLIGHT THIS ROUND", x + pad, ty)
+    local note
+    if finished then note = RE.ReplaysLine() else note = noHighlightReason() end
+    if note then text(note, 10, 500, x + w - pad, ty + u(5), T.muted, TEXT_ALIGN_RIGHT) end
     ty = ty + u(30)
     if star then
         local av = u(44)
         draw.RoundedBox(4, x + pad, ty, av, av, avatarColor(1))
-        text(initial(star.name), 18, 700, x + pad + av / 2, ty + av / 2, T.white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+        text(K.Initial(star.name), 18, 700, x + pad + av / 2, ty + av / 2, T.white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
         text("STAR OF THE ROUND", 9, 700, x + pad + av + u(10), ty, T.gold)
         text(fit(star.name, 16, 700, w - pad * 2 - av - u(10)), 16, 700, x + pad + av + u(10), ty + u(12), T.text)
         local line = {}
@@ -794,28 +829,32 @@ local function highlightStar(replay)
     return star, beat, round, kills
 end
 
--- The end stamp (canvas Highlight_Stamp): what just played, and what comes next in a reel.
+-- U3.2: the caption of the reel part after the one on screen, in the inset's own caption form (highlightMeta), or nil
+-- when there is no next part or the sequence does not say who it is about. Pure: the tests call it directly.
+function RE.NextCaption(replay)
+    local seq = istable(replay) and replay.seq or nil
+    local list = istable(seq) and seq.instances or nil
+    if not istable(list) then return nil end
+    local nextInst = list[(tonumber(replay.index) or 1) + 1]
+    if not (istable(nextInst) and nextInst.star ~= nil) then return nil end
+    return (highlightMeta({seq = seq, inst = nextInst}))
+end
+
+-- The end stamp (canvas Highlight_Stamp): what just played, and what comes next in a reel (only when there is a next part).
 local function paintStamp(panel, x, y, w, h, replay)
     local last = RE.LastHighlight
     if not last then return false end
-    draw.RoundedBox(4, x, y, w, h, K.Alpha(INSET_DIM, 200))
+    draw.RoundedBox(4, x, y, w, h, K.Alpha(T.dim, 200))
     text((last.round and ("ROUND " .. last.round .. " ") or "ROUND ") .. "HIGHLIGHT", 11, 700, x + u(20), y + u(18), T.gold)
-    text(fit(last.star .. "  ·  " .. last.beat, 26, 800, w - u(200)), 26, 800, x + u(20), y + u(34), T.text)
-    if last.victims then text(fit("Victims: " .. last.victims, 12, 500, w - u(200)), 12, 500, x + u(20), y + u(68), T.muted) end
-    -- the stamp itself, tilted, top right
-    local stamp = "ZCITY US1"
-    local sw = measure(stamp, 16, 800) + u(28)
-    local sx, sy = x + w - u(20) - sw, y + u(18)
-    surface.SetDrawColor(T.accent)
-    surface.DrawOutlinedRect(sx, sy, sw, u(34), 3)
-    text(stamp, 16, 800, sx + sw / 2, sy + u(17), T.red, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-    local more = replay and (tonumber(replay.count) or 1) > (tonumber(replay.index) or 1)
-    if more then text("UP NEXT  |  Runner-Up", 11, 700, x + w - u(20), y + h - u(22), T.muted, TEXT_ALIGN_RIGHT) end
+    text(fit(last.star .. "  ·  " .. last.beat, 26, 800, w - u(40)), 26, 800, x + u(20), y + u(34), T.text)
+    if last.victims then text(fit("Victims: " .. last.victims, 12, 500, w - u(40)), 12, 500, x + u(20), y + u(68), T.muted) end
+    local upNext = RE.NextCaption(replay)
+    if upNext then text(fit("Up next  ·  " .. upNext, 11, 700, w - u(40)), 11, 700, x + w - u(20), y + h - u(22), T.muted, TEXT_ALIGN_RIGHT) end
     return true
 end
 
 local function paintInset(panel, x, y, w, h)
-    K.Card(x, y, w, h, INSET_BG, K.Alpha(T.edge, 200))
+    K.Card(x, y, w, h, T.inset, K.Alpha(T.edge, 200))
     local replay = P.Replay()
     local phase = replay and replay.phase
     local drawn = false
@@ -828,10 +867,10 @@ local function paintInset(panel, x, y, w, h)
         local shown = RE.ReplayWatched and RealTime() - RE.ReplayWatched or TITLE_SECONDS
         if shown < TITLE_SECONDS then
             local a = math.Clamp((TITLE_SECONDS - shown) / 0.4, 0, 1)
-            draw.RoundedBox(4, x + 1, y + 1, w - 2, h - 2, K.Alpha(INSET_DIM, 170 * a))
+            draw.RoundedBox(4, x + 1, y + 1, w - 2, h - 2, K.Alpha(T.dim, 170 * a))
             local bar = u(28)
-            draw.RoundedBoxEx(4, x + 1, y + 1, w - 2, bar, K.Alpha(SCRIM, 255 * a), true, true, false, false)
-            draw.RoundedBoxEx(4, x + 1, y + h - 1 - bar, w - 2, bar, K.Alpha(SCRIM, 255 * a), false, false, true, true)
+            draw.RoundedBoxEx(4, x + 1, y + 1, w - 2, bar, K.Alpha(T.ink, 255 * a), true, true, false, false)
+            draw.RoundedBoxEx(4, x + 1, y + h - 1 - bar, w - 2, bar, K.Alpha(T.ink, 255 * a), false, false, true, true)
             local cx, cy = x + w / 2, y + h / 2
             text("HIGHLIGHT OF THE ROUND", 11, 700, cx, cy - u(40), K.Alpha(T.gold, 255 * a), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
             text(fit(string.upper(star), 36, 800, w - u(60)), 36, 800, cx, cy - u(4), K.Alpha(T.text, 255 * a), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
@@ -839,7 +878,7 @@ local function paintInset(panel, x, y, w, h)
         end
     end
     if not drawn then
-        draw.RoundedBox(4, x + 1, y + 1, w - 2, h - 2, INSET_DIM)
+        draw.RoundedBox(4, x + 1, y + 1, w - 2, h - 2, T.dim)
         if replay then RE.SawReplay = true end
         local finished = RE.SawReplay and (phase == "over" or phase == "leaving" or not replay)
         local starting = phase == "waiting" or phase == "playing"
@@ -862,10 +901,10 @@ local function paintInset(panel, x, y, w, h)
     elseif final() then
         label = "MAP REEL"
     end
-    local cw = chip(label, x + u(8), y + u(8))
-    if replay and replay.rate and replay.rate < 0.99 then chip(string.format("%.2fx", replay.rate), x + w - u(8), y + u(8), T.accent, TEXT_ALIGN_RIGHT) end
+    local cw = S.chip(label, x + u(8), y + u(8))
+    if replay and replay.rate and replay.rate < 0.99 then S.chip(string.format("%.2gx", replay.rate), x + w - u(8), y + u(8), T.accent, nil, TEXT_ALIGN_RIGHT) end
     local meta, victims = highlightMeta(replay)
-    text(fit(meta, 11, 600, w - cw - u(30)), 11, 600, x + u(8) + cw + u(8), y + u(17), T.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+    text(fit(meta, 11, 600, w - cw - u(30)), 11, 600, x + u(8) + cw + u(8), y + u(18), T.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
     -- scrub bar + meta
     local barY = y + h - u(24)
     if replay and replay.cs and replay.first and replay.last then
@@ -873,16 +912,18 @@ local function paintInset(panel, x, y, w, h)
         local frac = math.Clamp((replay.cs - replay.first) / span, 0, 1)
         draw.RoundedBox(2, x + u(8), barY, w - u(16), u(3), K.Alpha(T.white, 40))
         draw.RoundedBox(2, x + u(8), barY, math.max(u(3), (w - u(16)) * frac), u(3), T.accent)
-        text(fmtClock((replay.cs - replay.first) / 100) .. " / " .. fmtClock(span / 100), 10, 500, x + w - u(8), barY + u(7), T.muted, TEXT_ALIGN_RIGHT)
+        text(K.Clock((replay.cs - replay.first) / 100) .. " / " .. K.Clock(span / 100), 10, 500, x + w - u(8), barY + u(7), T.muted, TEXT_ALIGN_RIGHT)
     end
     if victims then text(fit("Victims: " .. victims, 10, 500, w * 0.6), 10, 500, x + u(8), barY + u(7), T.muted) end
     -- keycap row under the inset: Space = Skip only (P3_SEAM: V.Save is death-replay-only, never shown for a highlight).
-    -- Nothing is written here when there is nothing to press (owner 2026-09-24: no filler text).
+    -- Nothing is written here when there is nothing to press (owner 2026-09-24: no filler text). U3: Space calls V.Skip,
+    -- which leaves the whole replay - a reel too - so the verb is "Skip" there as well (it used to promise "Next part").
     local kcY = y + h + u(8)
     if replay and replay.kind == "highlight" and phase == "playing" and RE.ReplayWatched and RealTime() - RE.ReplayWatched >= SKIP_AFTER and not RE.Side() then
-        keycap(panel, "Space", replay.seq and replay.seq.reel and "Next part" or "Skip", x, kcY, callSkip)
+        local _, spans = S.hints(SKIP_HINTS, x, kcY)
+        addHit(panel, spans[1][1], kcY, spans[1][2], u(20), callSkip)
     end
-    return kcY + u(18) + u(10)
+    return kcY + u(20) + u(10)
 end
 
 -- === roster: every player, scrollable, clickable (owner canvas note 2026-09-25) ==================================
@@ -974,10 +1015,10 @@ local function paintRoster(panel, x, y, w, h, useMap)
                 surface.SetDrawColor(T.gold)
                 surface.DrawOutlinedRect(cx - av / 2, top, av, av, 2)
             end
-            text(initial(r.name), rank == 1 and 18 or 14, 700, cx, top + av / 2, T.white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+            text(K.Initial(r.name), rank == 1 and 18 or 14, 700, cx, top + av / 2, T.white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
             text(fit(r.name, rank == 1 and 13 or 12, 700, slotW - u(8)), rank == 1 and 13 or 12, 700, cx, top + av + u(4), T.text, TEXT_ALIGN_CENTER)
             text(tostring(r.points or 0), 12, 800, cx, top + av + u(20), rank == 1 and T.gold or T.muted, TEXT_ALIGN_CENTER)
-            chip("#" .. rank, cx, top + av + u(38), rank == 1 and T.gold or T.text, TEXT_ALIGN_CENTER)
+            S.chip("#" .. rank, cx, top + av + u(38), rank == 1 and T.gold or T.text, nil, TEXT_ALIGN_CENTER)
             addHit(panel, cx - slotW / 2, top, slotW, av + u(58), openPlayerMenu, r)
         end
         ty = ty + u(44) + u(66)
@@ -1028,7 +1069,7 @@ local function paintRoster(panel, x, y, w, h, useMap)
             cx = cx + u(28)
             local av = u(22)
             draw.RoundedBox(4, cx, ry + (rowH - av) / 2, av, av, avatarColor(i))
-            text(initial(r.name), 9, 700, cx + av / 2, ry + rowH / 2, T.white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+            text(K.Initial(r.name), 9, 700, cx + av / 2, ry + rowH / 2, T.white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
             cx = cx + av + u(10)
             local online = IsValid(r.ply)
             local label = r.name .. ((online and r.ply == me) and "  (you)" or ((not online) and "  (left)" or ""))
@@ -1074,7 +1115,7 @@ local function paintModeCard(panel, x, y, w, h)
         local bw = u(90)
         draw.RoundedBox(2, x + w - pad - u(48) - bw, ty + u(6), bw, u(4), K.Alpha(T.ink, 235))
         draw.RoundedBox(2, x + w - pad - u(48) - bw, ty + u(6), bw * math.Clamp(left / span, 0, 1), u(4), left < 6 and T.accent or T.main)
-        text(fmtClock(left), 12, 600, x + w - pad, ty, left < 6 and T.accent or T.text, TEXT_ALIGN_RIGHT)
+        text(K.Clock(left), 12, 600, x + w - pad, ty, left < 6 and T.accent or T.text, TEXT_ALIGN_RIGHT)
     elseif RE.ModeVote.resultLabel then
         text("Decided", 11, 600, x + w - pad, ty, T.muted, TEXT_ALIGN_RIGHT)
     else
@@ -1111,8 +1152,7 @@ local function paintModeCard(panel, x, y, w, h)
         local locked = RE.ModeVote.locked[i] == true
         local barY = tyy + tileH - u(compact and 10 or 14)
         K.Card(tx, tyy, tw, tileH, mine and TILE_FILL_MINE or TILE_FILL, locked and TILE_EDGE_LOCKED or TILE_EDGE)
-        K.Card(tx + u(10), tyy + labelY - u(9), u(18), u(18), KEY_FILL, locked and TILE_EDGE_LOCKED or KEY_EDGE)
-        text(tostring(i), 11, 700, tx + u(19), tyy + labelY, locked and LOCKED or T.text, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+        S.keycap(tostring(i), tx + u(10), tyy + labelY - u(10), locked and 0.35 or 1)
         local label = opt.again and ("Play again: " .. opt.label .. (compact and "  ·  new roles" or "")) or opt.label
         text(fit(label, 14, 700, tw - u(80)), 14, 700, tx + u(34), tyy + labelY, locked and LOCKED or T.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
         text(locked and "locked" or tostring(RE.ModeVote.tally[i] or 0), 16, 800, tx + tw - u(10), tyy + labelY, locked and LOCKED or (mine and T.accent or T.text), TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
@@ -1215,7 +1255,7 @@ local function paintPrevote(panel, x, y, w, h)
         local name = fit(prevoteLabel(map), 13, 500, w - pad * 2 - (isMine and u(96) or u(44)))
         local col = K.Alpha(T.text, dim and 150 or 255)
         text(name, 13, 500, x + pad, ty + rowH / 2, col, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-        if isMine then chip("YOURS", x + pad + measure(name, 13, 500) + u(8), ty + (rowH - u(18)) / 2, T.text) end
+        if isMine then S.chip("YOURS", x + pad + measure(name, 13, 500) + u(8), ty + (rowH - u(20)) / 2, T.text) end
         if count then text(tostring(count), 13, 700, x + w - pad, ty + rowH / 2, col, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER) end
         if canPick and not isMine then addHit(panel, x + pad - u(8), ty, w - pad * 2 + u(16), rowH, pickPrevote, map) end
         ty = ty + rowH + gapH
@@ -1296,17 +1336,16 @@ local function paintMapTile(panel, x, y, w, h, index, mapname, result)
         if clip then render.SetScissorRect(0, 0, 0, 0, false) end
     end
     -- bottom shade so the name always reads
-    draw.RoundedBoxEx(4, x, y + h * 0.5, w, h * 0.5, K.Alpha(TILE_SHADE, 150), false, false, true, true)
-    draw.RoundedBoxEx(4, x, y + h * 0.72, w, h * 0.28, K.Alpha(TILE_SHADE, 120), false, false, true, true)
+    draw.RoundedBoxEx(4, x, y + h * 0.5, w, h * 0.5, K.Alpha(T.ink, 150), false, false, true, true)
+    draw.RoundedBoxEx(4, x, y + h * 0.72, w, h * 0.28, K.Alpha(T.ink, 120), false, false, true, true)
     if mine or won then
         surface.SetDrawColor(won and T.gold or T.accent)
         surface.DrawOutlinedRect(x, y, w, h, 2)
     end
     -- number keycap
-    draw.RoundedBox(3, x + u(6), y + u(6), u(20), u(20), K.Alpha(CHIP_BG, 210))
-    text(tostring(index), 11, 700, x + u(6) + u(10), y + u(6) + u(10), T.white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+    S.keycap(tostring(index), x + u(6), y + u(6))
     local nominator = nominatorOf(mapname)
-    if nominator then chip(fit("NOMINATED BY " .. string.upper(nominator), 10, 700, w - u(40)), x + w - u(6), y + u(6), T.gold, TEXT_ALIGN_RIGHT) end
+    if nominator then S.chip(fit("NOMINATED BY " .. string.upper(nominator), 10, 700, w - u(40)), x + w - u(6), y + u(6), T.gold, nil, TEXT_ALIGN_RIGHT) end
     local plays = playCountOf(mapname)
     local nameY = y + h - u(30)
     text(fit(string.upper(info.displayname or mapname), 13, 700, w - u(12)), 13, 700, x + u(8), nameY, T.white)
@@ -1320,11 +1359,11 @@ local function paintMapTile(panel, x, y, w, h, index, mapname, result)
     local vx = x + u(6)
     for i = 1, math.min(#voters, 6) do
         draw.RoundedBox(u(8), vx, y + u(30), u(16), u(16), avatarColor(i))
-        text(initial(voters[i]), 8, 700, vx + u(8), y + u(38), T.white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+        text(K.Initial(voters[i]), 8, 700, vx + u(8), y + u(38), T.white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
         vx = vx + u(18)
     end
     if #voters > 6 then text("+" .. (#voters - 6), 9, 600, vx + u(2), y + u(38), T.white, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER) end
-    if won then chip("WINNER", x + w / 2, y + h * 0.42, T.gold, TEXT_ALIGN_CENTER) end
+    if won then S.chip("WINNER", x + w / 2, y + h * 0.42, T.gold, nil, TEXT_ALIGN_CENTER) end
     if not result then addHit(panel, x, y, w, h, castMap, mapname) end
 end
 
@@ -1332,8 +1371,7 @@ local function paintOptionTile(panel, x, y, w, h, index, choice, label, result)
     local mine = RE.MapVote.myVote == choice
     local won = result and result.real == choice
     K.Card(x, y, w, h, TILE_FILL, (won and T.gold) or (mine and T.accent) or K.Alpha(T.edge, 160)) -- opaque: an edge, not a tint
-    draw.RoundedBox(3, x + u(6), y + (h - u(20)) / 2, u(20), u(20), K.Alpha(CHIP_BG, 210))
-    text(tostring(index), 11, 700, x + u(16), y + h / 2, T.white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+    S.keycap(tostring(index), x + u(6), y + (h - u(20)) / 2)
     text(label, 12, 700, x + u(32), y + h / 2, mine and T.accent or T.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
     local votes = mapVotes(choice)
     text(tostring(votes), 11, 600, x + w - u(8), y + h / 2, T.muted, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
@@ -1359,12 +1397,12 @@ local function paintMapBallot(panel, x, y, w, h)
     local result = RE.MapVote.result
     text("Next map", 12, 700, x + pad, ty, T.accent)
     local total = mapVoteTotal()
-    text(total .. (total == 1 and " vote cast" or " votes cast"), 11, 500, x + pad + measure("Map vote", 12, 700) + u(10), ty + u(1), T.muted)
+    text(total .. (total == 1 and " vote cast" or " votes cast"), 11, 500, x + pad + measure("Next map", 12, 700) + u(10), ty + u(1), T.muted)
     local left = math.max(0, RE.MapVote.finish - CurTime())
     if result then
         text("Changing map", 12, 600, x + w - pad, ty, T.gold, TEXT_ALIGN_RIGHT)
     else
-        text(fmtClock(left), 12, 600, x + w - pad, ty, left < 6 and T.accent or T.text, TEXT_ALIGN_RIGHT)
+        text(K.Clock(left), 12, 600, x + w - pad, ty, left < 6 and T.accent or T.text, TEXT_ALIGN_RIGHT)
     end
     ty = ty + u(20)
     -- countdown bar
@@ -1408,38 +1446,41 @@ local function paintMapBallot(panel, x, y, w, h)
         end
         ty = ty + optionH + gap
     end
+    -- U3.3: the one vote hint (keys and a click cast here), right-aligned on the reroll row while the ballot is open
+    local hints = not result and voteHints(index, true) or nil
+    local hintY = ty + math.floor((rerollH - u(20)) / 2)
     -- reroll (SolidMapVote's own button state, so the label and the gate are the addon's, not ours)
     local M = rawget(_G, "SolidMapVote")
     if istable(M) and isfunction(M.RerollButtonState) then
         local ok, label, enabled, tip = pcall(M.RerollButtonState, result ~= nil)
         if ok then
             local bw = u(150)
+            local hintW = hints and S.hintWidth(hints) + u(16) or 0
             local voted = istable(M.rerollState) and istable(M.rerollState.voters) and IsValid(LocalPlayer()) and M.rerollState.voters[LocalPlayer():SteamID64()]
             K.Card(x + pad, ty, bw, rerollH, T.card, enabled and (voted and T.green or K.Alpha(T.edge, 200)) or K.Alpha(T.edge, 90))
             text(tostring(label or "REROLL"), 11, 700, x + pad + bw / 2, ty + rerollH / 2, enabled and (voted and T.green or T.text) or LOCKED, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-            text(fit(tostring(tip or ""), 10, 500, w - pad * 2 - bw - u(10)), 10, 500, x + pad + bw + u(10), ty + rerollH / 2, T.muted, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+            text(fit(tostring(tip or ""), 10, 500, w - pad * 2 - bw - u(10) - hintW), 10, 500, x + pad + bw + u(10), ty + rerollH / 2, T.muted, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
             if enabled and not result then addHit(panel, x + pad, ty, bw, rerollH, requestReroll) end
         end
-    else
-        text("Press 1-" .. index .. " or click a tile", 10, 500, x + pad, ty + rerollH / 2, T.muted, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+        if hints then S.hints(hints, x + w - pad, hintY, TEXT_ALIGN_RIGHT) end
+    elseif hints then
+        S.hints(hints, x + pad, hintY)
     end
+end
+
+-- The header's facts for RE.HeaderText (U3.1): the result only matters to it while the winner card has not told it.
+local function headerText()
+    local result = RE.MapVote.result
+    return RE.HeaderText({winner = winnerLabel(), told = winnerTold(), mode = modeLabel(), map = mapInfo(game.GetMap()).displayname or game.GetMap(),
+        final = final(), extended = result ~= nil and result.real == "extend", voteOpen = RE.MapVote.active})
 end
 
 local function paintHeader(panel, x, y, w, h)
     local state, zbT = roundState()
-    local roundNum = zbT and tonumber(zbT.Roundscount)
-    local modeLabel = (RE.Summary and RE.Summary.mode ~= "" and RE.Summary.mode) or (RE.RoundMeta and RE.RoundMeta.mode) or ""
-    local durationS = (RE.Summary and RE.Summary.duration) or (RE.RoundMeta and RE.RoundMeta.length)
-    local caption = {}
-    if roundNum then caption[#caption + 1] = "ROUND " .. roundNum end
-    if modeLabel ~= "" then caption[#caption + 1] = string.upper(tostring(modeLabel)) end
-    if durationS then caption[#caption + 1] = fmtClock(durationS) end
-    if final() then
-        local extended = RE.MapVote.result and RE.MapVote.result.real == "extend"
-        caption[#caption + 1] = extended and "MAP EXTENDED" or ("LAST ROUND ON " .. string.upper(game.GetMap()))
-    end
-    text(table.concat(caption, "   ·   "), 11, 700, x, y, T.muted)
-    text(fit(winnerLabel() or "Round over", 40, 800, w - u(360)), 40, 800, x, y + u(16), T.gold)
+    -- U3.1: the mode, the map and what happens next; the round's result and length were the winner card's to say
+    local title, isResult, caption = headerText()
+    if caption ~= "" then text(caption, 11, 700, x, y, T.muted) end
+    if title ~= "" then text(fit(title, 40, 800, w - u(360)), 40, 800, x, y + u(16), isResult and T.gold or T.text) end
     -- the sub line is the mutation alone (canvas: police/survivor facts cut)
     local mutation = RE.CopsSummary and RE.CopsSummary.mutation ~= "" and RE.CopsSummary.mutation or nil
     if mutation then text(fit("Mutation: " .. mutation, 13, 500, w - u(400)), 13, 500, x, y + h - u(18), T.muted) end
@@ -1447,10 +1488,10 @@ local function paintHeader(panel, x, y, w, h)
     local pill, clockStr
     if RE.MapVote.active then
         pill = RE.MapVote.result and (RE.MapVote.result.real == "extend" and "Map extended" or "Changing map") or "Map vote open"
-        if not RE.MapVote.result then clockStr = fmtClock(math.max(0, RE.MapVote.finish - CurTime())) end
+        if not RE.MapVote.result then clockStr = K.Clock(math.max(0, RE.MapVote.finish - CurTime())) end
     elseif zbT and isnumber(zbT.END_TIME) and state == 3 then
         local left = zbT.END_TIME - CurTime()
-        if left > 0 then pill, clockStr = "Next round", fmtClock(left) end
+        if left > 0 then pill, clockStr = "Next round", K.Clock(left) end
     elseif state == 0 then
         pill = "Preparing the next round"
     end
@@ -1486,13 +1527,18 @@ end
 -- HUD alone, cl_part_06 V.UISide), no cursor, no Space skip, and the number keys stay the player's own unless the
 -- server sets zc_postround_alive_vote 1. Dead players keep the full panel.
 local sideCv = CreateClientConVar("zc_goobos_roundend_side", "0", true, false, "Round end: 0 = side card while alive, full panel when dead; 1 = always the side card")
-local SIDE_FILL, SIDE_EDGE = Color(14, 14, 16, 205), Color(120, 30, 34, 170)
 function RE.Side()
     if sideCv:GetBool() then return true end
     local me = LocalPlayer()
     return IsValid(me) and me:Alive() and me:Team() ~= TEAM_SPECTATOR
 end
 local function aliveVoteKeys() return GetGlobalBool("zc_postround_alive_vote", false) end
+-- Whether the number keys cast the MODE vote right now: the "roundend.mode" key handler's own gate (P.SetKeys below),
+-- read by the hints too so a card only shows "1–N Vote" when the keys really vote (U3.3).
+local function modeKeysOk()
+    if not RE.ModeVote.active or RE.MapVote.active or not live() then return false end
+    return not (intermission() and RE.Side() and not aliveVoteKeys()) -- postround_20260925: a living player's keys stay theirs
+end
 -- ballot_alive_20260926: the MAP ballot is the one vote a living player has no other way to cast (the addon's own menu
 -- is blocked while this panel holds the vote, and the side card has no cursor), so its number keys are always taken
 -- while it is open. zc_postround_alive_vote still governs the mode vote.
@@ -1526,11 +1572,11 @@ local function paintSide(panel, w, h)
     local hasVote = RE.ModeVote.active or final()
     local keysOk = aliveVoteKeys() or not RE.Side()
     local ballot = hasVote and not RE.ModeVote.active and (keysOk or aliveMapKeys()) and RE.MapVote.active and not RE.MapVote.result and sideBallotRows(iw) or nil
-    K.Card(x, y, cw, u(52) + ih + (hasVote and (u(54) + (ballot and (#ballot - 1) * u(16) or 0)) or pad), SIDE_FILL, SIDE_EDGE)
+    K.HudPlate(x, y, cw, u(52) + ih + (hasVote and (u(54) + (ballot and (#ballot - 1) * u(16) or 0)) or pad)) -- U3.4: the HUD plate (theme glass + edge)
     paintInset(panel, x + pad, y + u(52), iw, ih) -- before the title: see paintPanel's header note
-    local title = winnerLabel()
-    title = title and string.upper(title) or "ROUND OVER"
-    text(fit(title, 16, 800, iw), 16, 800, x + pad, y + u(10), T.text)
+    -- U3.1: the mode (the result only if this player's winner card never showed it), never "ROUND OVER"
+    local title, isResult = headerText()
+    text(fit(string.upper(title), 16, 800, iw), 16, 800, x + pad, y + u(10), isResult and T.gold or T.text)
     text(final() and "MAP REEL" or "HIGHLIGHT OF THE ROUND", 9, 700, x + pad, y + u(34), T.muted)
     if not hasVote then return end
     local fy = y + u(52) + ih + u(10)
@@ -1541,11 +1587,15 @@ local function paintSide(panel, w, h)
             parts[#parts + 1] = string.format("%s%d %s %d", mine, i, opt.again and "Again" or opt.label, tonumber(RE.ModeVote.tally[i]) or 0)
         end
         text(fit("MODE VOTE   " .. table.concat(parts, "   "), 10, 700, iw), 10, 700, x + pad, fy, T.text)
-        local left = fmtClock(math.max(0, (RE.ModeVote.endsAt or 0) - CurTime()))
-        text(keysOk and ("Press 1-" .. #RE.ModeVote.options .. " to vote  ·  " .. left) or left, 9, 500, x + pad, fy + u(18), T.muted)
+        local left = K.Clock(math.max(0, (RE.ModeVote.endsAt or 0) - CurTime()))
+        if modeKeysOk() then
+            S.hints({voteHints(#RE.ModeVote.options)[1], {nil, left}}, x + pad, fy + u(16))
+        else
+            text(left, 11, 500, x + pad, fy + u(26), T.muted, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+        end
     elseif ballot then
         for i, row in ipairs(ballot) do text(fit(row, 10, 700, iw), 10, 700, x + pad, fy + (i - 1) * u(16), T.text) end
-        text("Vote with the number keys", 9, 500, x + pad, fy + #ballot * u(16) + u(2), T.muted)
+        S.hints(voteHints(#ballotChoices()), x + pad, fy + #ballot * u(16) + u(1))
     else
         local r = RE.MapVote.result
         local leader = r and ((isstring(r.fixed) and r.fixed ~= "" and r.fixed) or (isstring(r.real) and r.real ~= "" and r.real)) or nil
@@ -1558,7 +1608,7 @@ local function paintPanel(panel, w, h)
     clearHits(panel)
     RE.PaintCount = (RE.PaintCount or 0) + 1 -- roundend_polish_20260925: paintPrevote stamps RE.EntryPaint with it
     if not live() or RE.Phase ~= "panel" then return end
-    U = P.Unit()
+    S.U = P.Unit()
     if RE.Side() then
         if IsValid(RE.SearchEntry) and RE.SearchEntry:IsVisible() then RE.SearchEntry:SetVisible(false) end -- no cursor here: no focus to lose
         return paintSide(panel, w, h)
@@ -1712,7 +1762,7 @@ local function ensurePanel()
     entry:SetUpdateOnType(true)
     entry.OnValueChange = function(_, value) RE.PrevoteQuery = value end
     entry.Paint = function(e, ew, eh)
-        K.Card(0, 0, ew, eh, TILE_FILL, e:HasFocus() and T.main or KEY_EDGE)
+        K.Card(0, 0, ew, eh, TILE_FILL, e:HasFocus() and T.main or T.line)
         if e.DrawTextEntryText then e:DrawTextEntryText(T.text, T.main, T.text) end
         if (e:GetValue() or "") == "" and not e:HasFocus() then
             text("Search maps…", 11, 500, u(8), eh / 2, T.muted, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
@@ -1789,9 +1839,10 @@ end)
 local function drawWinnerCard()
     advanceWinner()
     if RE.Phase ~= "winner" then return end
-    U = P.Unit()
+    S.U = P.Unit()
     local sw, sh = ScrW(), ScrH()
     local p = K.EaseOut(K.Progress(RE.WinnerBorn, 0.35))
+    noteWinner(winnerLabel()) -- U3.1: this card is the one announcement; the panel header leaves the result to it
     if RE.Side() then
         local title = winnerLabel()
         title = title and string.upper(title) or "ROUND OVER"
@@ -1799,32 +1850,33 @@ local function drawWinnerCard()
         local length = (RE.Summary and RE.Summary.duration) or (RE.RoundMeta and RE.RoundMeta.length)
         local sub = {}
         if mode ~= "" then sub[#sub + 1] = tostring(mode) end
-        if length then sub[#sub + 1] = fmtClock(length) end
+        if length then sub[#sub + 1] = K.Clock(length) end
         local cw = math.min(u(520), sw - P.RightGutter() * 2)
         local x, y = sw / 2 - cw / 2, u(64) + (1 - p) * u(10)
-        K.Card(x, y, cw, #sub > 0 and u(58) or u(40), SIDE_FILL, SIDE_EDGE)
+        K.HudPlate(x, y, cw, #sub > 0 and u(58) or u(40)) -- U3.4: the HUD plate (theme glass + edge)
         text(fit(title, 22, 800, cw - u(24)), 22, 800, sw / 2, y + u(20), K.Alpha(T.text, 255 * p), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
         if #sub > 0 then text(table.concat(sub, "   ·   "), 10, 500, sw / 2, y + u(42), K.Alpha(T.muted, 220 * p), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER) end
         return
     end
     -- letterbox bars close in with the round-end slow-mo (mockup frame 1), then the card fades up over them
     local bar = math.floor(sh * 0.11 * p)
-    draw.RoundedBox(0, 0, 0, sw, sh, K.Alpha(SCRIM, 120 * p))
-    draw.RoundedBox(0, 0, 0, sw, bar, K.Alpha(SCRIM, 235))
-    draw.RoundedBox(0, 0, sh - bar, sw, bar, K.Alpha(SCRIM, 235))
+    draw.RoundedBox(0, 0, 0, sw, sh, K.Alpha(T.ink, 120 * p))
+    draw.RoundedBox(0, 0, 0, sw, bar, K.Alpha(T.ink, 235))
+    draw.RoundedBox(0, 0, sh - bar, sw, bar, K.Alpha(T.ink, 235))
     local title = winnerLabel()
     title = title and string.upper(title) or "ROUND OVER"
     local mode = (RE.Summary and RE.Summary.mode ~= "" and RE.Summary.mode) or (RE.RoundMeta and RE.RoundMeta.mode) or ""
     local length = (RE.Summary and RE.Summary.duration) or (RE.RoundMeta and RE.RoundMeta.length)
     local sub = {}
     if mode ~= "" then sub[#sub + 1] = tostring(mode) end
-    if length then sub[#sub + 1] = fmtClock(length) end
+    if length then sub[#sub + 1] = K.Clock(length) end
     local a = 255 * p
     surface.SetDrawColor(T.accent.r, T.accent.g, T.accent.b, a)
     surface.DrawRect(sw / 2 - u(24), sh / 2 - u(34), u(48), u(2))
     text(title, 34, 800, sw / 2, sh / 2 - u(8) + (1 - p) * u(10), K.Alpha(T.text, a), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
     if #sub > 0 then text(table.concat(sub, "   ·   "), 13, 500, sw / 2, sh / 2 + u(26), K.Alpha(T.muted, a), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER) end
-    text("Highlight of the round starts shortly", 11, 500, sw / 2, sh - bar - u(20), K.Alpha(T.muted, 220 * p), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+    -- U3 "every promise resolves": a player who turned killcams off is never sent the highlight
+    if not killcamsOff() then text("Highlight of the round starts shortly", 11, 500, sw / 2, sh - bar - u(20), K.Alpha(T.muted, 220 * p), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER) end
 end
 hook.Add("HUDPaint", "GoobOS.RoundEnd.Winner", drawWinnerCard)
 
@@ -1834,7 +1886,7 @@ hook.Add("HUDPaint", "GoobOS.RoundEnd.Winner", drawWinnerCard)
 -- bottom-centre, no cursor, keys 1-4 (P.SetKeys below) - never a full-screen takeover of live play.
 local function drawCompactModeVote()
     if RE.Phase == "panel" or not RE.ModeVote.active or not live() or final() then return end
-    U = P.Unit()
+    S.U = P.Unit()
     local sw, sh = ScrW(), ScrH()
     -- modevote6: up to four tiles a row (six drawn modes + "Play again" = two rows)
     local options = RE.ModeVote.options
@@ -1848,13 +1900,13 @@ local function drawCompactModeVote()
     y = y + (1 - p) * u(10)
     K.Card(x, y, w, h, T.glass, K.Alpha(T.edge, 200 * p))
     local pad = u(14)
-    text("MODE VOTE  ·  PRESS A NUMBER", 10, 700, x + pad, y + u(10), T.muted)
+    text("MODE VOTE", 10, 700, x + pad, y + u(10), T.muted)
     local left = math.max(0, RE.ModeVote.endsAt - CurTime())
     local span = math.max(1, RE.ModeVote.length or 1)
     local bw = u(90)
     draw.RoundedBox(2, x + w - pad - u(44) - bw, y + u(14), bw, u(4), K.Alpha(T.ink, 235))
     draw.RoundedBox(2, x + w - pad - u(44) - bw, y + u(14), bw * math.Clamp(left / span, 0, 1), u(4), left < 6 and T.accent or T.main)
-    text(fmtClock(left), 12, 600, x + w - pad, y + u(8), left < 6 and T.accent or T.text, TEXT_ALIGN_RIGHT)
+    text(K.Clock(left), 12, 600, x + w - pad, y + u(8), left < 6 and T.accent or T.text, TEXT_ALIGN_RIGHT)
     local total, most, bestI = 0, 0, 1
     for i, v in ipairs(RE.ModeVote.tally) do
         total = total + v
@@ -1871,8 +1923,7 @@ local function drawCompactModeVote()
         local mine = RE.ModeVote.myVote == i
         local locked = RE.ModeVote.locked[i] == true
         draw.RoundedBox(4, tx, ty, tileW, tileH, mine and K.Alpha(T.main, 90) or K.Alpha(T.card, locked and 110 or 255))
-        draw.RoundedBox(3, tx + u(8), ty + u(9), u(18), u(18), K.Alpha(T.edge, locked and 90 or 200))
-        text(tostring(i), 11, 700, tx + u(17), ty + u(18), locked and LOCKED or T.text, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+        S.keycap(tostring(i), tx + u(8), ty + u(8), locked and 0.45 or 1)
         text(fit(label, 13, 700, tileW - u(70)), 13, 700, tx + u(32), ty + u(18), locked and LOCKED or T.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
         text(locked and "locked" or tostring(RE.ModeVote.tally[i]), 13, 800, tx + tileW - u(8), ty + u(18), locked and LOCKED or (mine and T.accent or T.text), TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
     end
@@ -1882,7 +1933,14 @@ local function drawCompactModeVote()
     else
         foot = string.format("%s leads  ·  quorum %d met", modeOptionLabel(bestI), MODE_QUORUM)
     end
-    text(foot, 10, 500, x + pad, y + h - u(20), T.muted)
+    -- U3.3: the one vote hint, bottom right, only while the number keys really vote (no cursor here: no clicks)
+    local hintW = 0
+    if modeKeysOk() then
+        local hints = voteHints(#options)
+        hintW = S.hintWidth(hints) + u(16)
+        S.hints(hints, x + w - pad, y + h - u(30), TEXT_ALIGN_RIGHT)
+    end
+    text(fit(foot, 10, 500, w - pad * 2 - hintW), 10, 500, x + pad, y + h - u(20), T.muted, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
 end
 hook.Add("HUDPaint", "GoobOS.RoundEnd.ModeVote", drawCompactModeVote)
 
@@ -1893,8 +1951,7 @@ P.Claim("round", function()
 end)
 
 P.SetKeys("roundend.mode", function(n)
-    if not RE.ModeVote.active or RE.MapVote.active or not live() then return false end
-    if intermission() and RE.Side() and not aliveVoteKeys() then return false end -- postround_20260925: a living player's keys stay theirs
+    if not modeKeysOk() then return false end -- the same two gates as before, shared with the vote hints
     if n < 1 or n > math.min(#RE.ModeVote.options, MODE_MAX_OPTS) then return false end
     castMode(n)
     return true
