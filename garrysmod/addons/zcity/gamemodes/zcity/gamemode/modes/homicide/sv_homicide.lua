@@ -1889,6 +1889,16 @@ function MODE:EndRound()
 			else
 				PrintMessage(HUD_PRINTTALK, self.Types[self.Type].Messages[winner]..(winner == 0 and (" killed.") or ""))
 				for _, traitor in ipairs(traitors) do
+					-- The branch above pays the round's traitor, but it reads a global `traitor` that nothing assigns,
+					-- so every round lands here and a traitor win paid nothing (2026-09-26). Same amounts as above.
+					if winner == 1 then
+						traitor:GiveExp( math.Rand(30,50) )
+						traitor:GiveSkill( math.Rand(0.15,0.3) )
+						traitor:SetPData("zb_hmcd_t_wins",traitor:GetPData("zb_hmcd_t_wins",0) + 1)
+					else
+						traitor:GiveSkill( -math.Rand(0.05,0.1) )
+					end
+
 					net.Start("hmcd_announce_traitor_lose")
 						net.WriteEntity(traitor)
 						net.WriteBool(traitor:Alive())

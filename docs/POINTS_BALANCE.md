@@ -35,7 +35,7 @@ Numbers are from the source, with file references.
 |---|---|---|
 | Round XP converted to ZP | about 1.9 ZP per round per player (4-15 XP / 5, at 10+ players) | **live** |
 | Team-mode win XP | 3-6 ZP | live |
-| Traitor-win XP | 6-10 ZP, **probably never pays** (it reads an undeclared global `traitor`, `sv_homicide.lua:1871`) | bug |
+| Traitor-win XP | 6-10 ZP | **fixed 2026-09-26** (it read an undeclared global `traitor`, `sv_homicide.lua:1871`, so it never paid) |
 | Arcade Minesweeper | 5 ZP per board, 50 ZP/day at most | live |
 | Playtime | 100 ZP per active hour | **shadow** (`zc_playtime 1`) |
 | Killcam points | this document | **shadow** |
@@ -113,8 +113,8 @@ catalog in about 900 hours. Without playtime, it is about 20-25 hours per median
 
 ## Also found
 
-- **Traitor-win XP most likely never pays.** It reads an undeclared global `traitor` (`sv_homicide.lua:1871`).
-  Worth checking on the live server.
+- **Traitor-win XP never paid.** It read an undeclared global `traitor` (`sv_homicide.lua:1871`). Fixed: the branch
+  that actually runs now pays the same amounts.
 - **Blood bags and big consumables never fire `ZCity_MedicineUsed`** (they override `SecondaryAttack`), so those
   heals are never paid or logged.
 - **Karma forgiveness never reaches a "round stars" system.** `ZC_RoundStars_*` hooks are fired, but nothing in the

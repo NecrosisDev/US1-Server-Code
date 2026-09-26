@@ -13,7 +13,7 @@ CreateConVar("zc_goob_icons_tester", "76561198011536179", {FCVAR_ARCHIVE, FCVAR_
 CreateConVar("zc_goobos_panels", "0", {FCVAR_ARCHIVE, FCVAR_REPLICATED}, "GoobOS death and round-end panels (0 = current behaviour)")
 -- Karma app + the death panel's timeline lines (zc_killcam/sv_timeline.lua, owner 2026-09-26: "transparent karma ledger,
 -- per-life, per-player"). Created here, replicated, so the phone knows whether to show the app; 0 off, 1 tester, 2 everyone.
-CreateConVar("zc_killcam_timeline", "1", {FCVAR_ARCHIVE, FCVAR_REPLICATED}, "Per-life karma timeline for players: 0 off, 1 tester only, 2 everyone")
+CreateConVar("zc_killcam_timeline", "2", {FCVAR_ARCHIVE, FCVAR_REPLICATED}, "Per-life karma timeline for players: 0 off, 1 tester only, 2 everyone")
 CreateConVar("zc_killcam_timeline_tester", "76561198011536179", {FCVAR_ARCHIVE, FCVAR_REPLICATED}, "SteamID64 that sees the karma timeline while zc_killcam_timeline is 1")
 if SERVER then AddCSLuaFile("zc_goobos/feed_rules.lua") end
 include("zc_goobos/feed_rules.lua")

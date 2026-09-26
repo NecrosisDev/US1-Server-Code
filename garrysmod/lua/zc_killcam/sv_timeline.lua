@@ -30,7 +30,7 @@ local TL = K.Timeline
 TL.Version = "20260926.tl1"
 
 -- Created in autorun/zc_goobos_apps.lua too (replicated, so the phone can hide the app); whichever runs first wins.
-local MODE = GetConVar("zc_killcam_timeline") or CreateConVar("zc_killcam_timeline", "1", {FCVAR_ARCHIVE, FCVAR_REPLICATED}, "Per-life karma timeline for players: 0 off, 1 tester only, 2 everyone")
+local MODE = GetConVar("zc_killcam_timeline") or CreateConVar("zc_killcam_timeline", "2", {FCVAR_ARCHIVE, FCVAR_REPLICATED}, "Per-life karma timeline for players: 0 off, 1 tester only, 2 everyone")
 local TESTER = GetConVar("zc_killcam_timeline_tester") or CreateConVar("zc_killcam_timeline_tester", "76561198011536179", {FCVAR_ARCHIVE, FCVAR_REPLICATED}, "SteamID64 that sees the karma timeline while zc_killcam_timeline is 1")
 local KEEP_LIVES, MAX_EVENTS = 8, 48
 local DIR = K.Root .. "/timeline"
