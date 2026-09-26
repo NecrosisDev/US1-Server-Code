@@ -764,6 +764,8 @@ end
 -- check in R.Advance below never fired: Esc was the viewer's only way out. Z-City asks OnShowZCityPause first; while
 -- a round replay is open, Esc closes it and the menu stays shut.
 hook.Add("OnShowZCityPause", "ZCKillcam.RoundEsc", function()
+    -- hook order is pairs order: when chat is open, leave Esc to ZChat (it closes chat) - final review 2026-09-26
+    if IsValid(hg and hg.chat) and hg.chat:GetActive() then return end
     if R.open then R.Close("esc") return false end
 end)
 -- Returns false when the viewer closed. Runs inside the life player's fenced Think.
@@ -1152,7 +1154,7 @@ function R.StatusColor(st) local U = R.UI return st == "alive" and U.alive or (s
 
 function R.Paint(w, h)
     local rs = R.open
-    if not rs or (V.ScoreboardUp and V.ScoreboardUp()) then return end
+    if not rs or (V.ScoreboardUp and V.ScoreboardUp()) then R.hitN = 0 return end
     local began = SysTime()
     R.hitN = 0
     R.Fonts(h)
