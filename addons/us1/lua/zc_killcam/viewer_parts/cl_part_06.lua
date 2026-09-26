@@ -793,6 +793,8 @@ local function lifeThink()
         if space and not L.over then return go(L.index + 1) end
     end
     if L.over then
+        -- a report being written holds the end card: leaving would remove the dialog and drop the text unsent
+        if L.dialog then L.overAt = RealTime() return end
         if L.highlight or RealTime() - L.overAt > 8 then leave() end
         return
     end
@@ -1080,11 +1082,12 @@ function V.MutePostProcess()
             saved.hookCall = nil
         end
         for name, fn in pairs(saved) do _G[name] = fn end
-        if V.ImpactPrint and V.ImpactPrint:GetBool() and next(V.MutedPost) and RealTime() - (V.MutedSaidAt or -math.huge) > 10 then
+        if V.ImpactPrint and V.ImpactPrint:GetBool() and next(V.MutedPost) and RealTime() - (V.MutedSaidAt or -math.huge) > 60 then
             V.MutedSaidAt = RealTime()
             local parts = {}
             for name, n in pairs(V.MutedPost) do parts[#parts + 1] = name .. "=" .. n end
             MsgN("[Killcam] inset post-processing muted: " .. table.concat(parts, " "))
+            V.MutedPost = {} -- counts since the last line, not since the map started
         end
     end
 end
@@ -1190,11 +1193,15 @@ concommand.Add("zc_killcam_render_stats", function()
 end)
 
 -- Living players are hidden while the replay runs: it shows the past, not where people are now.
-hook.Add("PrePlayerDraw", "ZCKillcam.LifeHide", function() if L and not L.over and not L.waiting and (rendering or not V.UISide()) then return true end end)
+-- Not while the scoreboard is up: the live world is drawn behind it then (RenderScene / CalcView stand down).
+hook.Add("PrePlayerDraw", "ZCKillcam.LifeHide", function() if L and not L.over and not L.waiting and (rendering or not (V.UISide() or V.ScoreboardUp())) then return true end end)
 
 -- A death replay owns the spectator camera from the first death frame through its end card.
 hook.Add("PlayerBindPress", "ZCKillcam.LifeBinds", function(_, bind)
-    if (deathPending or (L and not L.highlight)) and not V.IsVoiceBind(bind) and not V.IsScoreBind(bind) then return true end -- postround_20260925: push-to-talk always passes; T1: so does the scoreboard
+    -- chat (messagemode / messagemode2) passes too: the GoobOS panels dock the chat and guard typing, and swallowing it
+    -- here depended on hook order (review 2026-09-26)
+    local chat = isstring(bind) and string.find(bind, "messagemode", 1, true) ~= nil
+    if (deathPending or (L and not L.highlight)) and not chat and not V.IsVoiceBind(bind) and not V.IsScoreBind(bind) then return true end -- postround_20260925: push-to-talk always passes; T1: so does the scoreboard
 end)
 
 -- === Out of the round while a killcam has the screen ==============================================================

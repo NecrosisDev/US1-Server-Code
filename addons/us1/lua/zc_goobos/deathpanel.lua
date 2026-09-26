@@ -145,6 +145,21 @@ DP.GuiltRows = DP.GuiltRows or nil
 
 function DP.ApplyGuiltRows(rows)
     DP.GuiltRows = istable(rows) and rows or {}
+    -- Reconcile the optimistic "Forgiven / Reported" with what the server actually did (review 2026-09-26): it refuses
+    -- silently (killer left, report cooldown, refund not saved, case locked) and then the card lied and could not retry.
+    local sent = DP.GuiltSent
+    if not sent then return end
+    DP.GuiltSent = nil
+    for _, row in ipairs(DP.GuiltRows) do
+        if row.caseid == sent.caseid and row.steamid64 == sent.steamid64 then
+            local done = (sent.action == "report" and row.reported == true) or (sent.action ~= "report" and row.decided and row.decision == sent.action)
+            if not done and DP.GuiltDecided == sent.action then
+                DP.GuiltDecided = nil
+                DP.Note, DP.NoteUntil = "That didn't go through. Try again, or use the guilt menu", RealTime() + 5
+            end
+            return
+        end
+    end
 end
 
 function DP.MatchGuiltRow(killerName)
@@ -197,6 +212,7 @@ local function sendGuiltAction(row, action)
     net.WriteString(action)
     net.SendToServer()
     DP.GuiltDecided = action
+    DP.GuiltSent = {caseid = row.caseid, steamid64 = row.steamid64, action = action}
     DP.GuiltQuietUntil = RealTime() + 3
     timer.Simple(0.3, requestGuiltRows)
 end
@@ -942,7 +958,11 @@ local function refreshFrame()
         DP.Timeline, DP.TimelineSpan, DP.TimelineKey = nil, nil, nil
         DP.SpaceSince, DP.SpaceHeld = nil, nil
         if IsValid(DP.root) then DP.root:SetVisible(false) end
-        if DP.ScreenClicker then gui.EnableScreenClicker(false); DP.ScreenClicker = false end
+        -- Hand the cursor over rather than switch it off under the round-end panel that is taking the screen now.
+        if DP.ScreenClicker then
+            if not (A.RoundEnd and A.RoundEnd.CursorOn) then gui.EnableScreenClicker(false) end
+            DP.ScreenClicker = false
+        end
         P.Release(keysDown)
         return
     end

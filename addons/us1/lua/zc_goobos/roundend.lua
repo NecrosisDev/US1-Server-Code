@@ -25,7 +25,7 @@ if not K or not T or not P then return end
 
 local RE = A.RoundEnd or {}
 A.RoundEnd = RE
-RE.Version = "20260926.roundend12+modevote6"
+RE.Version = "20260926.roundend13+modevote6"
 -- Autorefresh reinstalls this file while the old panel lives on with the old painters (LESSONS.md): drop it so the next
 -- phase entry rebuilds it from this file's code (ensurePanel).
 if IsValid(RE.Panel) then RE.Panel:Remove() end
@@ -574,11 +574,16 @@ local function playCountOf(mapname)
     local counts = istable(M) and M.sendPlayCounts
     return istable(counts) and tonumber(counts[mapname]) or nil
 end
+-- Cached per map name: GetMapConfigInfo walks the whole Specific Maps list and builds a table, and this runs per row,
+-- tile and ballot item every frame. The addon's config is fixed for the map, so the cache lives until a reload.
+local mapInfoCache = {}
 local function mapInfo(mapname)
+    local hit = mapInfoCache[mapname]
+    if hit then return hit end
     local M = rawget(_G, "SolidMapVote")
     if istable(M) and isfunction(M.GetMapConfigInfo) then
         local ok, info = pcall(M.GetMapConfigInfo, mapname)
-        if ok and istable(info) then return info end
+        if ok and istable(info) then mapInfoCache[mapname] = info return info end
     end
     return {filename = mapname, displayname = string.gsub(mapname, "_", " "), image = "", width = 16, height = 9}
 end
@@ -1137,11 +1142,13 @@ end
 -- the card's height for the current ballot (header, tile rows, footer): 210 units for four tiles, as before
 local function modeCardHeight()
     local options = RE.ModeVote.options
-    if #options <= 4 then return u(210) end
     local plain, again = 0, 0
     for _, opt in ipairs(options) do if opt.again then again = 1 else plain = plain + 1 end end
     local rows = math.ceil(plain / 2) + again
-    return u(16 + 24) + rows * u(40) + (rows - 1) * u(8) + u(8 + 14 + 16)
+    -- the same rule as paintModeCard: compact 40 px tiles over four options, else 56. Three modes plus "Play again" is
+    -- three 56 px rows, which the old fixed u(210) cut off (review 2026-09-26).
+    local tileH = #options > 4 and 40 or 56
+    return math.max(u(210), u(16 + 24) + rows * u(tileH) + math.max(0, rows - 1) * u(8) + u(8 + 14 + 16))
 end
 
 -- roundend_polish_20260925 (owner 2026-09-25, "this looks bad"; canvas RoundEnd, "Map pre-vote"): ranked picks as full
@@ -1541,7 +1548,9 @@ local function paintSide(panel, w, h)
     else
         local r = RE.MapVote.result
         local leader = r and ((isstring(r.fixed) and r.fixed ~= "" and r.fixed) or (isstring(r.real) and r.real ~= "" and r.real)) or nil
-        text(fit(leader and ("Next map: " .. tostring(leader)) or "Map vote open", 10, 700, iw), 10, 700, x + pad, fy, T.text)
+        local line = leader and ("Next map: " .. tostring(leader)) or "Map vote open"
+        if r and r.real == "extend" then line = "Map extended" end -- fixed is the current map on an extend
+        text(fit(line, 10, 700, iw), 10, 700, x + pad, fy, T.text)
     end
 end
 local function paintPanel(panel, w, h)
@@ -1642,10 +1651,14 @@ local function thinkPanel(panel)
         P.ChatDock(px + RE.Dock.x, py + RE.Dock.y, RE.Dock.w, RE.Dock.h)
     end
 
-    if RE.Prevote == nil and RE.PrevoteAskedAt == nil then askPrevote() end
+    -- A broadcast (someone else pre-voting) can create RE.Prevote with only the ranking before this client ever asked;
+    -- keep asking every 3 s until the personal reply (pool, yourVote, canChange) is in.
+    if (not RE.Prevote or not RE.Prevote.pool) and RealTime() - (RE.PrevoteAskedAt or -60) >= 3 then askPrevote() end
 
     local want = wantsCursor()
-    if want ~= RE.CursorOn then gui.EnableScreenClicker(want) RE.CursorOn = want end
+    -- The screen clicker is one global switch: the death panel stepping aside (or SolidMapVote's own close) can turn it
+    -- off in the same frame this panel turned it on, and a cached "on" would never re-assert it (review 2026-09-26).
+    if want ~= RE.CursorOn or (want and not vgui.CursorVisible()) then gui.EnableScreenClicker(want) RE.CursorOn = want end
 
     local replay = P.Replay()
     local playing = replay and replay.kind == "highlight" and replay.phase == "playing"
@@ -1706,6 +1719,7 @@ local function ensurePanel()
     entry.OnEnter = function(e)
         local q = string.Trim(e:GetValue() or "")
         if q == "" then return end
+        if RE.Prevote and RE.Prevote.canChange == false then return end -- locked: the server would drop it silently
         local best
         local pool = RE.Prevote and RE.Prevote.pool
         if istable(pool) then
@@ -1713,7 +1727,7 @@ local function ensurePanel()
                 if A.Matches and A.Matches(name, q) then best = name break end
             end
         end
-        pickPrevote(best or q)
+        if best then pickPrevote(best) end -- never cast raw typed text that matched no map
     end
     RE.SearchEntry = entry
     RE.Panel = panel
@@ -1755,7 +1769,10 @@ local function advanceWinner()
     if RE.Phase ~= "winner" then return end
     if not P.Enabled() then RE.Phase = nil return end
     local replay = P.Replay()
-    if RealTime() - (RE.WinnerBorn or 0) >= WINNER_SECONDS or (replay and replay.kind == "highlight") then enterPanel() end
+    -- The summary (winner name) is sent 2.5 s of GAME time after the horn, ~4.4 real s in the round-end slow motion: hold
+    -- the card for it, up to 6 s, or it only ever said "ROUND OVER" (review 2026-09-26).
+    local age = RealTime() - (RE.WinnerBorn or 0)
+    if (age >= WINNER_SECONDS and (RE.Summary ~= nil or age >= 6)) or (replay and replay.kind == "highlight") then enterPanel() end
 end
 hook.Add("Think", "GoobOS.RoundEnd.Phase", advanceWinner)
 -- prevote_sb_20260925: the scoreboard hid the panel (thinkPanel) and PANEL:Think does not run while it is hidden, so
@@ -1883,6 +1900,9 @@ end)
 
 P.SetKeys("roundend.map", function(n)
     if not RE.MapVote.active or RE.MapVote.result or not live() then return false end
+    -- Only while the ballot is actually on screen: not under the winner card or the death panel, not while the
+    -- scoreboard hides the panel - a number key there switched no weapon and silently cast a vote (review 2026-09-26).
+    if RE.Phase ~= "panel" or not IsValid(RE.Panel) or not RE.Panel:IsVisible() then return false end
     if RE.Side() and not aliveMapKeys() then return false end -- ballot_alive_20260926: see aliveMapKeys
     local choice = ballotChoices()[n]
     if not choice then return false end

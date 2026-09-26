@@ -401,13 +401,16 @@ hook.Add("PlayerDisconnected", "ZCKillcam.TapeServe", function(p) S.want[p] = ni
 -- Called by sv_net.lua's zckc_clip receiver for every id that starts "tape:".
 function K.TapeRequest(p, id)
     if not IsValid(p) then return end
+    -- Review 2026-09-26: a refusal echoes the id back, so length-cap it and throttle BEFORE the class check - a
+    -- non-staff client spamming a 60 KB "tape:..." id every tick used to get each one parsed and sent straight back.
+    if not isstring(id) or #id > 64 then return end
+    local now = CurTime()
+    if (p.zckcTapeNext or 0) > now then return end
+    p.zckcTapeNext = now + ASK_GAP
     stats.asked = stats.asked + 1
     local class = K.TapeClass(p)
     if not class then return refuse(p, id, STATUS.denied, "not staff") end
     if class == "player" then stats.playerAsked = (stats.playerAsked or 0) + 1 end
-    local now = CurTime()
-    if (p.zckcTapeNext or 0) > now then return end
-    p.zckcTapeNext = now + ASK_GAP
     -- the round id's shape is validated by the pattern even though only the tail is read here; begin() re-parses it
     local tail = string.match(id, "^tape:%d+_%d+:(%w+)$")
     -- D3 paging: "tape:list:<t>" and nothing looser - t is digits only, no sign, no decimal point

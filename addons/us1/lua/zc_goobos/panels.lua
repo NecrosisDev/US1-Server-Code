@@ -22,7 +22,11 @@ P.Claims = P.Claims or {}
 function P.RightGutter()
     local V = A.Voice
     local g = istable(V) and tonumber(V.Gutter) or nil
-    return math.max(0, g or (176 + 16))
+    if g then return math.max(0, g) end
+    -- voice.lua layout(): plates are sc(236) wide, sc(8) in from the right edge, sc = ScrH/1080. The old 192 px constant
+    -- came from a 176 px plate that no longer exists, so plates covered the ballot and roster (review 2026-09-26).
+    local s = ScrH() / 1080
+    return math.floor(236 * s + 0.5) + math.floor(8 * s + 0.5) + 16
 end
 
 -- Clean weapon display name (owner canvas note: "[clean weapon display name]"): the SWEP's PrintName when this client
