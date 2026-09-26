@@ -619,5 +619,7 @@ Anything that looked or felt wrong:
 | 0.1 | Review running in the originating session; findings will land in `docs/reviews/2026-09-26-final-review.md` | | |
 | 0.2 | Not started | | |
 | 0.3 | Not started | | |
-| 0.4 | Drop builds (`drops/live-drop-f4f5a8d-e097941.zip` matches the hand-built v5) | | Waiting on 0.1 |
+| 0.4 | Deployed: `live-drop-f4f5a8d-b59a5e1.zip` (owner uploaded; `live.json` marked) | b59a5e1 | |
+| 1.0 | Script ready: `tools/live/us1_live_hashes.lua`; drift is checked by `tools/cutover.py --live-hashes` | | Waiting on the owner to run it |
+| 1.1 / 1.2 | Done: `tools/cutover.py` (+ `--rehearse`), `tests/test_cutover.py`; rehearsal: 0 duplicate or missing virtual paths | | |
 | 1.0-7.4 | Not started | | |

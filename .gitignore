@@ -105,3 +105,6 @@
 !/.glualint.json
 !/manifests/*.json
 /.cache/
+
+# Built drops and cutover folders are outputs, not source.
+/drops/
