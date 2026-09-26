@@ -179,17 +179,14 @@ def rehearse(model, delete, dist_files, keep):
 
 
 def winscp(delete):
-    lines = ["# WinSCP: Commands > Open Terminal, paste. Server STOPPED. MOVES files; nothing is deleted.",
-             "# Assumes the WinSCP root is the server root (the folder that holds garrysmod/).",
-             "option batch continue", f"mkdir {ARCHIVE}"]
-    dirs = set()
-    for p in delete:
-        parent = PurePosixPath(p).parent
-        while str(parent) not in (".", ""):
-            dirs.add(str(parent))
-            parent = parent.parent
-    lines += [f'mkdir "{ARCHIVE}/{d}"' for d in sorted(dirs, key=lambda d: (d.count("/"), d))]
-    lines += [f'mv "/{p}" "{ARCHIVE}/{PurePosixPath(p).parent}/"' for p in sorted(delete)]
+    """Shell lines for the WinSCP terminal (it runs real shell commands, so '/' is the machine root, not the
+    server folder). Paths are relative: first cd into the folder that holds garrysmod/. One self-contained line
+    per file, so a file that is already gone is skipped and the rest still run."""
+    lines = ["# WinSCP terminal. Server STOPPED. First: cd into the folder that holds garrysmod/ (check with: ls).",
+             "# Each line MOVES one file into _archive/us1_cutover/ next to garrysmod/. Nothing is deleted."]
+    for p in sorted(delete):
+        dest = f"{ARCHIVE.strip('/')}/{PurePosixPath(p).parent}"
+        lines.append(f'[ -e "{p}" ] && mkdir -p "{dest}" && mv "{p}" "{dest}/"')
     return "\n".join(lines) + "\n"
 
 
@@ -258,7 +255,7 @@ def main():
     (out / "KEEP.txt").write_text("\n".join(sorted(keep)) + "\n")
     (out / "cleanup_winscp.txt").write_text(winscp(delete))
     addons = sorted({rel.split("/")[2] for rel in tree if rel.startswith("garrysmod/addons/")})
-    secrets = "\n".join(f"   - `{ARCHIVE}/{old}` -> `garrysmod/{new}`" for old, new in SECRET_FILES.items())
+    secrets = "\n".join(f"   - `{ARCHIVE.strip('/')}/{old}` -> `garrysmod/{new}`" for old, new in SECRET_FILES.items())
     (out / "CUTOVER.md").write_text(f"""# US1 cutover {head[:7]} (live was {deployed[:7]})
 
 Installs {len([r for r in tree if r.startswith('garrysmod/addons/')])} files into `garrysmod/addons/{{{','.join(addons)}}}`,
@@ -266,9 +263,10 @@ removes {len(delete)} old files, leaves {len(keep)} listed files alone (stock GM
 
 1. Quiet window. Stop the server. Download a full copy of `garrysmod/addons`, `garrysmod/lua`, `garrysmod/gamemodes`.
 2. Workshop dependencies in `manifests/dependencies.json` are in the server collection and loading.
-3. WinSCP terminal: paste `cleanup_winscp.txt`. It MOVES the {len(delete)} files in `DELETE.txt` to `{ARCHIVE}/`.
+3. WinSCP terminal: paste `cleanup_winscp.txt`. Run `pwd` and `ls` first: you must be in the folder that holds `garrysmod/`
+   (`cd` there if not). It MOVES the {len(delete)} files in `DELETE.txt` to `_archive/us1_cutover/` next to `garrysmod/`.
 4. Unzip `install.zip` over the server root (its `garrysmod/` lands on `garrysmod/`); overwrite when asked.
-   Then put the API keys back: open each archived file below and copy its key into the installed copy.
+   Then put the API keys back: open each archived file below (paths relative to the server folder) and copy its key into the installed copy.
 {secrets}
 5. Start. Server console: `us1_status` shows every module loaded; the boot log has no Lua errors.
 6. Play one homicide round and one team round (bots are fine); open a replay; die once.
