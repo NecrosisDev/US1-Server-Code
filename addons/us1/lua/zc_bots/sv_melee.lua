@@ -237,7 +237,7 @@ local function meleeEngage(bot, brain, now, skill, target, dist, buttons, wep)
 		if now >= (brain.meleeCoverAt or 0) then
 			brain.meleeCoverAt = now + 1.5
 			-- sv_cover.lua: shared cover finder (was this file's own hiddenSpot()).
-			brain.meleeCoverPos = lib.FindCover(bot, target, 700)
+			brain.meleeCoverPos = lib.KeepCover(bot, brain, "melee", target, 700)
 		end
 		if brain.meleeCoverPos then
 			brain.sprint = true

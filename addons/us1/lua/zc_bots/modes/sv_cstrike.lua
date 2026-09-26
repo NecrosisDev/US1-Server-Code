@@ -277,7 +277,7 @@ RB({
 				-- before re-rolling it.
 				local patience = (brain.personality and brain.personality.patience) or 1
 				brain.csHoldAt = now + 1.5 * patience
-				brain.csHoldPos = lib.FindCover and lib.FindCover(bot, anchor, HOLD_RANGE) or nil
+				brain.csHoldPos = lib.KeepCover and lib.KeepCover(bot, brain, "cs_hold", anchor, HOLD_RANGE) or nil
 			end
 			if isvector(brain.csHoldPos) then
 				hg.botdriver.SetObjective(bot, brain.csHoldPos, 96, 4, "soft", "cstrike_hold")

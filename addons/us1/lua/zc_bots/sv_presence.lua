@@ -54,6 +54,6 @@ function presence.ChurnTick(bots)
 	-- NEGATIVE CONTROL / hard guard: never touch a manually-added bot, even if
 	-- this function is ever called with a list that was not pre-filtered.
 	if expired.zcBotManual then return false end
-	expired:Kick("zc_bots population adjustment (session end)")
+	expired:Kick(hg.botdriver.LEAVE_REASON or "Disconnect by user.")
 	return true
 end

@@ -78,9 +78,16 @@ RB({
 		local canPosition = IsValid(weapon) and not weapon.ismelee and brain.target == target and brain.aimLocked
 			and ctx.bot:GetActiveWeapon() == weapon and not brain.actionPolicy and not weapon.reload
 			and weapon.Clip1 and weapon:Clip1() > 0 and now >= (brain.squadSuppressUntil or 0)
+		-- 2026-09-26: arriving at a firing position now holds it for a while
+		-- (patience-scaled) before another is looked for. Picking a fresh
+		-- random spot every 2.5 s kept bots pacing across open ground.
+		local arrived = isvector(brain.combatPosition) and ctx.bot:GetPos():DistToSqr(brain.combatPosition) < 56 * 56
+		if arrived then
+			local patience = (brain.personality and brain.personality.patience) or 1
+			brain.posRoleCheckAt = math.max(brain.posRoleCheckAt or 0, now + math.Rand(5, 9) * patience)
+		end
 		if not canPosition or brain.combatPositionTarget ~= target or brain.combatPositionWeapon ~= weapon
-			or now >= (brain.combatPositionUntil or 0)
-			or (isvector(brain.combatPosition) and ctx.bot:GetPos():DistToSqr(brain.combatPosition) < 56 * 56) then
+			or now >= (brain.combatPositionUntil or 0) or arrived then
 			brain.combatPosition, brain.combatRoute = nil, nil
 		end
 		if canPosition and not brain.combatPosition and now >= (brain.posRoleCheckAt or 0) then

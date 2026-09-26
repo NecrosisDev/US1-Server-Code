@@ -67,7 +67,6 @@ local DOOR_IMPASSABLE_TTL = 20  -- shared blacklist window, stamped on the door 
 local DOOR_TOKEN_TTL = 4        -- an ally's claim on a door goes stale after this long unrefreshed
 
 local STUCK_NO_PROGRESS = 1.2
-local SIDESTEP_TIME = 0.5
 local STUCK_RESET_EPS = 24
 local GIVE_UP_TIME = 6
 
@@ -289,7 +288,11 @@ local function updateDoorPhase(bot, brain, door, now)
 		return false
 	end
 
-	local doorPos = door:GetPos()
+	-- 2026-09-26: WorldSpaceCenter, not GetPos -- a prop_door_rotating's
+	-- origin is its HINGE, so standoff/press distances were off by half a
+	-- door width depending on which side the bot came from (forward/back
+	-- shuffling at doors).
+	local doorPos = door:WorldSpaceCenter()
 	local toDoor = doorPos - bot:GetPos()
 	toDoor.z = 0
 	local dist = toDoor:Length()
@@ -451,24 +454,15 @@ local function wrappedTraverseStep(bot, brain)
 			return true -- new routes get a fresh recovery episode
 		end
 
+		-- 2026-09-26: the old stage 0 jump stacked on sv_traverse.lua's own
+		-- diagnosis and sv_brain.lua's backstop (three jumps per stall), and
+		-- stage 1's sidestep never ran -- FollowPath overwrote brain.side on
+		-- the same decision. One forced repath is the useful part.
 		local stage = brain.doorStuckStage or 0
 		if stage == 0 then
-			if not (lib.OnStairs and lib.OnStairs(bot, brain, now)) then
-				brain.traverseButtons = bit.bor(brain.traverseButtons or 0, IN_JUMP)
-			end
-			brain.doorStuckStage = 1
-		elseif stage == 1 then
-			if now < (brain.doorSidestepUntil or 0) then
-				brain.side = (brain.doorSidestepDir or 1) * 200
-			else
-				brain.doorSidestepDir = (brain.doorSidestepDir or 1) * -1
-				brain.doorSidestepUntil = now + SIDESTEP_TIME
-				brain.doorStuckStage = 2
-			end
-		elseif stage == 2 then
 			brain.nextRepath = 0
 			brain.path = nil
-			brain.doorStuckStage = 3
+			brain.doorStuckStage = 1
 		end
 	end
 

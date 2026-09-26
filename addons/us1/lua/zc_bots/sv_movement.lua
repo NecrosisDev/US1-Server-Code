@@ -11,7 +11,8 @@
 --   lib.StallWatch(bot, brain, now)      "hung in one spot" watchdog
 --
 -- GAIT (owner ask, 2026-09-23): people sprint to get places. They drop to a
--- run inside tight rooms / doorways / the last stretch to a goal, and only
+-- run around fights, at a door they must open, on the last stretch to a
+-- goal (2026-09-26: no longer in every narrow doorway), and only
 -- slow-walk (IN_WALK: quieter footsteps on this fork, sh_footsteps.lua) when
 -- they have HEARD something nearby and want information, or when creeping up
 -- on a last-known position. Combat never sprints (IN_SPEED blocks fire).
@@ -32,7 +33,7 @@ hg.botdriver.lib = hg.botdriver.lib or {}
 local lib = hg.botdriver.lib
 
 hg.botdriver.DeclareBrainState("movement", { fields = {
-	"gait", "gaitWalkUntil", "winded",
+	"gait", "gaitWalkUntil", "winded", "gaitPrev", "gaitHoldUntil",
 	"gazeSweepPhase", "gazeGlanceAt", "gazeGlanceUntil", "gazeGlanceYaw", "gazeSweepAmp",
 	"stairsAt", "stairsNow",
 	"stallPos", "stallAt", "stallCount",
@@ -103,11 +104,9 @@ local function remainingPathLength(bot, brain)
 	return total
 end
 
-local function narrowHere(brain)
-	local meta = brain.pathMeta
-	if not meta or meta.path ~= brain.path or not meta.narrow then return false end
-	local i = brain.pathIdx or 1
-	return meta.narrow[i] == true or meta.narrow[i + 1] == true
+local function setRun(brain)
+	brain.gait = "run"
+	brain.forward = math.min(brain.forward, RUN_SPEED)
 end
 
 -- Sets brain.gait and the movement magnitude/buttons for this decision.
@@ -132,7 +131,12 @@ function lib.Gait(bot, brain, now)
 	local heardRecently = isvector(brain.heardPos) and now - (brain.heardAt or -math.huge) < HEARD_WALK_WINDOW * patience
 		and bot:GetPos():DistToSqr(brain.heardPos) <= HEARD_WALK_RANGE * HEARD_WALK_RANGE
 	local hurtRecently = now - (brain.damageAt or -math.huge) < 3
-	local creeping = state == "investigate" or (heardRecently and not IsValid(brain.target))
+	-- 2026-09-26: an investigation used to creep the WHOLE way (even from
+	-- across the map), overriding its own approach sprint. Creep only for
+	-- the last stretch to the spot being checked.
+	local investigatingNear = state == "investigate" and isvector(brain.investigatePos)
+		and bot:GetPos():DistToSqr(brain.investigatePos) < 650 * 650
+	local creeping = investigatingNear or (heardRecently and not IsValid(brain.target))
 
 	-- Slow walk: information gathering. Not while urgent, not while a target
 	-- is live (Engage owns combat movement), and hotheads creep less.
@@ -156,27 +160,38 @@ function lib.Gait(bot, brain, now)
 			brain.winded = true
 		end
 	end
-	local remaining = remainingPathLength(bot, brain)
-	local noSprint = brain.winded or brain.aimLocked or COMBAT_STATES[state] == true
-		or (sawEnemyRecently and not urgent) or narrowHere(brain) or IsValid(brain.doorTarget)
-		or remaining < SPRINT_MIN_REMAINING or bot:Crouching() or brain.navMustCrouch
-	if noSprint then
-		brain.gait = "run"
-		brain.forward = math.min(brain.forward, RUN_SPEED)
-		return
+	-- 2026-09-26: hard reasons always force a run. Soft reasons (nearly
+	-- there, still turning onto the route) used to flip sprint<->run on any
+	-- decision, and narrow nav areas were a reason too -- on a fragmented
+	-- mesh that toggled IN_SPEED every few metres: speed surging and the gun
+	-- bobbing between sprint pose and ready. Narrow areas no longer stop a
+	-- sprint (people sprint through doorways), turning uses a 45/70 degree
+	-- band, and a soft change of gait holds for about a second.
+	local hardNoSprint = brain.winded or brain.aimLocked or COMBAT_STATES[state] == true
+		or (sawEnemyRecently and not urgent) or IsValid(brain.doorTarget)
+		or bot:Crouching() or brain.navMustCrouch
+	if hardNoSprint then
+		brain.gaitPrev = "run"
+		return setRun(brain)
 	end
 
-	-- Sprint. Do not launch into it while the body is still rotating onto the
+	local softNoSprint = remainingPathLength(bot, brain) < SPRINT_MIN_REMAINING
+	-- Do not launch into a sprint while the body is still rotating onto the
 	-- route (reads as moonwalking); the gaze may look elsewhere, so compare
 	-- the MOVE heading, not the eyes.
-	if brain.moveAngles and not urgent then
+	if not softNoSprint and brain.moveAngles and not urgent then
 		local turnError = math.abs(math.AngleDifference(brain.moveAngles.y, bot:EyeAngles().y))
-		if turnError > 70 then
-			brain.gait = "run"
-			brain.forward = math.min(brain.forward, RUN_SPEED)
-			return
-		end
+		softNoSprint = turnError > (brain.gaitPrev == "sprint" and 70 or 45)
 	end
+	local want = softNoSprint and "run" or "sprint"
+	local prev = brain.gaitPrev
+	if prev and prev ~= want and (prev == "run" or prev == "sprint") and now < (brain.gaitHoldUntil or 0) then
+		want = prev
+	elseif prev ~= want then
+		brain.gaitHoldUntil = now + math.Rand(0.8, 1.4)
+	end
+	brain.gaitPrev = want
+	if want == "run" then return setRun(brain) end
 	brain.gait = "sprint"
 	brain.sprint = true
 	brain.forward = SPRINT_SPEED

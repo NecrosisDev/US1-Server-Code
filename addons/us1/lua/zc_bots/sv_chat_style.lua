@@ -42,16 +42,53 @@ local function weighted(choices)
 	return choices[#choices].value
 end
 
+-- 2026-09-26: the rolled shape now follows the bot's temperament
+-- (sv_personality.lua) and tidiness instead of being independent of them,
+-- so the guy who writes "Good game, everyone." is also the one who says
+-- sorry, and the one typing "WHAT" in caps is the one with no composure.
+-- STYLE_VERSION marks styles rolled by this rule; an older cached style is
+-- re-rolled once.
+local STYLE_VERSION = 2
+
 local function rollStyle(personality)
 	local tidiness = (personality and personality.tidiness) or 0.5
-	return {
+	local temper = (personality and personality.temperament) or "chill"
+	local style = {
+		v = STYLE_VERSION,
 		caps = weighted({ { value = "lower", weight = 68 }, { value = "sentence", weight = 22 }, { value = "loud", weight = 10 } }),
 		punct = weighted({ { value = "none", weight = 55 }, { value = "period", weight = 15 }, { value = "excl", weight = 15 }, { value = "ellipsis", weight = 15 } }),
 		apostrophes = math.random() < 0.55 and "drop" or "keep",
 		abbrev = math.Rand(0, 1) * (1 - tidiness),
 		tailChance = math.Rand(0, 0.18),
 		nameStyle = weighted({ { value = "short", weight = 55 }, { value = "full", weight = 25 }, { value = "pronoun", weight = 20 } }),
+		shout = 0.2,
 	}
+	local tidy = tidiness >= 0.8 or (temper == "polite" and tidiness >= 0.55)
+	if tidy then
+		-- Proper sentences: capitalised, "I" not "i", full stops, apostrophes.
+		style.caps = "proper"
+		style.punct = weighted({ { value = "period", weight = 70 }, { value = "none", weight = 20 }, { value = "excl", weight = 10 } })
+		style.apostrophes = "keep"
+		style.abbrev = style.abbrev * 0.2
+		style.tailChance = style.tailChance * 0.25
+		style.nameStyle = math.random() < 0.7 and "full" or "short"
+	elseif temper == "ragey" then
+		style.caps = weighted({ { value = "loud", weight = 55 }, { value = "lower", weight = 45 } })
+		style.punct = weighted({ { value = "excl", weight = 45 }, { value = "none", weight = 40 }, { value = "period", weight = 15 } })
+		style.shout = math.Rand(0.3, 0.55)
+		style.tailChance = style.tailChance * 0.4
+	elseif temper == "gloomy" then
+		style.caps = "lower"
+		style.punct = weighted({ { value = "ellipsis", weight = 50 }, { value = "none", weight = 40 }, { value = "period", weight = 10 } })
+		style.tailChance = style.tailChance * 0.2
+	elseif temper == "crude" then
+		style.caps = math.random() < 0.85 and "lower" or "loud"
+		style.punct = weighted({ { value = "none", weight = 75 }, { value = "excl", weight = 15 }, { value = "ellipsis", weight = 10 } })
+		style.apostrophes = "drop"
+		style.abbrev = math.max(style.abbrev, math.Rand(0.35, 0.8))
+		style.tailChance = math.Rand(0.1, 0.3)
+	end
+	return style
 end
 
 -- chat.Style(bot): per-bot-name cached style. An invalid bot (e.g. a unit
@@ -60,7 +97,7 @@ function chat.Style(bot)
 	if not IsValid(bot) then return rollStyle(nil) end
 	local name = bot.Nick and bot:Nick() or nil
 	local cached = name and styleByName[name]
-	if cached then return cached end
+	if cached and cached.v == STYLE_VERSION then return cached end
 	local personality = hg.botdriver.GetPersonality and hg.botdriver.GetPersonality(bot)
 	local style = rollStyle(personality)
 	if name then styleByName[name] = style end
@@ -194,20 +231,29 @@ function chat.Stylize(bot, text, rng)
 	for _ in string.gmatch(body, "%S+") do words = words + 1 end
 	if style.caps == "lower" then
 		body = string.lower(body)
-	elseif style.caps == "sentence" or style.caps == "loud" then
+	elseif style.caps == "sentence" or style.caps == "loud" or style.caps == "proper" then
 		body = string.lower(body)
 		body = string.upper(string.sub(body, 1, 1)) .. string.sub(body, 2)
-		if style.caps == "loud" and words <= 4 and rng() < 0.2 then
+		if style.caps == "proper" then
+			body = string.gsub(body, "%f[%a]i%f[%A]", "I")
+			body = string.gsub(body, "([%.!%?]%s+)(%l)", function(gap, letter) return gap .. string.upper(letter) end)
+		end
+		if style.caps == "loud" and words <= 7 and rng() < (style.shout or 0.2) then
 			body = string.upper(body)
 		end
 	end
 
 	if rng() < style.tailChance then
 		local hasTail = false
-		for _, t in ipairs(TAIL_POOL) do
-			if string.find(body, t, 1, true) then hasTail = true break end
+		local lowerBody = string.lower(body)
+		-- Any laugh already in the line ("lmaooo", "lol", "hahaha") counts.
+		if string.find(lowerBody, "lmao", 1, true) or string.find(lowerBody, "lol", 1, true)
+			or string.find(lowerBody, "haha", 1, true) or string.find(lowerBody, "%f[%w]xd%f[%W]") then
+			hasTail = true
 		end
 		if not hasTail then
+			-- People drop the full stop before a trailing "lol".
+			body = string.gsub(body, "[%.!]+$", "")
 			body = body .. TAIL_POOL[math.floor(rng() * #TAIL_POOL) + 1]
 		end
 	end
@@ -237,14 +283,17 @@ function chat.CleanNick(ply)
 	return nick
 end
 
-function chat.ShortName(bot, ply)
+-- strict (2026-09-26, spectator conversations): always an actual name --
+-- never dropped, never "that guy". A name in the middle of a sentence
+-- ("why does {b} type like that") cannot be left out or pronoun-ed.
+function chat.ShortName(bot, ply, strict)
 	if not IsValid(ply) then return "" end
 	local style = chat.Style(bot)
-	if math.random() < 0.15 then return "" end
+	if not strict and math.random() < 0.15 then return "" end
 
 	local nick = chat.CleanNick(ply)
 	if style.nameStyle == "full" then return nick end
-	if style.nameStyle == "pronoun" then return PRONOUNS[math.random(#PRONOUNS)] end
+	if style.nameStyle == "pronoun" and not strict then return PRONOUNS[math.random(#PRONOUNS)] end
 
 	local firstWord = string.match(nick, "^%S+") or nick
 	local letters = string.gsub(firstWord, "[^%a]", "")

@@ -44,13 +44,25 @@ local function canReply(bot, brain, now)
 	return true, dead
 end
 
+-- The human line being classified right now (set by the PlayerSay tap).
+-- 2026-09-26: a bot only reacts to a line it could actually have received
+-- -- living chat is 3000 u + PVS on US1 (sv_comunication.lua), so a bot
+-- across the map answering a greeting was a tell.
+local currentSpeaker, currentText
+
+local function heard(bot)
+	if not IsValid(currentSpeaker) then return true end
+	local canSee = D.chatter and D.chatter.CanSee
+	return not canSee or canSee(bot, currentSpeaker, currentText or "")
+end
+
 local function filterEligible(list, requireDead, now)
 	local out = {}
 	for _, bot in ipairs(list) do
 		local brain = D.brains[bot]
 		if brain then
 			local ok, dead = canReply(bot, brain, now)
-			if ok and (not requireDead or dead) then out[#out + 1] = bot end
+			if ok and (not requireDead or dead) and heard(bot) then out[#out + 1] = bot end
 		end
 	end
 	return out
@@ -317,6 +329,30 @@ local function handleHelp(ply, lower, requireDead, now)
 	end
 end
 
+-- 2026-09-26: a human asking how something works ("how do you lean",
+-- "why does my shotgun only load one shell?") sometimes gets a true answer
+-- from a bot that heard it -- the same tips the spectator conversations
+-- teach (sv_spec_talk_lines.lua topic table).
+local QUESTION_STARTS = { "how", "what", "whats", "where", "why", "is there", "can you", "can i", "does", "do you", "wat", "anyone know" }
+
+local function looksLikeQuestion(lower)
+	if string.find(lower, "?", 1, true) then return true end
+	return startsWithAny(lower, QUESTION_STARTS)
+end
+
+local function handleQuestion(lower, requireDead, now)
+	local T = D.specTalk
+	if not T or not T.MatchQuestion or not looksLikeQuestion(lower) then return false end
+	local topic = T.MatchQuestion(lower)
+	if not topic then return false end
+	local eligible = filterEligible(allBots(), requireDead, now)
+	if #eligible == 0 or math.random() >= 0.55 then return true end
+	local bot = eligible[math.random(#eligible)]
+	local line = T.AnswerLine(topic, bot)
+	if line then attemptReply(bot, line, "teach", 1, 60) end
+	return true
+end
+
 ----------------------------------------------------------------------
 -- PlayerSay: dispatch only. Must return nothing -- ZChat owns the return
 -- value that decides delivery.
@@ -346,17 +382,22 @@ hook.Add("PlayerSay", "zc_bots_chat_listen", function(ply, text, teamChat)
 	for _, w in ipairs(HELP_WORDS) do if containsToken(lower, w) then hasHelpWord = true break end end
 	local isHelpRequest = hasQuestionOrAnyone and hasHelpWord
 
+	currentSpeaker, currentText = ply, text
 	if hasBotWord then
 		handleAccusation(lower, requireDead, now)
-	elseif #mentionedBots > 0 then
-		handleMention(ply, lower, mentionedBots, requireDead, now)
-	elseif isGreeting then
-		handleGreeting(requireDead, now)
-	elseif isGG then
-		handleGG(requireDead, now)
-	elseif isHelpRequest then
-		handleHelp(ply, lower, requireDead, now)
+	-- a question it answered (or deliberately left for a human to answer) stops here
+	elseif not handleQuestion(lower, requireDead, now) then
+		if #mentionedBots > 0 then
+			handleMention(ply, lower, mentionedBots, requireDead, now)
+		elseif isGreeting then
+			handleGreeting(requireDead, now)
+		elseif isGG then
+			handleGG(requireDead, now)
+		elseif isHelpRequest then
+			handleHelp(ply, lower, requireDead, now)
+		end
 	end
+	currentSpeaker, currentText = nil, nil
 end, HOOK_MONITOR_HIGH or -4) -- ULib: monitor priority runs BEFORE ZChat's handler (which returns "" and would
 -- otherwise stop the chain before a normal-priority tap ever ran); monitor returns are ignored, so this can never alter chat.
 

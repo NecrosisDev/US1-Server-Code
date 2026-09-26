@@ -160,6 +160,69 @@ rollPersonality = function()
 	return p
 end
 
+-- 2026-09-26 temperament: the mood a bot's chat is written in, layered on
+-- top of the archetype (which stays the PLAY style). Real lobbies have the
+-- guy who swears at everything, the one who types like an email, the one
+-- who rages, and the one who is quietly miserable; a lobby where every
+-- player is equally mild reads as generated. Consumed by sv_chat_style.lua
+-- (text shape), sv_chatter.lua (line pools), sv_spec_talk.lua (spectator
+-- conversations) and sv_radial.lua/sv_emote.lua (gestures).
+--   crude  -- vulgar, swears, crude jokes, teabags
+--   polite -- tidy, apologises, capitalises, says gg and means it
+--   ragey  -- short fuse, caps, blames everything
+--   gloomy -- depressed, self-deprecating, expects the worst
+--   chill  -- the plain middle
+-- Not part of PERSONALITY_SCHEMA: an existing personality lacking it gets
+-- one lazily in GetPersonality instead of a whole re-roll.
+local TEMPERAMENT_WEIGHTS = {
+	regular  = { chill = 40, crude = 24, ragey = 12, gloomy = 11, polite = 13 },
+	cautious = { polite = 32, gloomy = 34, chill = 24, crude = 5, ragey = 5 },
+	hothead  = { ragey = 52, crude = 32, chill = 11, gloomy = 5 },
+	deadpan  = { gloomy = 40, chill = 34, crude = 16, polite = 10 },
+	support  = { polite = 58, chill = 32, gloomy = 10 },
+	tryhard  = { ragey = 34, chill = 30, crude = 20, polite = 16 },
+	gremlin  = { crude = 60, chill = 24, ragey = 16 },
+	laggy    = { ragey = 36, chill = 34, crude = 20, gloomy = 10 },
+	oldhand  = { polite = 44, chill = 40, gloomy = 16 },
+}
+local TEMPERAMENT_ORDER = { "chill", "crude", "polite", "ragey", "gloomy" }
+
+local function rollTemperament(archetype)
+	local weights = TEMPERAMENT_WEIGHTS[archetype] or TEMPERAMENT_WEIGHTS.regular
+	local total = 0
+	for _, id in ipairs(TEMPERAMENT_ORDER) do total = total + (weights[id] or 0) end
+	local pick = math.random() * total
+	for _, id in ipairs(TEMPERAMENT_ORDER) do
+		pick = pick - (weights[id] or 0)
+		if pick <= 0 then return id end
+	end
+	return "chill"
+end
+hg.botdriver.RollTemperament = rollTemperament
+
+local rollWithoutTemperament = rollPersonality
+rollPersonality = function()
+	local p = rollWithoutTemperament()
+	p.temperament = rollTemperament(p.archetype)
+	if p.temperament == "polite" then
+		p.tidiness = math.max(p.tidiness, math.Rand(.62, .95))
+		p.sportsmanship = math.max(p.sportsmanship, math.Rand(.6, .9))
+	elseif p.temperament == "ragey" then
+		p.composure = math.min(p.composure, math.Rand(.15, .45))
+		p.grudge = math.max(p.grudge, math.Rand(.5, .85))
+	elseif p.temperament == "crude" then
+		p.tidiness = math.min(p.tidiness, math.Rand(.1, .55))
+		p.sportsmanship = math.min(p.sportsmanship, math.Rand(.25, .6))
+	end
+	return p
+end
+
+function hg.botdriver.Temperament(bot)
+	if not IsValid(bot) then return "chill" end
+	local p = hg.botdriver.GetPersonality(bot)
+	return p and p.temperament or "chill"
+end
+
 -- Effective per-bot skill: rolled trait plus the convar's offset from its own
 -- 0.5 default, plus item B6's adaptive difficulty offset (sv_difficulty.lua,
 -- zero/no-op if that file is ever removed), clamped back into 0..1.
@@ -178,7 +241,9 @@ function hg.botdriver.GetPersonality(bot)
 		brain.personality = cached or rollPersonality()
 		if name then personalityByName[name] = brain.personality end
 	end
-	return brain.personality
+	local p = brain.personality
+	if not p.temperament then p.temperament = rollTemperament(p.archetype) end
+	return p
 end
 
 hook.Add("PlayerSpawn", "zc_bots_personality_roll", function(ply)

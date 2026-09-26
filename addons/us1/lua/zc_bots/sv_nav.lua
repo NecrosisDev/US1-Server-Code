@@ -21,7 +21,12 @@ local EDGE_MARGIN = 32
 -- midpoint of the shortcut). Waypoints inside narrow areas (doorways) and on
 -- JUMP/CROUCH areas are always kept, and flagged in the returned meta so the
 -- follower goes through the middle without lane offset or corner cutting.
-local SMOOTH_MAX_TRACES = 24
+-- 2026-09-26: 24 traces smoothed only the first ~12 legs; long roam routes
+-- (computed once) zig-zagged for the rest of the walk. Narrow areas also no
+-- longer force a waypoint: auto-generated meshes are full of <80 u strips in
+-- open ground, and the shortcut hull (widened to 36 u, a little over the
+-- 32 u player hull) already refuses a cut that would clip a door frame.
+local SMOOTH_MAX_TRACES = 48
 local SMOOTH_MAX_DZ = 40
 local NARROW_AREA_SIZE = 80
 local NAV_CACHE_TTL = 30
@@ -66,14 +71,89 @@ local function areaCenter(area)
 	return center
 end
 
+-- 2026-09-26 nav repair (sv_navrepair.lua): links the engine mesh is
+-- missing (ladders, doors closed at generation, small gaps/steps, routes
+-- humans actually walk) and native connections that are not walkable
+-- (through a wall, up a ledge). Kept in memory and in data/, never written
+-- into the map's .nav. Both tables are filled in place, never replaced.
+hg.botdriver.navLinks = hg.botdriver.navLinks or {}         -- [fromID][toID] = { kind, cost, entry, via }
+hg.botdriver.navBadEdges = hg.botdriver.navBadEdges or {}   -- [fromID][toID] = reason
+
 local function adjacentAreas(area)
 	local id = area:GetID()
 	local cached = adjacencyCache[id]
 	if cached and cached.area == area then return cached.areas end
 	local areas = area:GetAdjacentAreas() or {}
+	local bad = hg.botdriver.navBadEdges[id]
+	local extra = hg.botdriver.navLinks[id]
+	if bad or extra then
+		local merged = {}
+		for _, adj in ipairs(areas) do
+			if not (bad and IsValid(adj) and bad[adj:GetID()]) then merged[#merged + 1] = adj end
+		end
+		if extra then
+			for toID in pairs(extra) do
+				local to = navmesh.GetNavAreaByID(toID)
+				if IsValid(to) and not (bad and bad[toID]) then merged[#merged + 1] = to end
+			end
+		end
+		areas = merged
+	end
 	adjacencyCache[id] = { area = area, areas = areas }
 	return areas
 end
+hg.botdriver.NavAdjacent = adjacentAreas
+
+function hg.botdriver.NavLinksChanged()
+	adjacencyCache = {}
+	failCache = {}
+end
+
+-- Axis-aligned xy extent of an area (nav areas are rectangles in xy):
+-- corner 0 is north-west (lo x, lo y), corner 2 south-east (hi x, hi y).
+local rectCache = {}
+local function areaRect(area)
+	local id = area:GetID()
+	local r = rectCache[id]
+	if r and r.area == area then return r end
+	local a, b = area:GetCorner(0), area:GetCorner(2)
+	r = { area = area, x0 = math.min(a.x, b.x), y0 = math.min(a.y, b.y), x1 = math.max(a.x, b.x), y1 = math.max(a.y, b.y) }
+	rectCache[id] = r
+	return r
+end
+
+local function spanPick(v, lo, hi, margin)
+	if hi - lo <= margin * 2 then return (lo + hi) * 0.5 end
+	return math.Clamp(v, lo + margin, hi - margin)
+end
+
+-- Where to cross from `from` into `to`: on the stretch of edge the two
+-- areas actually share (clamped toward `toward`, kept off the frame), just
+-- inside `to`. Sloppy meshes connect areas that overlap by a sliver; the
+-- nearest point of `to` can then sit beside a wall rather than in the gap.
+-- nil when they only touch at a corner (the caller falls back).
+local function portalPoint(from, to, toward)
+	local a, b = areaRect(from), areaRect(to)
+	local ox = math.min(a.x1, b.x1) - math.max(a.x0, b.x0)
+	local oy = math.min(a.y1, b.y1) - math.max(a.y0, b.y0)
+	local x, y
+	if oy >= ox and oy > 0 then
+		y = spanPick(toward.y, math.max(a.y0, b.y0), math.min(a.y1, b.y1), EDGE_MARGIN)
+		if b.x0 + b.x1 >= a.x0 + a.x1 then x = math.min(b.x0 + 16, (b.x0 + b.x1) * 0.5)
+		else x = math.max(b.x1 - 16, (b.x0 + b.x1) * 0.5) end
+	elseif ox > oy and ox > 0 then
+		x = spanPick(toward.x, math.max(a.x0, b.x0), math.min(a.x1, b.x1), EDGE_MARGIN)
+		if b.y0 + b.y1 >= a.y0 + a.y1 then y = math.min(b.y0 + 16, (b.y0 + b.y1) * 0.5)
+		else y = math.max(b.y1 - 16, (b.y0 + b.y1) * 0.5) end
+	else
+		return nil
+	end
+	local p = Vector(x, y, 0)
+	p.z = to:GetZ(p)
+	return p
+end
+hg.botdriver.NavPortalPoint = portalPoint
+hg.botdriver.NavAreaRect = areaRect
 
 local function areaKey(id)
 	local key = areaKeyCache[id]
@@ -92,6 +172,7 @@ local cv_learning = ConVarExists("zc_bots_nav_learning") and GetConVar("zc_bots_
 
 hg.botdriver.navPenalties = hg.botdriver.navPenalties or {}
 local PENALTY_THRESHOLD = 10
+hg.botdriver.NAV_PENALTY_THRESHOLD = PENALTY_THRESHOLD
 local PENALTY_MAX = 1000
 
 local function edgeKey(fromID, toID)
@@ -279,6 +360,34 @@ local function resolveArea(pos)
 	return navmesh.GetNearestNavArea(pos, false, 600, true, false)
 end
 
+-- Off-mesh start (findPathInner): the nearest area's nearest point when a
+-- standing hull can walk straight to it, else the closest of a few nearby
+-- areas that can be walked to. Returns the start area and the point to walk
+-- to first (nil: none found, path as before).
+local rejoinTrace = { mins = Vector(-14, -14, 0), maxs = Vector(14, 14, 54), mask = MASK_PLAYERSOLID_BRUSHONLY }
+local REJOIN_TRIES = 6
+function hg.botdriver.NavRejoin(fromPos, area, onMesh)
+	local function reachable(p)
+		rejoinTrace.start = fromPos + vector_up * 18
+		rejoinTrace.endpos = p + vector_up * 18
+		local tr = util.TraceHull(rejoinTrace)
+		return tr.StartSolid or not tr.Hit
+	end
+	if reachable(onMesh) then return area, onMesh end
+	local cands = {}
+	for _, cand in ipairs(navmesh.Find(fromPos, 500, 120, 120) or {}) do
+		if cand ~= area and IsValid(cand) then
+			local p = cand:GetClosestPointOnArea(fromPos)
+			if p then cands[#cands + 1] = { area = cand, point = p, d = p:DistToSqr(fromPos) } end
+		end
+	end
+	table.sort(cands, function(a, b) return a.d < b.d end)
+	for i = 1, math.min(#cands, REJOIN_TRIES) do
+		if reachable(cands[i].point) then return cands[i].area, cands[i].point end
+	end
+	return area, nil
+end
+
 local FAIL_TTL = 3
 
 local function failedUntilFor(startID, goalID)
@@ -329,7 +438,7 @@ end
 
 local warnedNoNavmesh = false
 
-local smoothTrace = { mins = Vector(-16, -16, 0), maxs = Vector(16, 16, 72), mask = MASK_PLAYERSOLID }
+local smoothTrace = { mins = Vector(-18, -18, 0), maxs = Vector(18, 18, 72), mask = MASK_PLAYERSOLID }
 local smoothGround = { mask = MASK_PLAYERSOLID }
 local function smoothFilter(ent)
 	if not IsValid(ent) then return false end
@@ -349,7 +458,6 @@ end
 
 local function areaNeedsWaypoint(area)
 	if not IsValid(area) then return true end
-	if areaIsNarrow(area) then return true end
 	if area.HasAttributes and (area:HasAttributes(NAV_MESH_CROUCH or 1) or area:HasAttributes(NAV_MESH_JUMP or 2)) then return true end
 	return false
 end
@@ -370,28 +478,47 @@ end
 
 -- points[i] is the waypoint that enters corridor[i+1]; points[#points] is
 -- the goal. Returns the smoothed points plus meta { path, narrow, areaIndex }.
-local function smoothCorridor(fromPos, points, corridor, corridorCount)
+local function smoothCorridor(fromPos, points, corridor, corridorCount, via, lead)
 	local out, narrow, areaIndex = {}, {}, {}
 	local traces = 0
 	local anchor = fromPos
+	if lead then
+		out[1] = lead
+		anchor = lead
+	end
 	local n = #points
 	local index = 1
+	-- A dropped narrow area (a doorway the straight leg passes through)
+	-- still marks the leg that crosses it narrow: no lane offset, no corner
+	-- cutting and short whiskers while going through the frame.
+	local crossedNarrow = false
 	while index <= n do
 		local keep = true
-		if index < n and traces < SMOOTH_MAX_TRACES then
+		-- A repair link with its own route (a ladder's foot, then the top):
+		-- those points always stay, and the link's entry point with them.
+		local here = via and via[index]
+		if here then
+			for _, v in ipairs(here) do
+				out[#out + 1] = v
+				anchor = v
+			end
+		elseif index < n and traces < SMOOTH_MAX_TRACES then
 			local area = corridor[index + 1]
 			if not areaNeedsWaypoint(area) then
 				traces = traces + 2
-				if shortcutWalkable(anchor, points[index + 1]) then keep = false end
+				local nextVia = via and via[index + 1]
+				if shortcutWalkable(anchor, nextVia and nextVia[1] or points[index + 1]) then keep = false end
 			end
 		end
 		local area = corridor[index + 1]
 		if keep then
 			out[#out + 1] = points[index]
 			anchor = points[index]
-			narrow[#out] = areaIsNarrow(area) or nil
+			narrow[#out] = (areaIsNarrow(area) or crossedNarrow) or nil
+			crossedNarrow = false
 			if IsValid(area) then areaIndex[area:GetID()] = #out end
 		elseif IsValid(area) then
+			if areaIsNarrow(area) then crossedNarrow = true end
 			-- The dropped waypoint's area is passed while travelling to the
 			-- next kept point: give it that index for reservation release.
 			areaIndex[area:GetID()] = #out + 1
@@ -417,6 +544,15 @@ local function findPathInner(fromPos, toPos, excluded, withAreas)
 	local startArea = resolveArea(fromPos)
 	local goalArea = resolveArea(toPos)
 	if not IsValid(startArea) or not IsValid(goalArea) then return nil, "off-mesh", 0 end
+	-- Standing off the mesh (spawned on a prop, ragdolled off an edge, a
+	-- hole in a generated mesh): walk back onto it at a point actually
+	-- reachable from here first, instead of heading for a corridor point
+	-- that may be behind the wall the nearest area was found through.
+	local lead
+	local onMesh = startArea:GetClosestPointOnArea(fromPos)
+	if onMesh and ((onMesh.x - fromPos.x) ^ 2 + (onMesh.y - fromPos.y) ^ 2 > 48 * 48 or math.abs(onMesh.z - fromPos.z) > 40) then
+		startArea, lead = hg.botdriver.NavRejoin(fromPos, startArea, onMesh)
+	end
 
 	local startID = startArea:GetID()
 	local goalID = goalArea:GetID()
@@ -433,10 +569,11 @@ local function findPathInner(fromPos, toPos, excluded, withAreas)
 		sameAreaTrace.start = fromPos + vector_up * 18
 		sameAreaTrace.endpos = toPos + vector_up * 18
 		local tr = util.TraceHull(sameAreaTrace)
-		if tr.Hit then
-			return { insetFromEdge(startArea, areaCenter(startArea), EDGE_MARGIN), toPos }, "success", 0, withAreas and { startID } or nil
-		end
-		return { toPos }, "success", 0, withAreas and { startID } or nil
+		local out = {}
+		if lead then out[1] = lead end
+		if tr.Hit then out[#out + 1] = insetFromEdge(startArea, areaCenter(startArea), EDGE_MARGIN) end
+		out[#out + 1] = toPos
+		return out, "success", 0, withAreas and { startID } or nil
 	end
 
 	hg.botdriver.NotePath()
@@ -482,10 +619,27 @@ local function findPathInner(fromPos, toPos, excluded, withAreas)
 				points[#points + 1] = areaCenter(corridor[index])
 			end
 			points[#points + 1] = toPos
+			local via
+			local links = hg.botdriver.navLinks
 			for index = 1, #points - 1 do
 				local hopArea = corridor[index + 1]
-				local refined = hopArea:GetClosestPointOnArea(points[index + 1]) or points[index]
-				points[index] = insetFromEdge(hopArea, refined, EDGE_MARGIN)
+				local row = links[corridor[index]:GetID()]
+				local link = row and row[hopArea:GetID()]
+				if link and link.entry then
+					points[index] = link.entry
+					if link.via then
+						via = via or {}
+						via[index] = link.via
+					end
+				else
+					local portal = portalPoint(corridor[index], hopArea, points[index + 1])
+					if portal then
+						points[index] = portal
+					else
+						local refined = hopArea:GetClosestPointOnArea(points[index + 1]) or points[index]
+						points[index] = insetFromEdge(hopArea, refined, EDGE_MARGIN)
+					end
+				end
 			end
 
 			local areaIDs
@@ -493,7 +647,7 @@ local function findPathInner(fromPos, toPos, excluded, withAreas)
 				areaIDs = {}
 				for index = 1, corridorCount do areaIDs[index] = corridor[index]:GetID() end
 			end
-			local smoothed, meta = smoothCorridor(fromPos, points, corridor, corridorCount)
+			local smoothed, meta = smoothCorridor(fromPos, points, corridor, corridorCount, via, lead)
 			releaseWorkspace(workspace)
 			return smoothed, "success", expansions, areaIDs, meta
 		end
@@ -510,6 +664,9 @@ local function findPathInner(fromPos, toPos, excluded, withAreas)
 					and not areaBlocked(adjacent, startArea, goalArea, time, learningEnabled) then
 					local adjacentCenter = areaCenter(adjacent)
 					local g = node.g + fromCenter:Distance(adjacentCenter)
+					local linkRow = hg.botdriver.navLinks[node.id]
+					local link = linkRow and linkRow[adjacentID]
+					if link then g = g + (link.cost or 0) end
 					if adjacent.HasAttributes then
 						if adjacent:HasAttributes(NAV_MESH_CROUCH or 1) then g = g + 60 end
 						if adjacent:HasAttributes(NAV_MESH_JUMP or 2) then g = g + 90 end
@@ -718,6 +875,8 @@ end
 
 local function searchPassable(from, area, now)
 	if not IsValid(area) or area:IsUnderwater() or (area.IsDamaging and area:IsDamaging()) then return false end
+	local bad = hg.botdriver.navBadEdges[from:GetID()]
+	if bad and bad[area:GetID()] then return false end
 	if area.IsBlocked and area:IsBlocked(-2, false) then return false end
 	if cv_learning:GetBool() then
 		if (hg.botdriver.navPenalties[areaKey(area:GetID())] or 0) >= PENALTY_THRESHOLD then return false end

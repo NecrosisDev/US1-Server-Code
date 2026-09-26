@@ -155,7 +155,7 @@ local function removeOneBot(bots)
 	end
 	victim = victim or bots[#bots]
 	if IsValid(victim) then
-		victim:Kick("zc_bots population adjustment")
+		victim:Kick(hg.botdriver.LEAVE_REASON or "Disconnect by user.")
 		return true
 	end
 	return false
@@ -236,6 +236,11 @@ hg.botfill.SupportedModes = {
 	activeshooter = true, gwars = true, criresp = true, riot = true, uncontainedriot = true,
 	wildcard = true, mayhem = true, coop = true, defense = true, homelanderhns = true,
 	["Cops/Gangsters"] = true,
+	-- 2026-09-26: the zc_juggernaut addon's hmcd round type. zb.nextround
+	-- carries the type key at ZB_PreRoundStart, so without it every bot sat
+	-- the round out; in-round CROUND_MAIN is "hmcd" and the Homicide profile
+	-- plays it (the Juggernaut is public: modes/sv_homicide.lua).
+	juggernaut = true,
 }
 
 hg.botdriver.Every("fill_tick", 2, hg.botfill.Tick)
@@ -342,6 +347,6 @@ end, nil, "Superadmin: list the bots on the server.")
 concommand.Add("zc_bots_kick", function(ply)
 	if not allowed(ply) then return end
 	for _, bot in ipairs(managedBots()) do
-		bot:Kick("zc_bots_kick")
+		bot:Kick(hg.botdriver.LEAVE_REASON or "Disconnect by user.")
 	end
 end, nil, "Superadmin: kick every managed bot.")

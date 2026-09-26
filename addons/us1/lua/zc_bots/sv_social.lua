@@ -219,6 +219,10 @@ timer.Create("zc_bots_social_ambient", 10, 0, function()
     if CurTime() - S.lastAmbient < 55 then return end
     for bot, b in RandomPairs(D.brains) do
         if enabled(bot) then
+            -- A running spectator conversation (sv_spec_talk.lua) owns dead chat.
+            local convoBusy = D.specTalk and D.specTalk.Busy and D.specTalk.Busy()
+            -- stay quiet; the conversation is the spectator chatter
+            if spectator(bot) and hasSpectator() and convoBusy then continue end
             if spectator(bot) and hasSpectator() then
                 if D.ChatterSpeak(bot,b,"spec_open",nil,.24,false,{spectatorOnly=true,validate=spectator,after=banterReply}) then S.lastAmbient = CurTime() break end
             elseif bot:Alive() and D.RoundAllowsCombat() and not IsValid(b.target) then
