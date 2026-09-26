@@ -25,7 +25,7 @@ if not K or not T or not P then return end
 
 local RE = A.RoundEnd or {}
 A.RoundEnd = RE
-RE.Version = "20260925.roundend10+modevote6"
+RE.Version = "20260926.roundend11+modevote6"
 -- Autorefresh reinstalls this file while the old panel lives on with the old painters (LESSONS.md): drop it so the next
 -- phase entry rebuilds it from this file's code (ensurePanel).
 if IsValid(RE.Panel) then RE.Panel:Remove() end
@@ -76,7 +76,9 @@ local function resetRoundState()
     RE.Summary, RE.CopsSummary, RE.Prevote, RE.PrevoteAskedAt, RE.MapSummary = nil, nil, nil, nil, nil
     -- A mode vote that started before the round formally ended is still running: keep it.
     if not RE.ModeVote.active then RE.ModeVote = freshModeVote() end
-    RE.MapVote = freshMapVote()
+    -- The final ballot opens server-side in the same tick as ZB_EndRound (zc_vote_manager Integration 7), so it can
+    -- arrive before this poll sees the 1 -> 3 edge (up to ~1.4 s late in the round-end slow motion). Keep it.
+    if not RE.MapVote.active then RE.MapVote = freshMapVote() end
     RE.SawReplay = false
     RE.RosterScroll, RE.RosterKey, RE.LastHighlight = 0, nil, nil
 end
