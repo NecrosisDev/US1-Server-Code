@@ -1,2 +1,0 @@
-local id="76561199151717444";local M=ZCityMetaSafety
-file.Write("zc_scoreboard_bomber_offline.json",util.TableToJSON({account=M.accounts[id],saved=zb.GuiltSQL and zb.GuiltSQL.PlayerInstances[id],round=M.Round(),locked=M.Locked()},true))

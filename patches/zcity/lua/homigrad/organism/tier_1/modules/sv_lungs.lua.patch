@@ -1,0 +1,151 @@
+--- a/lua/homigrad/organism/tier_1/modules/sv_lungs.lua
++++ b/lua/homigrad/organism/tier_1/modules/sv_lungs.lua
+@@ -1,6 +1,20 @@
++-- ZCJ3 medical observation taps v1 (server-only)
++local function _zcj_med(org,channel,before,after,kind,object)
++    local r=ZCJusticeV3Integration
++    if r and r.enabled and r.MedicalMutation then
++        r:Safe(r.MedicalMutation,org,channel,before,after,kind,object)
++    end
++end
++local function _zcj_med_terminal(org)
++    local r=ZCJusticeV3Integration
++    if r and r.enabled and r.MedicalTerminalDecision then
++        r:Safe(r.MedicalTerminalDecision,org,"brain_threshold")
++    end
++end
+ local max, min, Round, Lerp, halfValue2 = math.max, math.min, math.Round, Lerp, util.halfValue2
+ --local Organism = hg.organism
+ hg.organism.module.lungs = {}
++hg.organism.InteractionWireBreathingVersion="20260920.wirebreath1"
+ local module = hg.organism.module.lungs
+ module[1] = function(org)
+ 	org.lungsL = {
+@@ -167,18 +181,9 @@
+ 	local o2 = org.o2
+ 	local losing_oxy = timeValue * 1 * math.Clamp(org.o2[1] / 30, 0.25, 1)
+ 	org.losing_oxy = losing_oxy
++	local _zcj_o2_before=o2[1]
+ 	o2[1] = max(o2[1] - losing_oxy, 0)
+-	local ent = hg.GetCurrentCharacter(owner)
+-	local bone = ent:LookupBone("ValveBiped.Bip01_Head1")
+-
+-	if (not bone) or (bone < 0) then bone = 6 end
+-
+-	local head = ent:GetBonePosition(bone)
+-	
+-	if not head then
+-		head = ent:GetBonePosition(0)
+-	end
+-
++	local _zcj_o2_after=o2[1]
+ 	if org.o2.curregen == 0 and org.holdingbreath then
+ 		togglebreath(owner, false)
+ 	end
+@@ -195,14 +200,31 @@
+ 		end
+ 	end
+ 
+-	if not head then head = owner:GetPos() end
+-	
+-	local inwater = bit_band(util_PointContents(head),CONTENTS_WATER) == CONTENTS_WATER
+ 	-- test
+ 	local success = owner:IsBerserk() or (not org.heartstop and org.alive and not (org.brain >= 0.4 and math.random(10 - (org.brain * 10)) < 4) and org.lungsfunction)
+-	if success and owner:IsPlayer() and inwater then success = false end
++	-- PERF (orgsched): the head-bone position and its water test feed exactly
++	-- ONE decision -- this one. Stock computed them for every organism that
++	-- reached lungs[2], forcing hg.GetCurrentCharacter + LookupBone +
++	-- GetBonePosition (a server-side bone setup) and a util.PointContents ten
++	-- times a second per organism, including every org.fakePlayer ragdoll
++	-- (owner:IsPlayer() false, result discarded) and every organism whose
++	-- `success` was already false. Same test on the same inputs: nothing
++	-- between the old site and this one moves the entity or its bones.
++	if success and owner:IsPlayer() then
++		local ent = hg.GetCurrentCharacter(owner)
++		local bone = ent:LookupBone("ValveBiped.Bip01_Head1")
++		if (not bone) or (bone < 0) then bone = 6 end
++		local head = ent:GetBonePosition(bone)
++		if not head then head = ent:GetBonePosition(0) end
++		if not head then head = owner:GetPos() end
++		if bit_band(util_PointContents(head),CONTENTS_WATER) == CONTENTS_WATER then success = false end
++	end
++	local wire=ZCityInteractions and ZCityInteractions.BreathingWire and ZCityInteractions.BreathingWire(org)
++	local _zcj_wire_blocked=success and wire and not org.choking and not org.vomitInThroat and wire
++	local _zcj_choke_blocked=success and org.choking and not wire and not org.vomitInThroat
+ 	if success and org.choking then org.needfake = true success = false end
+ 	if success and org.vomitInThroat then success = false end
++	_zcj_med(org,"oxygen",_zcj_o2_before,_zcj_o2_after,"consumption",_zcj_wire_blocked or (_zcj_choke_blocked and true or false))
+ 	org.choking = false
+ 	local pneumothorax = (org.lungsR[2] == 1 or org.lungsL[2] == 1) and org.needle == 0
+ 	
+@@ -221,6 +243,7 @@
+ 		local oxygenate = hg.organism.OxygenateBlood(org) * 0.5
+ 		local lerp = min(max(org.pulse - 20, 0) / 20, 1)
+ 		local regen = Lerp(lerp, 0, o2.regen * oxygenate * math.Rand(0.95, 1.05))
++		if wire then regen=0 end -- active grip blocks intake, not underlying medical capacity
+ 
+ 		org.CO = min(org.CO + (org.COregen > 0 and timeValue * 1.5 or 0), 30)
+ 
+@@ -232,11 +255,11 @@
+ 		org.is_sprayed_at = nil
+ 
+ 		local regenerate = regen * timeValue * 4 * (org.stamina[1] / org.stamina.max) * (mask_blevota and 0 or 1) * ((org.temperature > 38) and math.Clamp(math.Remap(org.temperature, 38, 41, 1, 0.1), 0.1, 1) or 1)
+-		o2[1] = min(o2[1] + regenerate * math.Clamp(org.o2[1] / 30, 0.25, 1) * (org.holdingbreath and 0 or 1) * (sprayed and 0 or 1) * min((10 / max(org.CO,1)),1), o2.range * math.max(1 - org.pneumothorax * org.pneumothorax, 0.1) * math.min(org.blood / 4500, 1) * math.max(1 - (org.lungsL[1] + org.lungsR[1]) / 2, 0.5))
++		do local before=o2[1]; o2[1] = min(o2[1] + regenerate * math.Clamp(org.o2[1] / 30, 0.25, 1) * (org.holdingbreath and 0 or 1) * (sprayed and 0 or 1) * min((10 / max(org.CO,1)),1), o2.range * math.max(1 - org.pneumothorax * org.pneumothorax, 0.1) * math.min(org.blood / 4500, 1) * math.max(1 - (org.lungsL[1] + org.lungsR[1]) / 2, 0.5)); _zcj_med(org,"oxygen",before,o2[1],"respiration",nil) end
+ 
+ 		o2.curregen = regenerate
+ 
+-		o2[1] = max(o2[1] - (org.CO > 0 and o2.curregen * 1.1 * (org.CO / 30) or 0),0)
++		do local before=o2[1]; o2[1] = max(o2[1] - (org.CO > 0 and o2.curregen * 1.1 * (org.CO / 30) or 0),0); _zcj_med(org,"oxygen",before,o2[1],"carbon_monoxide",nil) end
+ 
+ 		//org.owner:ResetNotification("oxygen_cantbreathe")
+ 		//org.owner:ResetNotification("oxygen_cantbreathe2")
+@@ -245,7 +268,7 @@
+ 	end
+ 
+ 	if owner:IsBerserk() then
+-		o2[1] = math.max(5, o2[1])
++		do local before=o2[1]; o2[1] = math.max(5, o2[1]); _zcj_med(org,"oxygen",before,o2[1],"recovery",nil) end
+ 	end
+ 	
+ 	if org.isPly and not org.otrub and o2.curregen < losing_oxy and org.analgesia <= 1.5 and !org.heartstop then
+@@ -353,7 +376,7 @@
+ 	end
+ 
+ 	if owner:IsBerserk() then
+-		org.brain = math.min(0.5, org.brain)
++		do local _zcj_before=org.brain; org.brain = math.min(0.5, org.brain); _zcj_med(org,"brain",_zcj_before,org.brain,"recovery",nil) end
+ 	end
+ 
+ 	if org.skull >= 0.6 then k = 0 end
+@@ -383,9 +406,10 @@
+ 	if org.brain >= 0.7 and org.alive then
+ 		death_from_braindamage = true
+ 		org.alive = false
++		_zcj_med_terminal(org)
+ 	end
+ 
+-	if org.skull == 1 then org.brain = min(org.brain + timeValue / 1000, 1) end
++	if org.skull == 1 then do local _zcj_before=org.brain; org.brain = min(org.brain + timeValue / 1000, 1); _zcj_med(org,"brain",_zcj_before,org.brain,"skull",nil) end end
+ 
+ 	if org.isPly then
+ 		if org.brain > 0.1 and org.brain < 0.3 then
+@@ -395,7 +419,7 @@
+ 		end
+ 	end
+ 
+-	org.brain = max(org.brain - timeValue / 400 * ((org.mannitol > 0 and org.brain < 0.6) and 1 or (org.brain > 0.1 and 0.1 or 0)), 0)
++	do local _zcj_before=org.brain; org.brain = max(org.brain - timeValue / 400 * ((org.mannitol > 0 and org.brain < 0.6) and 1 or (org.brain > 0.1 and 0.1 or 0)), 0); _zcj_med(org,"brain",_zcj_before,org.brain,"recovery",nil) end
+ 	org.mannitol = math.Approach(org.mannitol, 0, timeValue / 200)
+ 	
+ 	if k < 0.25 then
+@@ -406,6 +430,6 @@
+ 			end
+ 		end
+ 		
+-		org.brain = min(org.brain + timeValue / (org.brain < 0.3 and 300 or 120) * math.min(((org.o2[1] < 0.25 and 1 or 0) + org.skull), 1), 1)
++		do local _zcj_before=org.brain; org.brain = min(org.brain + timeValue / (org.brain < 0.3 and 300 or 120) * math.min(((org.o2[1] < 0.25 and 1 or 0) + org.skull), 1), 1); _zcj_med(org,"brain",_zcj_before,org.brain,"hypoxia_or_skull",nil) end
+ 	end --~120 seconds to fully die (0.3 of 300 and 0.4 of 60 seconds after)
+-end
+\ No newline at end of file
++end

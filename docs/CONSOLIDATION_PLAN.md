@@ -1,5 +1,8 @@
 # Consolidation and release target
 
+> Superseded for layout and status by [ARCHITECTURE.md](ARCHITECTURE.md) and [MIGRATION.md](MIGRATION.md).
+> The release constraints below still apply.
+
 Goal: organize the server into a maintainable source project, consolidate everything
 that can safely share a release, and upload/deploy only after validation.
 The raw addon import is an intermediate input, not the final distribution layout.

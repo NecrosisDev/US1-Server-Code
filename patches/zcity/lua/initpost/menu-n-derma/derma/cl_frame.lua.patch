@@ -1,0 +1,58 @@
+--- a/lua/initpost/menu-n-derma/derma/cl_frame.lua
++++ b/lua/initpost/menu-n-derma/derma/cl_frame.lua
+@@ -1,7 +1,7 @@
+ --
+ 
+ ----
+-local PANEL = {}
++local PANEL = { ZCUIRecoveryVersion="20260916.1" }
+ --[[
+ hg.VGUI.SecondaryColor = Color(155,0,0,240)
+ hg.VGUI.BackgroundColor = Color(25,25,35,220)]]
+@@ -20,7 +20,7 @@
+     self.BlurStrengh = 2
+ 
+     timer.Simple(0,function()
+-        if self.First then
++        if IsValid(self) and not self.Closing and self.First then
+             self:First()
+         end
+     end)
+@@ -28,7 +28,7 @@
+ 
+ function PANEL:Paint(w,h)
+     draw.RoundedBox(0,0,0,w,h,self.ColorBG)
+-    hg.DrawBlur(self, self.BlurStrengh)
++    if hg and isfunction(hg.DrawBlur) then hg.DrawBlur(self, self.BlurStrengh) end
+ 
+     if self.DrawBorder then
+         surface.SetDrawColor(self.ColorBR)
+@@ -64,15 +64,21 @@
+ 
+ function PANEL:Close()
+     if self.Closing then return end
+-    self.Closing = true
+-    self:MoveTo(self:GetX(), ScrH() / 2 + self:GetTall(), 5, 0, 0.3, function()
+-    end)
+-    self:AlphaTo( 0, 0.2, 0, function() 
+-        if self.OnClose then self:OnClose() end 
+-        self:Remove() 
+-    end)
++    self.Closing=true
+     self:SetKeyboardInputEnabled(false)
+     self:SetMouseInputEnabled(false)
++    local function finish()
++        if not IsValid(self) or self.ZCCloseFinished then return end
++        self.ZCCloseFinished=true
++        local ok,err=true,nil
++        if self.OnClose then ok,err=xpcall(function()self:OnClose()end,debug.traceback)end
++        if IsValid(self)then self:Remove()end
++        if not ok then ErrorNoHalt("[ZCity UI] OnClose failed: "..tostring(err).."\n")end
++    end
++    -- Also remove when the animation completion callback is interrupted.
++    timer.Simple(0.3,finish)
++    self:MoveTo(self:GetX(),ScrH()/2+self:GetTall(),5,0,0.3,function()end)
++    self:AlphaTo(0,0.2,0,finish)
+ end
+ 
+ vgui.Register( "ZFrame", PANEL, "DFrame")

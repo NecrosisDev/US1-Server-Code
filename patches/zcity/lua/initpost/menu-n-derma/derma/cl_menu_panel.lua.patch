@@ -1,0 +1,220 @@
+--- a/lua/initpost/menu-n-derma/derma/cl_menu_panel.lua
++++ b/lua/initpost/menu-n-derma/derma/cl_menu_panel.lua
+@@ -1,4 +1,4 @@
+-local PANEL = {}
++local PANEL = {ZCPauseSkinVersion="20260916.2"}
+ local curent_panel 
+ local red_select = Color(192,0,0)
+ 
+@@ -11,72 +11,72 @@
+     {Title = "Traitor Role",
+     GamemodeOnly = true,
+     CreatedFunc = function(self, parent, luaMenu)
+-        local btn = vgui.Create( "DLabel", self )
+-        btn:SetText( "SOE" )
+-        btn:SetMouseInputEnabled( true )
+-        btn:SizeToContents()
+-        btn:SetFont( "ZCity_Small" )
+-        btn:SetTall( ScreenScale( 15 ) )
+-        btn:Dock(BOTTOM)
+-        btn:DockMargin(ScreenScale(20),ScreenScale(10),0,0)
+-        btn:SetTextColor(Color(255,255,255))
+-        btn:InvalidateParent()
+-        btn.RColor = Color(225, 225, 225, 0)
+-        btn.WColor = Color(225, 225, 225, 255)
+-        btn.x = btn:GetX()
+-
+-        function btn:DoClick()
+-            luaMenu:Close()
+-            hg.SelectPlayerRole(nil, "soe")
+-        end
+-    
+         local selfa = self
+-        function btn:Think()
+-            self.HoverLerp = selfa.HoverLerp
+-            self.HoverLerp2 = LerpFT(0.2, self.HoverLerp2 or 0, self:IsHovered() and 1 or 0)
+-                
+-            self:SetTextColor(self.RColor:Lerp(self.WColor:Lerp(red_select, self.HoverLerp2), self.HoverLerp))
+-            self:SetX(self.x + ScreenScaleH(40) + self.HoverLerp * ScreenScaleH(50))
+-        end
++        selfa.FlyoutButtons = {}
+ 
+-        local btn = vgui.Create( "DLabel", btn )
+-        btn:SetText( "STD" )
+-        btn:SetMouseInputEnabled( true )
+-        btn:SizeToContents()
+-        btn:SetFont( "ZCity_Small" )
+-        btn:SetTall( ScreenScale( 15 ) )
+-        btn:Dock(BOTTOM)
+-        btn:DockMargin(0,ScreenScale(2),0,0)
+-        btn:SetTextColor(Color(255,255,255))
+-        btn:InvalidateParent()
+-        btn.RColor = Color(225, 225, 225, 0)
+-        btn.WColor = Color(225, 225, 225, 255)
+-        btn.x = btn:GetX()
+-
+-        function btn:DoClick()
+-            luaMenu:Close()
+-            hg.SelectPlayerRole(nil, "standard")
+-        end
+-    
+-        function btn:Think()
+-            self.HoverLerp = selfa.HoverLerp
+-            self.HoverLerp2 = LerpFT(0.2, self.HoverLerp2 or 0, self:IsHovered() and 1 or 0)
+-    
+-            self:SetTextColor(self.RColor:Lerp(self.WColor:Lerp(red_select, self.HoverLerp2), self.HoverLerp))
+-            self:SetX(self.x + ScreenScaleH(35))
++        -- The flyout buttons live on the FULL-SCREEN menu root, not nested
++        -- inside this label: nested, they inherit the left dock's clip rect
++        -- (ScrW/4 wide), and the third button (GFZ) lands right on that edge -
++        -- painted cut off and awkward to click. On the root nothing clips.
++        local function make_flyout(text, mode, offset)
++            local btn = vgui.Create( "DLabel", luaMenu )
++            btn:SetText( text )
++            btn:SetMouseInputEnabled( true )
++            btn:SetFont( "ZCity_Small" )
++            btn:SizeToContents()
++            btn:SetTall( ScreenScale( 15 ) )
++            btn:SetTextColor(Color(255,255,255))
++            btn:SetZPos(1000)
++            btn.RColor = Color(225, 225, 225, 0)
++            btn.WColor = Color(225, 225, 225, 255)
++
++            function btn:DoClick()
++                luaMenu:Close()
++                hg.SelectPlayerRole(nil, mode)
++            end
++
++            function btn:Think()
++                if(not IsValid(selfa))then return end
++                self.HoverLerp = selfa.HoverLerp or 0
++                self.HoverLerp2 = LerpFT(0.2, self.HoverLerp2 or 0, self:IsHovered() and 1 or 0)
++
++                self:SetTextColor(self.RColor:Lerp(self.WColor:Lerp(red_select, self.HoverLerp2), self.HoverLerp))
++
++                -- follow the "Traitor Role" label, in menu-root coordinates
++                local sx, sy = selfa:LocalToScreen(0, 0)
++                local ax, ay = luaMenu:ScreenToLocal(sx, sy)
++                self:SetPos(ax + ScreenScaleH(40) + self.HoverLerp * ScreenScaleH(50) + ScreenScaleH(offset), ay)
++
++                -- clickable only while the flyout is actually out, so the
++                -- invisible labels never eat clicks meant for anything else
++                self:SetMouseInputEnabled(self.HoverLerp > 0.05)
++            end
++
++            selfa.FlyoutButtons[#selfa.FlyoutButtons + 1] = btn
++            return btn
+         end
++
++        make_flyout("SOE", "soe", 0)
++        make_flyout("STD", "standard", 35)
++        make_flyout("GFZ", "gunfreezone", 70)
+     end,
+     Func = function(luaMenu)
+         
+     end,
+     },
+-    {Title = "Achievements", Func = function(luaMenu,pp) 
+-        hg.DrawAchievmentsMenu(pp)
++    {Title = "Progress", Func = function(luaMenu,pp) 
++        if ZCGoobApps and ZCGoobApps.Launch("progress") then luaMenu:Close() else hg.DrawAchievmentsMenu(pp) end
+     end},
+     {Title = "Settings", Func = function(luaMenu,pp) 
+-        hg.DrawSettings(pp) 
++        if ZCGoobApps and ZCGoobApps.Launch("settings") then luaMenu:Close() else hg.DrawSettings(pp) end 
+     end},
+-    {Title = "Appearance", Func = function(luaMenu,pp) hg.CreateApperanceMenu(pp) end},
++    {Title = "Appearance", Func = function(luaMenu,pp) if ZCGoobApps and ZCGoobApps.Launch("wardrobe") then luaMenu:Close() else hg.CreateApperanceMenu(pp) end end},
++    -- Achievements, Settings and Appearance all draw INTO the menu, because each has a creator that takes
++    -- the parent panel. The shop does not: HG_PointShop (cl_pointshop.lua) is a self-centring popup that
++    -- animates itself in from ScrH()/2 and calls MakePopup, so it follows the Discord and Main Menu entries
++    -- above instead -- close, then hand off. Routed through the hg_pointshop concommand rather than
++    -- vgui.Create, so this button and !pointshop remain one code path with one place to break.
++    {Title = "Pointshop", Func = function(luaMenu) luaMenu:Close() RunConsoleCommand("hg_pointshop") end},
+     {Title = "Return", Func = function(luaMenu) luaMenu:Close() end},
+ }
+ 
+@@ -117,7 +117,7 @@
+ 	end
+ 	local gm = splasheh[math.random(#splasheh)] .. " | " .. string.NiceName(mapname) 
+ 
+-    if hg.PluvTown.Active then
++    if hg.PluvTown and hg.PluvTown.Active then
+         local text = "<font=ZC_MM_Title><colour=199,2,2>    </colour>City</font>\n<font=ZCity_Tiny><colour=105,105,105>" .. gm .. "</colour></font>"
+ 
+         self.SelectedPluv = table.Random(hg.PluvTown.PluvMats)
+@@ -147,7 +147,7 @@
+     self.Title, self.TitleShadow = self:InitializeMarkup()
+ 
+     timer.Simple(0, function()
+-        if self.First then
++        if IsValid(self) and not self.Closing and self.First then
+             self:First()
+         end
+     end)
+@@ -158,7 +158,7 @@
+     lDock:SetSize(ScrW() / 4, ScrH())
+     lDock:DockMargin(ScreenScale(0), ScreenScaleH(90), ScreenScale(10), ScreenScaleH(90))
+     lDock.Paint = function(this, w, h)
+-        if hg.PluvTown.Active then
++        if hg.PluvTown and hg.PluvTown.Active then
+             surface.SetDrawColor(color_white)
+             surface.SetMaterial(self.SelectedPluv or Pluv)
+             surface.DrawTexturedRect(0, ScreenScale(27), ScreenScale(35), ScreenScale(27))
+@@ -259,6 +259,7 @@
+ 				surface.PlaySound("shitty/tap_release.wav")
+ 			end
+             luaMenu.panelparrent:AlphaTo(0,0.2,0,function()
++            if not IsValid(luaMenu) or luaMenu.Closing or not IsValid(luaMenu.panelparrent) then return end
+                 luaMenu.panelparrent:Remove()
+                 luaMenu.panelparrent = nil
+                 luaMenu.panelparrent = vgui.Create("DPanel", luaMenu)
+@@ -275,6 +276,7 @@
+         some_size_y = luaMenu.panelparrent:GetTall()
+         some_coordinates_x = luaMenu.panelparrent:GetX()
+         luaMenu.panelparrent:AlphaTo(0,0.2,0,function()
++            if not IsValid(luaMenu) or luaMenu.Closing or not IsValid(luaMenu.panelparrent) then return end
+             luaMenu.panelparrent:Remove()
+             luaMenu.panelparrent = nil
+             luaMenu.panelparrent = vgui.Create("DPanel", luaMenu)
+@@ -291,7 +293,15 @@
+     end
+ 
+     function btn:Think()
+-        self.HoverLerp = LerpFT(0.2, self.HoverLerp or 0, (self:IsHovered() or (IsValid(self:GetChild(0)) and self:GetChild(0):IsHovered()) or (IsValid(self:GetChild(0)) and IsValid(self:GetChild(0):GetChild(0)) and self:GetChild(0):GetChild(0):IsHovered())) and 1 or 0)
++        -- keep the flyout open while hovering this label OR any of its flyout
++        -- buttons (SOE/STD/GFZ live on the menu root now, so check them directly)
++        local flyout_hovered = self:IsHovered()
++        if(not flyout_hovered and self.FlyoutButtons)then
++            for _, fb in ipairs(self.FlyoutButtons) do
++                if(IsValid(fb) and fb:IsHovered())then flyout_hovered = true break end
++            end
++        end
++        self.HoverLerp = LerpFT(0.2, self.HoverLerp or 0, flyout_hovered and 1 or 0)
+ 
+         local v = self.HoverLerp
+         self:SetTextColor(self.RColor:Lerp(red_select, v))
+@@ -320,9 +330,13 @@
+ end
+ 
+ function PANEL:Close()
+-    self:AlphaTo( 0, 0.1, 0, function() self:Remove() end)
++    if self.Closing then return end
++    self.Closing=true
+     self:SetKeyboardInputEnabled(false)
+     self:SetMouseInputEnabled(false)
++    local function finish()if IsValid(self)then self:Remove()end end
++    timer.Simple(0.25,finish)
++    self:AlphaTo(0,0.1,0,finish)
+ end
+ 
+ vgui.Register( "ZMainMenu", PANEL, "ZFrame")
+@@ -340,6 +354,8 @@
+     end
+ 
+     MainMenu = vgui.Create("ZMainMenu")
++    if not IsValid(MainMenu) then return end
++    MainMenu:SetSkin("ZCity")
+     MainMenu:MakePopup()
+     return false
+ end)

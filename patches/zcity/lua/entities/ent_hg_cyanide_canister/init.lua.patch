@@ -1,0 +1,44 @@
+--- a/lua/entities/ent_hg_cyanide_canister/init.lua
++++ b/lua/entities/ent_hg_cyanide_canister/init.lua
+@@ -3,6 +3,7 @@
+ include("shared.lua")
+ 
+ util.AddNetworkString("cyanide_debug")
++util.AddNetworkString("cyanide_traitorgas")
+ function ENT:Initialize()
+ 	self.spawntime = CurTime()
+ 	self.particles = {}
+@@ -81,9 +82,30 @@
+ 			end
+ 		end
+ 	end
+-	--[[net.Start("cyanide_debug")
+-	net.WriteTable(self.particles)
+-	net.Broadcast()--]]
++	-- traitor gas vision: network live particle positions to traitors
++	-- ONLY, so they can see (and avoid) their team's cyanide clouds
++	local traitors = {}
++	for _, p in player.Iterator() do
++		if p.SubRole and string.find(tostring(p.SubRole), "traitor", 1, true) then
++			traitors[#traitors + 1] = p
++		end
++	end
++
++	if #traitors > 0 then
++		local live = {}
++		for _, tbl in ipairs(self.particles) do
++			if tbl then live[#live + 1] = tbl[1] end
++		end
++
++		net.Start("cyanide_traitorgas")
++			net.WriteEntity(self)
++			net.WriteUInt(#live, 6)
++			for _, pos in ipairs(live) do
++				net.WriteVector(pos)
++			end
++		net.Send(traitors)
++	end
++
+ 	self:NextThink(CurTime() + 1)
+ 	return true
+ end

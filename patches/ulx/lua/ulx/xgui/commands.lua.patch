@@ -1,0 +1,22 @@
+--- a/lua/ulx/xgui/commands.lua
++++ b/lua/ulx/xgui/commands.lua
+@@ -266,7 +266,10 @@
+ 	local cmd = string.Explode( " ", cmd )
+ 	if cmds.plist:IsVisible() then
+ 		local plys = {}
+-		for _, line in ipairs( cmds.plist:GetSelected() ) do
++		local selected = cmds.plist:GetSelected()
++		if #selected == 0 then return end
++		for _, line in ipairs( selected ) do
++			if not IsValid(line) or not IsValid(line.ply) then return end
+ 			table.insert( plys, "$" .. ULib.getUniqueIDForPlayer( line.ply ) )
+ 			table.insert( plys, "," )
+ 		end
+@@ -275,6 +278,7 @@
+ 	end
+ 
+ 	for _, arg in ipairs( cmds.curargs ) do
++		if not IsValid(arg) then return end
+ 		if not arg.xguiIgnore then
+ 			table.insert( cmd, arg:GetValue() )
+ 		end

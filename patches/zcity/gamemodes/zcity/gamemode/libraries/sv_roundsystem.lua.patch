@@ -1,0 +1,220 @@
+--- a/gamemodes/zcity/gamemode/libraries/sv_roundsystem.lua
++++ b/gamemodes/zcity/gamemode/libraries/sv_roundsystem.lua
+@@ -47,6 +47,7 @@
+ end
+ 
+ function zb:PreRound()
++	if self.ReplayTransition then return end
+ 	if ((((zb.Roundscount or 0) > 15) and !GetConVar("zb_dev"):GetBool()) or ( (player.GetCount() > 1) and zb.ROUND_STATE == 0 and zb.CheckRTVVotes() )) and !(zb.RoundsLeft and zb.CROUND == "cstrike") then
+ 		zb.StartRTV(20)
+ 		zb.ROUND_STATE = 0
+@@ -83,6 +84,7 @@
+ 	net.Broadcast()
+ 
+ 	--PrintMessage(HUD_PRINTTALK, "Раунд закончен.")
++	if ZCGoobArcade and ZCGoobArcade.SafeCapture then ZCGoobArcade.SafeCapture(mode) end
+ 	CurrentRound():EndRound()
+ 	hook.Run("ZB_EndRound")
+ 	zb.AddFade()
+@@ -127,6 +129,7 @@
+ end
+ 
+ function zb:EndRoundThink()
++	if self.ReplayTransition then return end
+ 	if zb.ROUND_STATE == 1 and zb:ShouldRoundEnd() then zb:EndRound() end
+ 	if zb.ROUND_STATE == 3 then
+ 		if !zb.END_TIME then
+@@ -149,39 +152,7 @@
+ 		end
+ 
+ 		if zb.END_TIME < CurTime() then
+-			zb.ROUND_STATE = 0
+-
+-			zb.SHOULD_FADE = true
+-
+-			hook.Run("ZB_PreRoundStart")
+-			hook.Run("TTTPrepareRound") -- stormfox2 random_round_weather
+-
+-			zb.CROUND = zb.nextround or "hmcd"
+-			if CurrentRound().shouldfreeze then zb:Freeze() end
+-
+-			--PrintMessage(HUD_PRINTTALK, "Gamemode: " .. CurrentRound().PrintName or "None")
+-
+-			local mode, round = CurrentRound()
+-			net.Start("RoundInfo")
+-				net.WriteString(mode.name or "hmcd")
+-				net.WriteInt(zb.ROUND_STATE, 4)
+-			net.Broadcast()
+-
+-			hg.UpdateRoundTime(CurrentRound().ROUND_TIME, CurTime(), CurTime() + (CurrentRound().start_time or 5))
+-
+-			self:KillPlayers()
+-			self:AutoBalance()
+-
+-			if hg.PluvTown.Active then
+-				for _, ply in player.Iterator() do
+-					ply:SetNetVar("CurPluv", "pluv")
+-				end
+-			end
+-
+-			CurrentRound().saved = {}
+-
+-			CurrentRound():Intermission()
+-			CurrentRound():GiveEquipment()
++			self:BeginReplayTransition(CurTime())
+ 		end
+ 	end
+ end
+@@ -209,26 +180,26 @@
+ 
+ hook.Add("Think", "zb-think", function() zb:Think(CurTime()) end)
+ 
+-function zb:KillPlayers()
+-	local mode = CurrentRound()
+-	for i, ply in player.Iterator() do
+-		if ply:Team() == TEAM_SPECTATOR then continue end
+-
+-		ply:GiveExp(math.random(4,15))
+-
+-		if ply:Alive() and mode.DontKillPlayer and mode:DontKillPlayer(ply) then
+-			hg.organism.Clear(ply.organism)
+-			hg.FakeUp(ply,true,true)
+-
+-			continue
+-		end
+-		
+-		if ply:FlashlightIsOn() then ply:Flashlight(false) end
++function zb:ResetRoundPlayer(ply, mode)
++    if not IsValid(ply) or ply:Team() == TEAM_SPECTATOR then return end
++    ply:GiveExp(math.random(4,15))
++    if ply:Alive() and mode.DontKillPlayer and mode:DontKillPlayer(ply) then
++        hg.organism.Clear(ply.organism)
++        hg.FakeUp(ply,true,true)
++        return
++    end
++    if ply:FlashlightIsOn() then ply:Flashlight(false) end
++    ply:KillSilent()
++    ply:Spawn()
++    ply:SetPlayerClass()
++end
+ 
+-		ply:KillSilent()
+-		ply:Spawn()
+-		ply:SetPlayerClass()
+-	end
++function zb:KillPlayers()
++    local mode = CurrentRound()
++    for _, ply in ipairs(player.GetAll()) do
++        self:ResetRoundPlayer(ply, mode)
++        self:TransitionYield()
++    end
+ end
+ 
+ zb.forcemode = zb.forcemode or "random"
+@@ -560,6 +531,7 @@
+ end)
+ 
+ function zb:RoundStart()
++	if self.ReplayTransition then return end
+ 	if CurrentRound().shouldfreeze then zb:Unfreeze() end
+ 
+ 	zb.ROUND_STATE = 1
+@@ -867,3 +839,98 @@
+ 	end)
+ 
+ end
++
++-- A yield is valid only inside our own transition coroutine. Other callers stay synchronous.
++function zb:TransitionYield()
++    local job = self.ReplayTransition
++    if job and coroutine.running() == job.co then coroutine.yield() end
++end
++
++function zb:PrepareReplayRound()
++	zb.ROUND_STATE = 0
++
++	zb.SHOULD_FADE = true
++
++	hook.Run("ZB_PreRoundStart")
++	hook.Run("TTTPrepareRound") -- stormfox2 random_round_weather
++
++	zb.CROUND = zb.nextround or "hmcd"
++	if CurrentRound().shouldfreeze then zb:Freeze() end
++
++	--PrintMessage(HUD_PRINTTALK, "Gamemode: " .. CurrentRound().PrintName or "None")
++
++	local mode, round = CurrentRound()
++	net.Start("RoundInfo")
++		net.WriteString(mode.name or "hmcd")
++		net.WriteInt(zb.ROUND_STATE, 4)
++	net.Broadcast()
++
++	hg.UpdateRoundTime(CurrentRound().ROUND_TIME, CurTime(), math.max(CurTime(), self.ReplayTransition.releaseAt) + (CurrentRound().start_time or 5))
++
++	self:TransitionYield()
++	self:KillPlayers()
++	self:TransitionYield()
++	self:AutoBalance()
++	self:TransitionYield()
++
++	if hg.PluvTown.Active then
++		for _, ply in player.Iterator() do
++			if IsValid(ply) then ply:SetNetVar("CurPluv", "pluv") end
++			self:TransitionYield()
++		end
++	end
++
++	CurrentRound().saved = {}
++
++	self:TransitionYield()
++	CurrentRound():Intermission()
++	self:TransitionYield()
++	CurrentRound():GiveEquipment()
++	self:TransitionYield()
++end
++
++function zb:BeginReplayTransition(releaseAt)
++    if self.ReplayTransition or self.ROUND_STATE ~= 3 then return false end
++    if not isnumber(releaseAt) or releaseAt ~= releaseAt or math.abs(releaseAt) == math.huge then return false end
++    local nextMode = self.modes[self:GetMode(self.nextround or "hmcd")]
++    -- Modes opt into early preparation only after their Intermission timers are audited.
++    if releaseAt > CurTime() and not (nextMode and nextMode.ReplayPreparationSupported) then return false end
++    local job = {releaseAt = releaseAt, started = CurTime()}
++    job.co = coroutine.create(function() self:PrepareReplayRound() end)
++    self.ReplayTransition = job
++    return true
++end
++
++function zb:StepReplayTransition()
++    local job = self.ReplayTransition
++    if not job then return end
++    if (not job.entered and self.ROUND_STATE ~= 3) or
++        (job.entered and (self.ROUND_STATE ~= 0 or self.CROUND ~= job.mode)) then
++        self.ReplayTransition = nil -- staff/mode change invalidates unfinished work
++        return
++    end
++    if not job.done then
++        local ok, err = coroutine.resume(job.co) -- at most one player or stage each server tick
++        if not job.entered then job.entered, job.mode = true, self.CROUND end
++        if not ok then
++            ErrorNoHalt("[Round transition] " .. tostring(err) .. "\n")
++            job.error = tostring(err)
++        end
++        job.done = not ok or coroutine.status(job.co) == "dead"
++    end
++    local deadline = self.END_TIME
++    if isnumber(deadline) and deadline == deadline and deadline < math.huge and deadline > job.releaseAt then
++        job.releaseAt = deadline -- preserve later holds from the round owner
++    end
++    if job.done and CurTime() >= job.releaseAt then
++        self.ReplayTransition = nil
++        local mode = CurrentRound()
++        if mode.ReplayPreparationFinished then
++            local ok, err = pcall(mode.ReplayPreparationFinished, mode)
++            if not ok then ErrorNoHalt("[Round preparation clocks] " .. tostring(err) .. "\n") end
++        end
++        self.START_TIME = CurTime() + (CurrentRound().start_time or 5)
++        hg.UpdateRoundTime(CurrentRound().ROUND_TIME, CurTime(), self.START_TIME)
++    end
++end
++hook.Add("Think", "ZB.ReplayTransition", function() zb:StepReplayTransition() end)

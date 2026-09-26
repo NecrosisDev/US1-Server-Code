@@ -1,6 +1,0 @@
-local source=assert(file.Read("zc_chat_pm_stage/sv_zc_chat_pm.lua.txt","DATA")):gsub('AddCSLuaFile%("zc_chat_media/threads.lua"%)','')
-local fn=CompileString(source,"PMAccessPreflight",false)
-assert(isfunction(fn),tostring(fn));assert(ULib and ULib.ucl and isfunction(ULib.ucl.query))
-fn()
-file.Write("zc_chat_pm_access.json",util.TableToJSON({ok=true,version=ZCChatPM.Version,preview=ZCChatPM.Preview~=nil},true))
-print("ZC_PM_ACCESS_READY",ZCChatPM.Version)

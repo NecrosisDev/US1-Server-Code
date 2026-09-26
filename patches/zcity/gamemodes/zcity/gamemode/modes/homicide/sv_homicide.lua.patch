@@ -1,0 +1,773 @@
+--- a/gamemodes/zcity/gamemode/modes/homicide/sv_homicide.lua
++++ b/gamemodes/zcity/gamemode/modes/homicide/sv_homicide.lua
+@@ -24,7 +24,7 @@
+ end
+ 
+ MODE.LootTable = {
+-	{40, {
++	{75, {
+ 		{15,"weapon_smallconsumable"},
+ 		{12,"weapon_bigconsumable"},
+ 		{8,"weapon_tourniquet"},
+@@ -49,7 +49,7 @@
+ 		{0.65,"ent_armor_mask2"},
+ 		{0.27, "ent_armor_helmet2"},
+ 	}},
+-	{20,{
++	{17,{
+ 		{12,"weapon_hammer"},
+ 		{6,"weapon_brick"},
+ 		{10,"weapon_pocketknife"},
+@@ -64,9 +64,16 @@
+ 		{0.5,"weapon_hg_machete"},
+ 		{0.4,"weapon_hg_sledgehammer"},
+ 
+-		{0.2,"hg_brassknuckles"},
+ 		{0.13,"weapon_hg_spear"},
+ 		{0.13, "weapon_hg_spear_pro"},
++
++		{2,"weapon_eft_melee_fulcrum"},
++		{2,"weapon_eft_melee_mpl50"},
++		{2,"weapon_eft_melee_scythe"},
++		{2,"weapon_eft_melee_rebel"},
++		{2,"weapon_eft_melee_voodoo"},
++		{2,"weapon_eft_melee_kiba"},
++		{2,"weapon_eft_melee_6x5"},
+ 	}},
+ 	{11,{
+ 		{10,"*sight*"},
+@@ -75,8 +82,9 @@
+ 		{7,"ent_armor_helmet7"},
+ 		{5,"ent_armor_vest7"},
+ 		{8, "ent_armor_helmet2"},
++		{2,"hg_brassknuckles"},
+ 	}},
+-	{9,{
++	{11,{
+ 		{6,"*sight*"},
+ 		{5,"*barrel*"},
+ 
+@@ -88,8 +96,47 @@
+ 		{3.5,"weapon_m1911"},
+ 		{3,"weapon_m9beretta"},
+ 		{2,"weapon_fn45"},
++
++		-- WFA Pistols (common)
++		{5,"weapon_grach"},
++		{5,"weapon_p99"},
++		{4,"weapon_glock22"},
++		{4,"weapon_python"},
++		{4,"weapon_p250"},
++		{4,"weapon_p38"},
++		{4,"weapon_ppk"},
++		{4,"weapon_ppk42"},
++		{4,"weapon_mk23"},
++		{4,"weapon_hkp7"},
++		{4,"weapon_minebea"},
++		{4,"weapon_minebeap220"},
++		{4,"weapon_makarovpistolpb"},
++		{4,"weapon_vp9hk"},
++		{4,"weapon_swmp9"},
++		{3,"weapon_tti2011"},
++		{3,"weapon_tticglock"},
++		{3,"weapon_pl15"},
++		{3,"weapon_m712"},
++		{3,"weapon_mauserred9"},
++		{3,"weapon_cz75sp01"},
++		{3,"weapon_m9berettacommando"},
++		{3,"weapon_m12beret"},
++		{3,"weapon_fivsevn"},
++		{3,"weapon_p320alligator"},
++		{3,"weapon_m70zastavapist"},
++		{3,"weapon_apsss"},
++		{3,"weapon_apsunderwater"},
++		{3,"weapon_mk1"},
++		{3,"weapon_conan357"},
++		{2,"weapon_revolvermodel29"},
++		{2,"weapon_revolversw686"},
++		{2,"weapon_revolverswr8"},
++		{2,"weapon_revolvermts255"},
++		{2,"weapon_revolversh12"},
++		{2,"weapon_revolverequiem"},
++		{2,"weapon_revolver412rex"},
+ 	}},
+-	{6, {
++	{5, {
+ 		{9,"weapon_hk_usp"},
+ 		{9,"weapon_glock17"},
+ 		{9,"weapon_cz75"},
+@@ -101,6 +148,58 @@
+ 		{5,"weapon_doublebarrel_short"},
+ 		{5,"weapon_doublebarrel"},
+ 		{4, "weapon_flintlock"},
++
++		-- WFA Shotguns & special pistols
++		{5,"weapon_ithaca37"},
++		{5,"weapon_moss500"},
++		{5,"weapon_toz194"},
++		{5,"weapon_spasik15"},
++		{4,"weapon_remington870oiblyat"},
++		{4,"weapon_ttibenelli"},
++		{4,"weapon_protecta"},
++		{4,"weapon_maverickshot"},
++		{4,"weapon_winchestersupa3"},
++		{4,"weapon_duplet"},
++		{4,"weapon_dupletlong"},
++		{3,"weapon_lapti26"},
++		{3,"weapon_yellowboy"},
++		{3,"weapon_grizzlymkv"},
++		{3,"weapon_crossbowowo"},
++		{3,"weapon_tranqrifle"},
++		{2,"weapon_milkormgl"},
++		{2,"weapon_m320gl"},
++		{2,"weapon_helsing"},
++		{2,"weapon_nailgun"},
++		{2,"weapon_flamezsisi"},
++		{1,"weapon_gaussssrifffle"},
++
++		-- WFA SMGs (moved up)
++		{4,"weapon_mp5sd"},
++		{4,"weapon_mp18"},
++		{4,"weapon_mp18smg"},
++		{4,"weapon_mpl"},
++		{4,"weapon_mpi81"},
++		{4,"weapon_mp40"},
++		{4,"weapon_mp2ger"},
++		{4,"weapon_thompson"},
++		{4,"weapon_type79smg"},
++		{4,"weapon_sterling"},
++		{4,"weapon_bizon"},
++		{3,"weapon_kp31"},
++		{3,"weapon_microuzi"},
++		{3,"weapon_miniuzi"},
++		{3,"weapon_uzicarbine"},
++		{3,"weapon_m3greasegun"},
++		{3,"weapon_ppsh"},
++		{3,"weapon_mat49"},
++		{3,"weapon_devochkaump"},
++		{3,"weapon_scorpievo3"},
++		{3,"weapon_bechowiec"},
++		{3,"weapon_blyskawichka"},
++		{3,"weapon_vityaz"},
++		{2,"weapon_sam180"},
++		{2,"weapon_mjolnirmk18"},
++		{2,"weapon_mp510mm"},
+ 	}},
+ 	{4,{
+ 		{5,"ent_armor_vest3"},
+@@ -130,11 +229,121 @@
+ 		{1,"weapon_musket"},
+ 		{1,"weapon_vpo136"},
+ 		{1,"weapon_sr25"},
++
++		{2,"weapon_sjirgen"},
++		{2,"weapon_abzats"},
++		{2,"weapon_ublydok"},
++		{2,"weapon_pechenka"},
++		{2,"weapon_pernachots"},
++		{2,"weapon_armaguera"},
++
++		-- WFA Rifles
++		{3,"weapon_ak12"},
++		{3,"weapon_ak101"},
++		{3,"weapon_ak102"},
++		{3,"weapon_ak103d"},
++		{3,"weapon_ak104d"},
++		{3,"weapon_ak105d"},
++		{3,"weapon_ak308"},
++		{3,"weapon_ak74modern"},
++		{3,"weapon_akalpha"},
++		{3,"weapon_lr300"},
++		{3,"weapon_mk18"},
++		{3,"weapon_m16a4"},
++		{3,"weapon_m16a2manohota"},
++		{3,"weapon_fn2000"},
++		{3,"weapon_qbz97"},
++		{3,"weapon_fnfal"},
++		{3,"weapon_fnfalpara"},
++		{3,"weapon_fnfnc"},
++		{3,"weapon_fnmodeld"},
++		{3,"weapon_g3a3"},
++		{3,"weapon_m70"},
++		{3,"weapon_m14"},
++		{3,"weapon_groza4"},
++		{3,"weapon_groza14a"},
++		{3,"weapon_ia2"},
++		{3,"weapon_l85a2"},
++		{3,"weapon_sa58"},
++		{3,"weapon_vz58"},
++		{3,"weapon_famasf1"},
++		{3,"weapon_xm8"},
++		{3,"weapon_mcxspear"},
++		{3,"weapon_rk62vel"},
++		{3,"weapon_rk95sak"},
++		{3,"weapon_fg42"},
++		{3,"weapon_gewehr43"},
++		{3,"weapon_adar215"},
++		{3,"weapon_abakan94"},
++		{3,"weapon_avtsvo"},
++		{3,"weapon_ark77"},
++		{3,"weapon_colt733"},
++		{3,"weapon_coltlec"},
++		{3,"weapon_ar10"},
++		{3,"weapon_ar6951"},
++		{3,"weapon_goshan18"},
++		{3,"weapon_rfb"},
++		{3,"weapon_svtsvo"},
++		{3,"weapon_vss"},
++		{3,"weapon_mpikm"},
++		{3,"weapon_mpikm74"},
++		{2,"weapon_scarl"},
++		{2,"weapon_scarh"},
++		{2,"weapon_scarssr"},
++		{2,"weapon_akmnboss"},
++		{2,"weapon_ppshboss"},
++		{2,"weapon_hla_ordrifle"},
++		{2,"weapon_hla_ordrifle_type2"},
++		{2,"weapon_hla_gruntsmg"},
++		{2,"weapon_hla_suppmg"},
++		{2,"weapon_hla_wallhshot"},
++		{2,"weapon_vulkan"},
++		{2,"weapon_tkpdbear"},
++		{2,"weapon_zastavam93"},
++
++		-- WFA Snipers
++		{2,"weapon_cs5"},
++		{2,"weapon_t5000"},
++		{2,"weapon_psg1"},
++		{2,"weapon_l42a1"},
++		{2,"weapon_m14dmr"},
++		{2,"weapon_dsr1"},
++		{2,"weapon_svds"},
++		{2,"weapon_sakosnip"},
++		{2,"weapon_m24remington"},
++		{2,"weapon_barret82"},
++		{2,"weapon_ksvk"},
++		{1,"weapon_tranqrifle"},
++
++		-- WFA LMGs
++		{2,"weapon_dp27"},
++		{2,"weapon_rpd"},
++		{2,"weapon_rpk16"},
++		{2,"weapon_rpk74m"},
++		{2,"weapon_rpk762"},
++		{2,"weapon_hk11lmg"},
++		{2,"weapon_madguylmg"},
++		{2,"weapon_stonerlmg"},
++		{2,"weapon_stoner63"},
++		{2,"weapon_wz28lmg"},
++		{2,"weapon_minimi"},
++		{2,"weapon_mg34"},
++		{2,"weapon_mg36"},
++		{2,"weapon_m60e621"},
++		{1,"weapon_aa12"},
++		{1,"weapon_aa12labs"},
++
++		-- WFA Grenades
++		{2,"weapon_hg_m18_tpik"},
++		{2,"weapon_hg_mk2_tpik"},
++		{1,"weapon_hg_stielhandgranate_tpik"},
++		{1,"weapon_hg_vilka"},
++		{1,"weapon_hg_can"},
+ 	}},
+ }
+ 
+ MODE.LootTableStandard = {
+-	{65, {
++	{100, {
+ 		{15,"weapon_smallconsumable"},
+ 		{12,"weapon_bigconsumable"},
+ 		{8,"weapon_tourniquet"},
+@@ -159,6 +368,279 @@
+ 		{0.10,"weapon_hg_axe"},
+ 		{0.09,"weapon_hg_sledgehammer"},
+ 		{0.07,"weapon_hg_machete"},
++
++		{0.1,"weapon_eft_melee_fulcrum"},
++		{0.1,"weapon_eft_melee_mpl50"},
++		{0.1,"weapon_eft_melee_scythe"},
++		{0.1,"weapon_eft_melee_rebel"},
++		{0.1,"weapon_eft_melee_voodoo"},
++		{0.1,"weapon_eft_melee_kiba"},
++		{0.1,"weapon_eft_melee_6x5"},
++	}},
++	{11,{
++		{10,"*sight*"},
++		{7,"*barrel*"},
++
++		{7,"ent_armor_helmet7"},
++		{5,"ent_armor_vest7"},
++		{8,"ent_armor_helmet2"},
++		{2,"hg_brassknuckles"},
++	}},
++	{11,{
++		{6,"*sight*"},
++		{5,"*barrel*"},
++
++		{15,"weapon_mp-80"},
++		{8,"weapon_makarov"},
++		{7,"weapon_ruger"},
++		{4,"weapon_revolver2"},
++		{4,"weapon_px4beretta"},
++		{3.5,"weapon_m1911"},
++		{3,"weapon_m9beretta"},
++		{2,"weapon_fn45"},
++
++		-- WFA Pistols (common)
++		{5,"weapon_grach"},
++		{5,"weapon_p99"},
++		{4,"weapon_glock22"},
++		{4,"weapon_python"},
++		{4,"weapon_p250"},
++		{4,"weapon_p38"},
++		{4,"weapon_ppk"},
++		{4,"weapon_ppk42"},
++		{4,"weapon_mk23"},
++		{4,"weapon_hkp7"},
++		{4,"weapon_minebea"},
++		{4,"weapon_minebeap220"},
++		{4,"weapon_makarovpistolpb"},
++		{4,"weapon_vp9hk"},
++		{4,"weapon_swmp9"},
++		{3,"weapon_tti2011"},
++		{3,"weapon_tticglock"},
++		{3,"weapon_pl15"},
++		{3,"weapon_m712"},
++		{3,"weapon_mauserred9"},
++		{3,"weapon_cz75sp01"},
++		{3,"weapon_m9berettacommando"},
++		{3,"weapon_m12beret"},
++		{3,"weapon_fivsevn"},
++		{3,"weapon_p320alligator"},
++		{3,"weapon_m70zastavapist"},
++		{3,"weapon_apsss"},
++		{3,"weapon_apsunderwater"},
++		{3,"weapon_mk1"},
++		{3,"weapon_conan357"},
++		{2,"weapon_revolvermodel29"},
++		{2,"weapon_revolversw686"},
++		{2,"weapon_revolverswr8"},
++		{2,"weapon_revolvermts255"},
++		{2,"weapon_revolversh12"},
++		{2,"weapon_revolverequiem"},
++		{2,"weapon_revolver412rex"},
++	}},
++	{5, {
++		{9,"weapon_hk_usp"},
++		{9,"weapon_glock17"},
++		{9,"weapon_cz75"},
++		{9,"weapon_px4beretta"},
++
++		{6,"weapon_deagle"},
++		{6,"weapon_colt9mm"},
++
++		{5,"weapon_doublebarrel_short"},
++		{5,"weapon_doublebarrel"},
++		{4,"weapon_flintlock"},
++
++		-- WFA Shotguns & special pistols
++		{5,"weapon_ithaca37"},
++		{5,"weapon_moss500"},
++		{5,"weapon_toz194"},
++		{5,"weapon_spasik15"},
++		{4,"weapon_remington870oiblyat"},
++		{4,"weapon_ttibenelli"},
++		{4,"weapon_protecta"},
++		{4,"weapon_maverickshot"},
++		{4,"weapon_winchestersupa3"},
++		{4,"weapon_duplet"},
++		{4,"weapon_dupletlong"},
++		{3,"weapon_lapti26"},
++		{3,"weapon_yellowboy"},
++		{3,"weapon_grizzlymkv"},
++		{3,"weapon_crossbowowo"},
++		{3,"weapon_tranqrifle"},
++		{2,"weapon_milkormgl"},
++		{2,"weapon_m320gl"},
++		{2,"weapon_helsing"},
++		{2,"weapon_nailgun"},
++		{2,"weapon_flamezsisi"},
++		{1,"weapon_gaussssrifffle"},
++
++		-- WFA SMGs (moved up)
++		{4,"weapon_mp5sd"},
++		{4,"weapon_mp18"},
++		{4,"weapon_mp18smg"},
++		{4,"weapon_mpl"},
++		{4,"weapon_mpi81"},
++		{4,"weapon_mp40"},
++		{4,"weapon_mp2ger"},
++		{4,"weapon_thompson"},
++		{4,"weapon_type79smg"},
++		{4,"weapon_sterling"},
++		{4,"weapon_bizon"},
++		{3,"weapon_kp31"},
++		{3,"weapon_microuzi"},
++		{3,"weapon_miniuzi"},
++		{3,"weapon_uzicarbine"},
++		{3,"weapon_m3greasegun"},
++		{3,"weapon_ppsh"},
++		{3,"weapon_mat49"},
++		{3,"weapon_devochkaump"},
++		{3,"weapon_scorpievo3"},
++		{3,"weapon_bechowiec"},
++		{3,"weapon_blyskawichka"},
++		{3,"weapon_vityaz"},
++		{2,"weapon_sam180"},
++		{2,"weapon_mjolnirmk18"},
++		{2,"weapon_mp510mm"},
++	}},
++	{4,{
++		{5,"ent_armor_vest3"},
++		{5,"ent_armor_helmet1"},
++		{2,"ent_armor_vest4"},
++		{2,"ent_armor_helmet5"},
++	}},
++	{2, {
++		{4,"weapon_remington870"},
++
++		{4,"weapon_hg_molotov_tpik"},
++		{4,"weapon_hg_pipebomb_tpik"},
++
++		{3,"weapon_mini14"},
++		{3,"weapon_kar98"},
++		{3,"weapon_ar_pistol"},
++		{3,"weapon_draco"},
++		{3,"weapon_mp5"},
++		{3,"weapon_m16a2"},
++
++		{2,"weapon_mp7"},
++		{2,"weapon_sks"},
++		{2,"weapon_ar15"},
++		{2,"weapon_ac556"},
++
++		{1,"weapon_vpo136"},
++		{1,"weapon_musket"},
++		{1,"weapon_vpo136"},
++		{1,"weapon_sr25"},
++
++		{2,"weapon_sjirgen"},
++		{2,"weapon_abzats"},
++		{2,"weapon_ublydok"},
++		{2,"weapon_pechenka"},
++		{2,"weapon_pernachots"},
++		{2,"weapon_armaguera"},
++
++		-- WFA Rifles
++		{3,"weapon_ak12"},
++		{3,"weapon_ak101"},
++		{3,"weapon_ak102"},
++		{3,"weapon_ak103d"},
++		{3,"weapon_ak104d"},
++		{3,"weapon_ak105d"},
++		{3,"weapon_ak308"},
++		{3,"weapon_ak74modern"},
++		{3,"weapon_akalpha"},
++		{3,"weapon_lr300"},
++		{3,"weapon_mk18"},
++		{3,"weapon_m16a4"},
++		{3,"weapon_m16a2manohota"},
++		{3,"weapon_fn2000"},
++		{3,"weapon_qbz97"},
++		{3,"weapon_fnfal"},
++		{3,"weapon_fnfalpara"},
++		{3,"weapon_fnfnc"},
++		{3,"weapon_fnmodeld"},
++		{3,"weapon_g3a3"},
++		{3,"weapon_m70"},
++		{3,"weapon_m14"},
++		{3,"weapon_groza4"},
++		{3,"weapon_groza14a"},
++		{3,"weapon_ia2"},
++		{3,"weapon_l85a2"},
++		{3,"weapon_sa58"},
++		{3,"weapon_vz58"},
++		{3,"weapon_famasf1"},
++		{3,"weapon_xm8"},
++		{3,"weapon_mcxspear"},
++		{3,"weapon_rk62vel"},
++		{3,"weapon_rk95sak"},
++		{3,"weapon_fg42"},
++		{3,"weapon_gewehr43"},
++		{3,"weapon_adar215"},
++		{3,"weapon_abakan94"},
++		{3,"weapon_avtsvo"},
++		{3,"weapon_ark77"},
++		{3,"weapon_colt733"},
++		{3,"weapon_coltlec"},
++		{3,"weapon_ar10"},
++		{3,"weapon_ar6951"},
++		{3,"weapon_goshan18"},
++		{3,"weapon_rfb"},
++		{3,"weapon_svtsvo"},
++		{3,"weapon_vss"},
++		{3,"weapon_mpikm"},
++		{3,"weapon_mpikm74"},
++		{2,"weapon_scarl"},
++		{2,"weapon_scarh"},
++		{2,"weapon_scarssr"},
++		{2,"weapon_akmnboss"},
++		{2,"weapon_ppshboss"},
++		{2,"weapon_hla_ordrifle"},
++		{2,"weapon_hla_ordrifle_type2"},
++		{2,"weapon_hla_gruntsmg"},
++		{2,"weapon_hla_suppmg"},
++		{2,"weapon_hla_wallhshot"},
++		{2,"weapon_vulkan"},
++		{2,"weapon_tkpdbear"},
++		{2,"weapon_zastavam93"},
++
++		-- WFA Snipers
++		{2,"weapon_cs5"},
++		{2,"weapon_t5000"},
++		{2,"weapon_psg1"},
++		{2,"weapon_l42a1"},
++		{2,"weapon_m14dmr"},
++		{2,"weapon_dsr1"},
++		{2,"weapon_svds"},
++		{2,"weapon_sakosnip"},
++		{2,"weapon_m24remington"},
++		{2,"weapon_barret82"},
++		{2,"weapon_ksvk"},
++		{1,"weapon_tranqrifle"},
++
++		-- WFA LMGs
++		{2,"weapon_dp27"},
++		{2,"weapon_rpd"},
++		{2,"weapon_rpk16"},
++		{2,"weapon_rpk74m"},
++		{2,"weapon_rpk762"},
++		{2,"weapon_hk11lmg"},
++		{2,"weapon_madguylmg"},
++		{2,"weapon_stonerlmg"},
++		{2,"weapon_stoner63"},
++		{2,"weapon_wz28lmg"},
++		{2,"weapon_minimi"},
++		{2,"weapon_mg34"},
++		{2,"weapon_mg36"},
++		{2,"weapon_m60e621"},
++		{1,"weapon_aa12"},
++		{1,"weapon_aa12labs"},
++
++		-- WFA Grenades
++		{2,"weapon_hg_m18_tpik"},
++		{2,"weapon_hg_mk2_tpik"},
++		{1,"weapon_hg_stielhandgranate_tpik"},
++		{1,"weapon_hg_vilka"},
++		{1,"weapon_hg_can"},
+ 	}},
+ }
+ 
+@@ -280,12 +762,15 @@
+ 
+ 		ply.organism.stamina.range = 220
+ 
+-		local inv = ply:GetNetVar("Inventory")
+-		inv["Weapons"]["hg_flashlight"] = true
+-		ply:SetNetVar("Inventory",inv)
+ 	end,
+ 	GunManLoot = function(ply)
+-		ply:Give("weapon_px4beretta")
++		local pistols = {
++			"weapon_px4beretta",
++			"weapon_p250",
++			"weapon_p220",
++			"weapon_glock17",
++		}
++		ply:Give(pistols[math.random(#pistols)])
+ 		ply.organism.recoilmul = 1
+ 	end,
+ 	PoliceTime = 220,
+@@ -343,7 +828,7 @@
+ 		ply:Give("weapon_sogknife")
+ 		ply:Give("weapon_hg_type59_tpik")
+ 		ply:Give("weapon_adrenaline")
+-		local revolver = ply:Give(math.random(2) == 2 and "weapon_winchester" or "weapon_revolver2")
++		local revolver = ply:Give(math.random(2) == 2 and "weapon_winchesterm1984" or "weapon_python")
+ 		ply:GiveAmmo(revolver:GetMaxClip1() * 1,revolver:GetPrimaryAmmoType(),true)
+ 		ply:Give("weapon_traitor_ied")
+ 		ply:Give("weapon_hg_molotov_tpik")
+@@ -400,16 +885,20 @@
+ 			end)
+ 			if v.isTraitor then continue end
+ 			if v.isGunner then
+-				v:Give("weapon_winchester")
+-				v:Give("weapon_revolver357")
++				v:Give("weapon_yellowboy")
++				v:Give("weapon_python")
+ 				v:Give("weapon_handcuffs")
+ 				v:Give("weapon_handcuffs_key")
+ 			else
+ 				local guns = {
++					"weapon_yellowboy",
++					"weapon_winchesterm1984",
+ 					"weapon_winchester",
+-					"weapon_revolver2",
++					"weapon_python",
+ 					"weapon_doublebarrel",
+-					"weapon_doublebarrel_short"
++					"weapon_doublebarrel_short",
++					"weapon_mauserred9",
++					"weapon_auto5"
+ 				}
+ 
+ 				local weapon = v:Give(guns[math.random(#guns)], true)
+@@ -493,9 +982,6 @@
+ 
+ 		ply.organism.stamina.range = 220
+ 
+-		local inv = ply:GetNetVar("Inventory")
+-		inv["Weapons"]["hg_flashlight"] = true
+-		ply:SetNetVar("Inventory",inv)
+ 	end,
+ 	GunManLoot = function(ply)
+ 	end,
+@@ -566,9 +1052,6 @@
+ 		ply.organism.recoilmul = 1
+ 		ply.organism.stamina.range = 220
+ 
+-		local inv = ply:GetNetVar("Inventory")
+-		inv["Weapons"]["hg_flashlight"] = true
+-		ply:SetNetVar("Inventory",inv)
+ 	end,
+ 	GunManLoot = function(ply)
+ 		local gun = ply:Give( ( math.random(1,2) > 1 and "weapon_remington870" ) or "weapon_kar98" )
+@@ -647,8 +1130,18 @@
+ 
+ local homicide_traitoramount = ConVarExists("homicide_traitoramount") and GetConVar("homicide_traitoramount") or CreateConVar("homicide_traitoramount", 1, FCVAR_SERVER_CAN_EXECUTE + FCVAR_ARCHIVE, "Homicide Only: Determine how many traitors should innocents face in homicide.", 1, 20)
+ 
++MODE.ReplayPreparationSupported = true
++
++function MODE:ReplayPreparationFinished()
++    if self.saved and self.saved.ReplayPoliceDelay then
++        self.saved.PoliceTime = CurTime() + self.saved.ReplayPoliceDelay
++        self.saved.ReplayPoliceDelay = nil
++    end
++end
++
+ function MODE:Intermission()
+ 	game.CleanUpMap()
++	zb:TransitionYield()
+ 
+ 	local _, CROUND = CurrentRound()
+ 
+@@ -660,7 +1153,7 @@
+ 	local player_count = 0
+ 
+ 	for k, ply in player.Iterator() do
+-		if ply:Team() == TEAM_SPECTATOR then continue end
++		if not IsValid(ply) or ply:Team() == TEAM_SPECTATOR then continue end
+ 		ply:KillSilent()
+ 
+ 		ply.isPolice = false
+@@ -674,6 +1167,7 @@
+ 
+ 		ply.organism.recoilmul = DefaultSkillIssue
+ 		player_count = player_count + 1
++		zb:TransitionYield()
+ 	end
+ 
+ 	MODE.TraitorFrequency = nil
+@@ -694,15 +1188,21 @@
+ 	local main_traitor = nil
+ 	local traitors = {}
+ 
+-	-- local players = {}
+-	-- for i, ply in player.Iterator() do
+-	-- 	if ply.isTraitor or ply:Team() == TEAM_SPECTATOR then continue end
++	-- Check for forced traitor first
++	MODE.NextRoundMainTraitors = MODE.NextRoundMainTraitors or {}
++	for i, ply in RandomPairs(player.GetAll()) do
++		if ply:Team() == TEAM_SPECTATOR then continue end
++		if not MODE.NextRoundMainTraitors[ply:SteamID()] then continue end
++
++		ply.isTraitor = true
++		traitors_needed = math.max(0, traitors_needed - 1)
++		traitors[#traitors + 1] = ply
++		main_traitor = ply
++		ply.MainTraitor = true
++		print("[TraitorAdmin] Forced " .. ply:Nick() .. " as traitor this round.")
++	end
++	MODE.NextRoundMainTraitors = {}
+ 
+-	-- 	players[#players + 1] = {ply, ply.Karma}
+-	-- end
+-	
+-	-- -- potom
+-	
+ 	for i, ply in RandomPairs(player.GetAll()) do
+ 		if ply.isTraitor or ply:Team() == TEAM_SPECTATOR then continue end
+ 		if math.random(100) > (ply.Karma or 100) then continue end
+@@ -712,15 +1212,14 @@
+ 			traitors_needed = traitors_needed - 1
+ 			traitors[#traitors + 1] = ply
+ 
+-			main_traitor = ply
+-			ply.MainTraitor = true
++			if not main_traitor then
++				main_traitor = ply
++				ply.MainTraitor = true
++			end
+ 		end
+ 	end
+-
+-	//MODE.NextRoundMainTraitors = MODE.NextRoundMainTraitors or {}
+ 	for i, ply in RandomPairs(player.GetAll()) do
+ 		if ply.isTraitor or ply:Team() == TEAM_SPECTATOR then continue end
+-		//if not MODE.NextRoundMainTraitors[ply:SteamID()] then continue end
+ 
+ 		if traitors_needed > 0 then
+ 			ply.isTraitor = true
+@@ -752,6 +1251,7 @@
+ 	end
+ 
+ 	self.saved.PoliceTime = CurTime() + math.min(self.Types[self.Type].PoliceTime * (#player.GetAll() / 4),self.Types[self.Type].PoliceTime * 2.2)
++	if zb.ReplayTransition then self.saved.ReplayPoliceDelay = self.saved.PoliceTime - CurTime() end
+ 	self.PoliceSpawned = false
+ 	self.PoliceAllowed = self.Types[self.Type].PoliceAllowed
+ 
+@@ -1615,7 +2115,17 @@
+             local sub_role = nil
+             if(spawn_with_subroles and MODE.RoleChooseRoundTypes[MODE.Type])then
+                 if(current_ply.isTraitor)then
+-                    local sub_role_id = MODE.Type == "soe" and (current_ply:GetInfo(MODE.ConVarName_SubRole_Traitor_SOE) or "traitor_default_soe") or (current_ply:GetInfo(MODE.ConVarName_SubRole_Traitor) or "traitor_default")
++                    local sub_role_id
++                    if(MODE.Type == "soe")then
++                        sub_role_id = current_ply:GetInfo(MODE.ConVarName_SubRole_Traitor_SOE) or "traitor_default_soe"
++                    elseif(MODE.Type == "gunfreezone")then
++                        --; GFZ has its own selection convar so your Standard pick stays separate.
++                        --; Clients without the convar yet return "" -> the validation below
++                        --; falls back to TraitorDefaultRole, so mixed versions are safe.
++                        sub_role_id = current_ply:GetInfo(MODE.ConVarName_SubRole_Traitor_GFZ) or "traitor_default"
++                    else
++                        sub_role_id = current_ply:GetInfo(MODE.ConVarName_SubRole_Traitor) or "traitor_default"
++                    end
+ 					sub_role = sub_role_id
+                 end
+ 
+@@ -1633,11 +2143,10 @@
+                             role_info = MODE.SubRoles[sub_role]
+                         end
+ 
+-                        if(current_ply.MainTraitor)then
+-                            local spawn_func = role_info.SpawnFunction
+-                            current_ply.SubRole = sub_role
+-                            spawn_func(current_ply)
+-                        end
++                        local spawn_func = role_info.SpawnFunction
++                        current_ply.SubRole = sub_role
++                        spawn_func(current_ply)
++                        if ZCityInteractions then ZCityInteractions.AssignRole(current_ply,MODE,sub_role) end
+                     end
+                 end
+             else
+@@ -1661,7 +2170,8 @@
+                 end
+             end
+ 
+-            if(gaymaps[game.GetMap()])then
++            if (gaymaps[game.GetMap()]) and not current_ply.isTraitor then
++                -- dark-map flashlight for everyone EXCEPT the traitor
+                 local inv = current_ply:GetNetVar("Inventory") or {}
+                 inv["Weapons"] = inv["Weapons"] or {}
+                 inv["Weapons"]["hg_flashlight"] = true

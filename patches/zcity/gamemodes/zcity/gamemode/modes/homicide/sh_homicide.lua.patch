@@ -1,0 +1,185 @@
+--- a/gamemodes/zcity/gamemode/modes/homicide/sh_homicide.lua
++++ b/gamemodes/zcity/gamemode/modes/homicide/sh_homicide.lua
+@@ -9,10 +9,12 @@
+ --\\Sub Roles
+ MODE.ConVarName_SubRole_Traitor_SOE = "hmcd_subrole_traitor_soe"
+ MODE.ConVarName_SubRole_Traitor = "hmcd_subrole_traitor"
++MODE.ConVarName_SubRole_Traitor_GFZ = "hmcd_subrole_traitor_gfz"
+ 
+ if(CLIENT)then
+ 	MODE.ConVar_SubRole_Traitor_SOE = CreateClientConVar(MODE.ConVarName_SubRole_Traitor_SOE, "traitor_default_soe", true, true, "Select traitor role in State of Emergency homicide mode")
+ 	MODE.ConVar_SubRole_Traitor = CreateClientConVar(MODE.ConVarName_SubRole_Traitor, "traitor_default", true, true, "Select murder role in Standard homicide modes")
++	MODE.ConVar_SubRole_Traitor_GFZ = CreateClientConVar(MODE.ConVarName_SubRole_Traitor_GFZ, "traitor_default", true, true, "Select murder role in Gun Free Zone homicide mode")
+ end
+ 
+ --; TODO
+@@ -26,14 +28,15 @@
+ 		Name = "Defoko",
+ 		Description = [[Default.
+ You've prepared for a long time.
+-You are equipped with various weapons, poisons and explosives, grenades and your favourite heavy duty knife and a zoraki signal pistol to help you kill.]],
++Equipped with a suppressed Walther P22 with two spare mags, a Buck 120 knife, an RGD-5 grenade, an IED, a tetrodotoxin syringe, a shuriken, a saltpeter smoke bomb, a door wedge, an epipen and a disguise suit.]],
+ 		Objective = "You're geared up with items, poisons, explosives and weapons hidden in your pockets. Murder everyone here.",
+ 		SpawnFunction = function(ply)
+-			local wep = ply:Give("weapon_zoraki")
++			local p22 = ply:Give("weapon_p22")
+ 			
+-			timer.Simple(1, function()
+-				wep:ApplyAmmoChanges(2)
+-			end)
++			if IsValid(p22) then
++				ply:GiveAmmo(p22:GetMaxClip1() * 2, p22:GetPrimaryAmmoType(), true)
++				hg.AddAttachmentForce(ply, p22, "supressor4")
++			end
+ 			
+ 			ply:Give("weapon_buck200knife")	
+ 			ply:Give("weapon_hg_rgd_tpik")
+@@ -49,7 +52,7 @@
+ 			
+ 			ply.organism.stamina.max = 220
+ 			local inv = ply:GetNetVar("Inventory", {})
+-			inv["Weapons"]["hg_flashlight"] = true
++			--inv["Weapons"]["hg_flashlight"] = true
+ 			
+ 			ply:SetNetVar("Inventory", inv)
+ 		end,
+@@ -58,7 +61,7 @@
+ 		Name = "Defoko",
+ 		Description = [[Default.
+ You've prepared a long time for this moment.
+-You are equipped with various weapons, poisons and explosives, grenades and your favourite heavy duty knife and silenced pistol with an additional mag to help you kill.]],
++Equipped with a suppressed Walther P22 with a spare mag, a SOG knife, an RGD-5 grenade, an IED, a VX vial, a cyanide gas canister, a saltpeter smoke bomb, an epipen and a walkie-talkie.]],
+ 		Objective = "You're geared up with items, poisons, explosives and weapons hidden in your pockets. Murder everyone here.",
+ 		SpawnFunction = function(ply)
+ 			if not IsValid(ply) then return end
+@@ -79,7 +82,7 @@
+ 			ply.organism.recoilmul = 1
+ 			ply.organism.stamina.max = 220
+ 			local inv = ply:GetNetVar("Inventory", {})
+-			inv["Weapons"]["hg_flashlight"] = true
++			--inv["Weapons"]["hg_flashlight"] = true
+ 			
+ 			ply:SetNetVar("Inventory",inv)
+ 		end,
+@@ -91,17 +94,18 @@
+ 		Name = "Infiltrator",
+ 		Description = [[Can break people's necks from behind.
+ Can completely disguise as other players if they're in ragdoll.
+-Has no weapons or tools except knife, epipen and smoke grenade.
++Has no weapons or tools except a SOG knife, an epipen, a saltpeter smoke bomb and a bear trap.
+ For people who like to play chess.]],
+ 		Objective = "You're an expert in diversion. Be discreet and kill one by one",
+ 		SpawnFunction = function(ply)
+ 			ply:Give("weapon_sogknife")
+ 			ply:Give("weapon_adrenaline")
+ 			ply:Give("weapon_hg_smokenade_tpik")
++			ply:Give("weapon_beartrap_homigrad")
+ 			
+ 			ply.organism.stamina.max = 220
+ 			local inv = ply:GetNetVar("Inventory", {})
+-			inv["Weapons"]["hg_flashlight"] = true
++			--inv["Weapons"]["hg_flashlight"] = true
+ 			
+ 			ply:SetNetVar("Inventory", inv)
+ 		end,
+@@ -110,13 +114,14 @@
+ 		Name = "Infiltrator",
+ 		Description = [[Can break people's necks from behind.
+ Can completely disguise as other players if they're in ragdoll.
+-Has smoke grenade, walkie-talkie, knife, taser with 2 additional shooting heads and epipen.
++Has a Taser X26 with two spare cartridges, a SOG knife, a saltpeter smoke bomb, a bear trap, an epipen and a walkie-talkie.
+ For people who like to play chess.]],
+ 		Objective = "You're an expert in diversion. Be discreet and kill one by one",
+ 		SpawnFunction = function(ply)
+ 			local taser = ply:Give("weapon_taser")
+-			
++
+ 			ply:GiveAmmo(taser:GetMaxClip1() * 2, taser:GetPrimaryAmmoType(), true)
++			ply:Give("weapon_beartrap_homigrad")
+ 			ply:Give("weapon_sogknife")
+ 			-- ply:Give("weapon_hg_rgd_tpik")
+ 			-- ply:Give("weapon_walkie_talkie")
+@@ -126,7 +131,7 @@
+ 			ply.organism.recoilmul = 1
+ 			ply.organism.stamina.max = 220
+ 			local inv = ply:GetNetVar("Inventory", {})
+-			inv["Weapons"]["hg_flashlight"] = true
++			--inv["Weapons"]["hg_flashlight"] = true
+ 			
+ 			ply:SetNetVar("Inventory", inv)
+ 		end,
+@@ -143,14 +148,17 @@
+ Disarms faster from front if the victim is in ragdoll.
+ Proficient in shooting from guns.
+ Has additional stamina (+ 80 units compared to other traitors).
+-Equipped with walkie-talkie.
++Equipped with a SOG knife, a fiberwire and a bow with 5 arrows.
+ For people who like to play checkers.]],
+ 		Objective = "You're an expert in guns and in disarmament. Disarm gunman and use his weapon against others",
+ 		SpawnFunction = function(ply)
+-			-- ply:Give("weapon_sogknife")	
++			ply:Give("weapon_sogknife")	
+ 			-- ply:Give("weapon_adrenaline")
+ 			-- ply:Give("weapon_hg_smokenade_tpik")
+ 			-- ply:Give("weapon_hg_shuriken")
++			ply:Give("weapon_zc_fiberwire_standalone")
++			ply:Give("weapon_hg_bow")
++			ply:GiveAmmo(5, "Arrow", true)
+ 			
+ 			ply.organism.recoilmul = 0.8
+ 			ply.organism.stamina.max = 300
+@@ -167,12 +175,15 @@
+ Disarms faster from front if the victim is in ragdoll.
+ Proficient in shooting from guns.
+ Has additional stamina (+ 80 units compared to other traitors).
+-Equipped with walkie-talkie, knife, epipen and flashlight.
++Equipped with a SOG knife, a fiberwire, a bow with 5 arrows, an epipen and a walkie-talkie.
+ For people who like to play checkers.]],
+ 		Objective = "You're an expert in guns and in disarmament. Disarm gunman and use his weapon against others",
+ 		SpawnFunction = function(ply)
+ 			ply:Give("weapon_sogknife")	
+ 			ply:Give("weapon_adrenaline")
++			ply:Give("weapon_zc_fiberwire_standalone")
++			ply:Give("weapon_hg_bow")
++			ply:GiveAmmo(5, "Arrow", true)
+ 			-- ply:Give("weapon_walkie_talkie")
+ 			-- ply:Give("weapon_hg_smokenade_tpik")
+ 			-- ply:Give("weapon_hg_shuriken")
+@@ -190,7 +201,7 @@
+ 	--==\\
+ 	["traitor_chemist"] = {
+ 		Name = "Chemist",
+-		Description = [[Has multiple chemical agents and epipen and knife.
++		Description = [[Has every chemical agent: a tetrodotoxin syringe, a VX vial, a cyanide gas canister, a curare vial and a cyanide capsule, plus a SOG knife and an epipen.
+ Resistant to a certain degree to all chemical agents mentioned.
+ Can detect presence and potency of chemical agents in the air.]],
+ 		Objective = "You're a chemist who decided to use his knowledge to hurt others. Poison everything.",
+@@ -205,7 +216,7 @@
+ 			
+ 			ply.organism.stamina.max = 220
+ 			local inv = ply:GetNetVar("Inventory", {})
+-			inv["Weapons"]["hg_flashlight"] = true
++			--inv["Weapons"]["hg_flashlight"] = true
+ 			
+ 			ply:SetNetVar("Inventory", inv)
+ 			CleanChemicalsOfPlayer(ply)
+@@ -334,6 +345,19 @@
+ 			},
+ 		},
+ 	},
++	["gunfreezone"] = {
++		TraitorDefaultRole = "traitor_default",
++		Traitor = {
++			["traitor_default"] = true,
++			["traitor_infiltrator"] = true,
++			["traitor_chemist"] = true,
++			["traitor_assasin"] = true,
++		},
++		--; No Professions table on purpose: GFZ keeps police response instead of
++		--; professions. Adding this entry only enables traitor sub-role choice
++		--; (read from hmcd_subrole_traitor_gfz in sv_homicide.lua) + sub-role
++		--; abilities, which are gated on RoleChooseRoundTypes[MODE.Type].
++	},
+ 	["soe"] = {
+ 		TraitorDefaultRole = "traitor_default_soe",
+ 		Traitor = {

@@ -1,0 +1,226 @@
+--- a/lua/weapons/weapon_bandage_sh.lua
++++ b/lua/weapons/weapon_bandage_sh.lua
+@@ -121,14 +121,15 @@
+ local bone, name
+ function SWEP:BoneSet(lookup_name, vec, ang)
+ 	local owner = self:GetOwner()
+-    if IsValid(owner) and !owner:IsPlayer() then return end
++    if not IsValid(owner) or not owner:IsPlayer() then return end
+ 	hg.bone.Set(owner, lookup_name, vec, ang, "bandage", 0.01)
+ end
+ 
+ local lang1, lang2 = Angle(0, -10, 0), Angle(0, 10, 0)
+ function SWEP:Animation()
+ 	local owner = self:GetOwner()
+-	local aimvec = self:GetOwner():GetAimVector()
++	if not IsValid(owner) or not owner.organism then return end
++	local aimvec = owner:GetAimVector()
+ 	local hold = self:GetHolding()
+ 	if (owner.zmanipstart ~= nil and not owner.organism.larmamputated) then return end
+ 	self:BoneSet("r_upperarm", vector_origin, Angle(30 - hold / 4, -30 + hold / 2 + 20 * aimvec[3], 5 - hold / 3.5))
+@@ -141,10 +142,17 @@
+ 	self:SetHold(self.HoldType)
+ 
+ 	if self:GetClass() == "weapon_bandage_sh" then
+-		self.ModelScale = math.Clamp(self.modeValues[1] / (self.modeValuesdef[1][1] * 0.8), 0.5, 1)
++		local amount = istable(self.modeValues) and self.modeValues[1]
++		local definition = istable(self.modeValuesdef) and self.modeValuesdef[1]
++		local capacity = istable(definition) and definition[1]
++		if isnumber(amount) and amount == amount and isnumber(capacity) and capacity > 0 then
++			self.ModelScale = math.Clamp(amount / (capacity * 0.8), 0.5, 1)
++		end
+ 	end
+ 
+-	if not self:GetOwner():KeyDown(IN_ATTACK) and hg_healanims:GetBool() then
++	local owner = self:GetOwner()
++	if not IsValid(owner) then return end
++	if not owner:KeyDown(IN_ATTACK) and hg_healanims:GetBool() then
+ 		self:SetHolding(math.max(self:GetHolding() - 12, 0))
+ 	end
+ 
+@@ -186,6 +194,29 @@
+ 	end--]]
+ end
+ SWEP.net_cooldown2 = 0
++-- Bound only publication, never treatment. Preserve the final value after release.
++local function PublishModeValues(self)
++    if not IsValid(self) then return end
++    local now = CurTime()
++    local due = self.net_cooldown2 or 0
++    if due > now + 0.11 then due = now end -- Clock reset / stale inherited deadline.
++    if now >= due then
++        self.ZCModePublishPending = nil
++        self.net_cooldown2 = now + 0.1
++        self:SetNetVar("modeValues", self.modeValues)
++        return
++    end
++    if self.ZCModePublishPending then return end
++    local token = {}
++    self.ZCModePublishPending = token
++    timer.Simple(math.max(0, due - now), function()
++        if not IsValid(self) or self.ZCModePublishPending ~= token then return end
++        self.ZCModePublishPending = nil
++        self.net_cooldown2 = CurTime() + 0.1
++        self:SetNetVar("modeValues", self.modeValues)
++    end)
++end
++
+ function SWEP:PrimaryAttack()
+ 	if SERVER then--and not self.modeValuesdef[self.mode][2] then
+ 
+@@ -196,10 +227,7 @@
+ 			self:PostHeal(self.healbuddy, self.mode)
+ 		end
+ 
+-		if self.net_cooldown2 < CurTime() then
+-			self:SetNetVar("modeValues",self.modeValues)
+-			--self.net_cooldown2 = CurTime() + 0.1
+-		end
++		PublishModeValues(self)
+ 	end
+ end
+ 
+@@ -358,10 +386,12 @@
+ 			self:PostHeal(self.healbuddy, self.mode)
+ 		end		
+ 
+-		if self.net_cooldown2 < CurTime() then
+-			self:SetNetVar("modeValues",self.modeValues)
+-			--self.net_cooldown2 = CurTime() + 0.1 * game.GetTimeScale()
+-		end
++		-- Published for anything that rewards helping somebody else (zc_killcam/sv_points.lua). This is the
++		-- only heal path that cannot be self-inflicted: the line above refuses when the patient resolves to
++		-- the healer's own character. `done` is false when the bandage did nothing, so a listener can trust it.
++		hook.Run("ZCity_MedicineUsed", self:GetOwner(), self.healbuddy, self.mode, done)
++
++		PublishModeValues(self)
+ 	end
+ end
+ 
+@@ -369,7 +399,8 @@
+ 	util.AddNetworkString("select_mode")
+ else
+ 	net.Receive("select_mode",function()
+-		net.ReadEntity().mode = net.ReadInt(4)
++		local ent, mode = net.ReadEntity(), net.ReadInt(4)
++		if IsValid(ent) then ent.mode = mode end
+ 	end)
+ end
+ 
+@@ -388,7 +419,7 @@
+ 		if key == "modeValues" then
+ 			local ent = Entity(index)
+ 
+-			ent.modeValues = var
++			if IsValid(ent) and istable(var) then ent.modeValues = var end
+ 		end
+ 	end)
+ end
+@@ -463,10 +494,23 @@
+ -- WoundTBL = {dmgBlood / 2, localPos, localAng, bone, time}
+ SWEP.ShouldDeleteOnFullUse = true
+ if SERVER then
++	-- Refuse incomplete state without consuming supplies or inventing healed wounds.
++	local function BandageReady(self, ent)
++		if not IsValid(ent) or not IsValid(self:GetOwner()) then return false end
++		local values, org = self.modeValues, ent.organism
++		if not istable(values) or not isnumber(values[1]) or values[1] ~= values[1] then return false end
++		if not istable(org) or not istable(org.wounds) then return false end
++		if not isnumber(org.bleed) or not isnumber(org.pain) or not isnumber(org.avgpain) or not isnumber(org.skull) then return false end
++		for _, wound in pairs(org.wounds) do
++			if not istable(wound) or not isnumber(wound[1]) or wound[1] ~= wound[1] or not isstring(wound[4]) then return false end
++		end
++		return true
++	end
++
+ 	function SWEP:Bandage(ent, bone)
++		if not BandageReady(self, ent) then return end
+ 		local org = ent.organism
+ 		local owner = self:GetOwner()
+-		if not org then return end
+ 		
+ 		-- Если растрелять труп а потом его взорвать гранатой, после перевязать - крашнет сервер why?
+ 		if self.modeValues[1] <= 0 or not (#org.wounds > 0 or org.lleg == 1 or org.rleg == 1 or org.skull >= 0.6 or org.chest == 1 or org.rarm == 1 or org.larm == 1) then return end
+@@ -507,19 +551,20 @@
+ 			local bonewounds = {}
+ 			
+ 			for i, tbl in pairs(org.wounds) do
+-				if ent:GetBoneName(ent:LookupBone(tbl[4])) == bone then
+-					table.insert(bonewounds,i)
++				if tbl[4] == bone then
++					table.insert(bonewounds,tbl)
+ 				end
+ 			end
+ 			
+ 			for i = 1, #bonewounds do
+ 				if self.modeValues[1] ~= 0 and #bonewounds > 0 then
+-					if org.wounds[bonewounds[1]] then
+-						local biggestWound = org.wounds[bonewounds[1]][1]
++					local wound = bonewounds[1]
++					if wound then
++						local biggestWound = wound[1]
+ 						local healedWound = math.max(biggestWound - self.modeValues[1], 0)
+ 						local woundHeal = self.modeValues[1] - (biggestWound - healedWound)
+ 						org.bleed = math.max(org.bleed - (biggestWound - healedWound), 0)
+-						org.wounds[bonewounds[1]][1] = healedWound
++						wound[1] = healedWound
+ 						self.modeValues[1] = woundHeal
+ 
+ 						org.pain = math.max(org.pain - (biggestWound - healedWound) / 4, 0)
+@@ -529,24 +574,30 @@
+ 						end
+ 
+ 						ent.bandaged_limbs = ent.bandaged_limbs or {}
+-						local bone_name = ent:GetBoneName(ent:LookupBone(org.wounds[bonewounds[1]][4]))
++						local bone_name = wound[4]
+ 						
+ 						if not ent.bandaged_limbs[bone_name] then
+ 							ent.bandaged_limbs[bone_name] = true
+ 							done = true
+ 						end
+ 
+-						if org.wounds[bonewounds[1]][1] == 0 then table.remove(org.wounds, bonewounds[1]) end
++						if wound[1] == 0 then
++							for index, current in ipairs(org.wounds) do
++								if current == wound then table.remove(org.wounds, index) break end
++							end
++						end
+ 					end
+ 					table.remove(bonewounds, 1)
+ 				end
+ 			end
+ 		end
+-		org.owner:SetNetVar("wounds",org.wounds)
++		if IsValid(org.owner) then org.owner:SetNetVar("wounds",org.wounds) end
+ 		timer.Create("bandage_limbs"..ent:EntIndex(),0.1,1,function()
++			if not IsValid(ent) or ent.organism ~= org then return end
+ 			ent:SetNetVar("bandaged_limbs",ent.bandaged_limbs)
+-			if ent:IsRagdoll() and hg.RagdollOwner(ent) and hg.RagdollOwner(ent):Alive() then
+-				hg.RagdollOwner(ent):SetNetVar("bandaged_limbs",ent.bandaged_limbs)
++			local ragOwner = ent:IsRagdoll() and hg.RagdollOwner(ent)
++			if IsValid(ragOwner) and ragOwner:Alive() then
++				ragOwner:SetNetVar("bandaged_limbs",ent.bandaged_limbs)
+ 			end
+ 		end)
+ 
+@@ -610,9 +661,11 @@
+ 	end
+ 
+ 	function SWEP:Heal(ent, mode, bone)
++		if not IsValid(ent) or not IsValid(self:GetOwner()) then return end
+ 		if ent:IsNPC() then
+ 			self:NPCHeal(ent, 0.15, "snd_jack_hmcd_bandage.wav")
+ 		end
++		if not BandageReady(self, ent) then return end
+ 
+ 		local org = ent.organism
+ 		if not org then return end
+@@ -839,7 +892,7 @@
+ 				end
+ 			end
+ 
+-			org.owner:SetNetVar("wounds",org.wounds)
++			if IsValid(org.owner) then org.owner:SetNetVar("wounds",org.wounds) end
+ 
+ 			ent:SetNetVar("Tourniquets",ent.tourniquets)
+ 			if IsValid(ent.FakeRagdoll) then

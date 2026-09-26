@@ -1,0 +1,28 @@
+--- a/lua/homigrad/fake/sh_render.lua
++++ b/lua/homigrad/fake/sh_render.lua
+@@ -26,7 +26,7 @@
+ 				newmat:SetAngles(q3:Angle())
+ 				newmat:SetScale(m1:GetScale())
+ 
+-				if i == ent:LookupBone("ValveBiped.Bip01_Head1") and lply == GetViewEntity() and lply == ply then
++				if i == ent:LookupBone("ValveBiped.Bip01_Head1") and lply == GetViewEntity() and lply == ply and not hg.camSelfieRender then
+ 					newmat:SetScale(vecSmall)
+ 					//ply.headm = newmat
+ 				end
+@@ -55,6 +55,7 @@
+ 	local angfuck = Angle()
+ 
+ 	function DrawPlayerRagdoll(ent, ply) --// actually not only ragdoll render but player too
++	if ZCKillcamView and ZCKillcamView.IsolatingScene and ZCKillcamView.IsolatingScene() then return end
+ 		if ply.prevragdoll_index != nil and ply.prevragdoll_index != ply.ragdoll_index and ply.ragdoll_index == 0 then
+ 			//print(ply.ragdoll_index, ply.prevragdoll_index, Entity(ply.ragdoll_index))
+ 
+@@ -105,7 +106,7 @@
+ 
+ 		--local current = ent:GetManipulateBoneScale(lkp)
+ 		local fountains = GetNetVar("fountains") or {}
+-		local wawanted = (GetViewEntity() != ply) and !fountains[ent] and (!(!lply:Alive() and lply:GetNWEntity("spect") == ply and viewmode == 1) and !(hg_firstperson_death:GetBool() and follow == ent)) and vector_full or vector_small
++		local wawanted = (hg.camSelfieRender or GetViewEntity() != ply) and !fountains[ent] and (!(!lply:Alive() and lply:GetNWEntity("spect") == ply and viewmode == 1) and !(hg_firstperson_death:GetBool() and follow == ent)) and vector_full or vector_small
+ 		--print(ent, wawanted, GetViewEntity(), ply, (GetViewEntity() != ply), !fountains[ent], !(!lply:Alive() and lply:GetNWEntity("spect") == ply and viewmode == 1))
+ 		--if !current:IsEqualTol(wawanted, 0.01) then
+ 			--ent:ManipulateBoneScale(lkp, wawanted)

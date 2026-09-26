@@ -1,0 +1,102 @@
+--- a/lua/homigrad/cl_hud.lua
++++ b/lua/homigrad/cl_hud.lua
+@@ -145,11 +145,6 @@
+ 
+ local w, h
+ 
+-hook.Add("HUDPaint", "homigrad-dev", function()
+-	if engine.ActiveGamemode() ~= "sandbox" then return end
+-	w, h = ScrW(), ScrH()
+-end)
+-
+ --draw.SimpleText(lply:Health(),"HomigradFontBig",100,h - 50,white,TEXT_ALIGN_CENTER,TEXT_ALIGN_CENTER)
+ function draw.CirclePart(x, y, radius, seg, parts, pos)
+ 	local cir = {}
+@@ -206,6 +201,8 @@
+ local colBack = Color(0,0,0)
+ local surface, draw, hook, IsColor, IsValid, math, input = surface, draw, hook, IsColor, IsValid, math, input
+ local function CreateRadialMenu(options_arg, bAutoClose)
++	local freeze = ZCityInteractions and ZCityInteractions.ContextEnabled and ZCityInteractions.ContextEnabled()
++	hook_Run("ZCityRadialOpening", options_arg ~= nil)
+ 	local sizeX, sizeY = ScrW(), ScrH()
+ 	hg.radialOptions = {}
+ 	local paining = lply.organism and lply.organism.pain and (lply.organism.pain > 100 or lply.organism.brain > 0.2) or false
+@@ -234,6 +231,7 @@
+ 	menuPanel:SetPos(scrW / 2 - sizeX / 2, scrH / 2 - sizeY / 2)
+ 	menuPanel:SetSize(sizeX, sizeY)
+ 	menuPanel:MakePopup()
++	menuPanel:SetCursor("blank")
+ 	menuPanel:SetKeyBoardInputEnabled(false)
+ 	menuPanel:SetAlpha(0)
+ 	menuPanel:AlphaTo(255,0.2)
+@@ -253,6 +251,8 @@
+ 	local thinkwait = 0
+ 	if !options_arg then
+ 		menuPanel.Think = function()
++			-- Keep every slot fixed for this opening; action owners revalidate on selection.
++			if freeze then return end
+ 			if menuPanel:GetAlpha() < 255 then return end
+ 			if thinkwait > CurTime() then return end
+ 			thinkwait = CurTime() + 0.25
+@@ -622,11 +622,6 @@
+ 	--render.PopFilterMin()
+ end
+ 
+---hook.Add("HUDPaint","homigrad-copyright",function()
+-	--local i = 1
+-	--CopyRight("ЖДИ ДОКС ЖДИ СВАТ","HomigradFontBig",ScrW()/2 +(math.cos(CurTime()*1)*15*i),ScrH()/2+(math.sin(CurTime()*1)*55*i)+15,Color(255,255,255),math.cos(CurTime()*1)*1,2+math.sin(CurTime()*1)*0.5)
+---end)
+-
+ hook.Add("HUDPaint","Identifier",function()
+ 	if lply.organism and lply.organism.otrub then return end
+ 	if !lply:Alive() then return end
+@@ -640,6 +635,8 @@
+ 	local x, y = trace.HitPos:ToScreen().x, trace.HitPos:ToScreen().y
+ 
+ 	if trace.Hit and (trace.Entity:IsRagdoll() or trace.Entity:IsPlayer()) then
++		-- 2026-09-25: a searchable body shows its name under the crosshair "Search" prompt instead.
++		if trace.Entity:IsRagdoll() and hg.LookAtOwnsHints and hg.LookAtOwnsHints(trace.Entity) then return end
+ 		if trace.Entity.PlayerClassName == "sc_infiltrator" then return end
+ 		if trace.Entity:GetNetVar("disappearance", nil) then return end
+ 
+@@ -684,6 +681,8 @@
+ 
+ 	if not trace then return end
+ 
++	-- 2026-09-25: the crosshair prompt (interactions ring) draws this entity's hint instead of the grey box.
++	if hg.LookAtOwnsHints and hg.LookAtOwnsHints(trace.Entity) then HintBackgroundColor.a = 0 return end
+ 	HintBackgroundColor.a = LerpFT(0.1, HintBackgroundColor.a, (IsValid(trace.Entity) and trace.Entity.HudHintMarkup) and 200 or 0)
+ 
+ 	hg.BasicHudHint(trace.Entity, trace, hint)
+@@ -716,31 +715,6 @@
+ 
+ local white = Color(255, 255, 255, 255)
+ local bkg = Color(43, 30, 30)
+-hook.Add("HUDPaint","afflictionlist",function()
+-	--[[if lply.organism and lply.organism.otrub then return end
+-	if !lply:Alive() then return end
+-	
+-	local org = lply.organism
+-
+-	if org.lleg >= 0.99 then
+-		local w, h = 200, 200
+-
+-		local ent = hg.GetCurrentCharacter(lply)
+-		local lkp = ent:LookupBone("ValveBiped.Bip01_R_Thigh")
+-		local matrix = ent:GetBoneMatrix(lkp)
+-
+-		if matrix then
+-			local pos = matrix:GetTranslation() + matrix:GetForward() * ent:BoneLength(lkp + 1) * 0.5
+-			local scrpos = pos:ToScreen()
+-
+-			surface.SetMaterial(leg)
+-			surface.SetDrawColor(white)
+-			--surface.DrawRect(sw / 2 - w / 2, sh / 2 - h / 2, w, h)
+-			surface.SetDrawColor(white)
+-			surface.DrawTexturedRect(scrpos.x - w / 2, scrpos.y - h / 2, w, h)
+-		end
+-	end--]]
+-end)
+ 
+ -- Now playable :steamhappy:
+ -- No. fuc kyouy

@@ -1,0 +1,49 @@
+--- a/lua/homigrad/sh_notification.lua
++++ b/lua/homigrad/sh_notification.lua
+@@ -169,7 +169,9 @@
+ 
+ 		local clr = tbl and tbl[4] and IsColor(tbl[4]) and tbl[4] or Color(255, 255, 255, 255)
+ 		if tbl and clr and tbl[1] then
++			hg.NotificationEchoing = true -- 2026-09-24: ZChat keeps this a plain line, never a system banner / GoobOS push
+ 			chat.AddText(Color(clr.r, clr.g, clr.b, 255), (last_message or tbl[1]).."\n")
++			hg.NotificationEchoing = nil
+ 		end
+ 
+ 		hg.currentNotification = nil
+@@ -362,9 +364,23 @@
+ 					draw.SimpleText(last_message or txt, "ZB_ProotOSMedium", x + 2, y + 2, ColorAlpha(color_black, col.a), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+ 					draw.SimpleText(last_message or txt, "ZB_ProotOSMedium", x, y, ColorAlpha(bluewhite, col.a), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+ 				else
+-					local x, y = ScrW() / 2 - txtw / 2 + math.Rand(0, org.pain > 10 and org.pain / 10 or 0) + math.Rand(0, (255 - clr.g) / 255 * 2), ScrH() - ScrH() / 6 + math.Rand(0, org.pain > 10 and org.pain / 10 or 0) + math.Rand(0, (255 - clr.g) / 255 * 2)
+-
+-					draw.SimpleTextOutlined(last_message or txt, font, x, y, col, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER, 1.5, colBrown)
++					-- 2026-09-25 HUD pass: GoobOS HUD font, shadow and bottom-centre slot (46 px under the stamina bar at
++					-- 1080p). The pain shake keeps its amplitude but drifts smoothly in time instead of jumping to a new
++					-- random offset every frame.
++					local K = ZCGoobApps and ZCGoobApps.Kit
++					local shake = (org.pain > 10 and org.pain / 10 or 0) + (255 - clr.g) / 255 * 2
++					local t = RealTime()
++					local dx = shake * (0.5 + 0.25 * (math.sin(t * 7.3) + math.sin(t * 11.9 + 1.7)))
++					local dy = shake * (0.5 + 0.25 * (math.sin(t * 8.1 + 0.6) + math.sin(t * 13.7 + 2.9)))
++					if K and K.HudText then
++						local hudFont = K.HudFont(24, 500)
++						surface.SetFont(hudFont)
++						local hudW = surface.GetTextSize(last_message or txt)
++						K.HudText(last_message or txt, hudFont, ScrW() / 2 - hudW / 2 + dx, K.HudY("status") + dy, col, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
++					else
++						local x, y = ScrW() / 2 - txtw / 2 + dx, ScrH() - ScrH() / 6 + dy
++						draw.SimpleTextOutlined(last_message or txt, font, x, y, col, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER, 1.5, colBrown)
++					end
+ 				end
+ 			else
+ 				local tbl = hg.currentNotification
+@@ -372,7 +388,9 @@
+ 				local clr = tbl and tbl[4] and IsColor(tbl[4]) and tbl[4] or Color(255, 255, 255, 255)
+ 				if tbl and clr and tbl[1] then
+ 					//MsgC(Color(clr.r, clr.g, clr.b, 255), (last_message or tbl[1]).."\n")
++					hg.NotificationEchoing = true -- 2026-09-24: ZChat keeps this a plain line, never a system banner / GoobOS push
+ 					chat.AddText(Color(clr.r, clr.g, clr.b, 255), (last_message or tbl[1]).."\n")
++					hg.NotificationEchoing = nil
+ 				end
+ 
+ 				last_message = nil

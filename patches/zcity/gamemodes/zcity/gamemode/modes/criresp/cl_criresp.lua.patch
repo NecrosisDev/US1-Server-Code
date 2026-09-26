@@ -1,0 +1,19 @@
+--- a/gamemodes/zcity/gamemode/modes/criresp/cl_criresp.lua
++++ b/gamemodes/zcity/gamemode/modes/criresp/cl_criresp.lua
+@@ -194,12 +194,13 @@
+ 
+ 
+ 		function but:DoClick()
++			local id64 = ply:SteamID64()
+ 			if ply:IsBot() then
+-				chat.AddText(Color(255, 0, 0), "no, you can't")
+-				return
++				id64 = ply:GetNWString("zcSteamID64", "")
++				if id64 == "" then return end
+ 			end
+ 
+-			gui.OpenURL("https://steamcommunity.com/profiles/" .. ply:SteamID64())
++			gui.OpenURL("https://steamcommunity.com/profiles/" .. id64)
+ 		end
+ 
+ 		DScrollPanel:AddItem(but)

@@ -1,5 +1,19 @@
 # US1 server source
 
+Code for the US1 Garry's Mod server: one US1 addon plus pinned upstream Z-City, ULX and ULib with our patches.
+
+```
+python3 tools/build.py --check      # -> dist/garrysmod/addons/{us1,zcity,ulx,ulib}
+python3 -m unittest discover -s tests
+```
+
+- [Architecture and rules](docs/ARCHITECTURE.md). Agents: see [CLAUDE.md](CLAUDE.md).
+- [Migration status and backlog](docs/MIGRATION.md). The pre-restructure raw import is tag `pre-restructure`.
+- [Dependencies](manifests/dependencies.json) and the [old-path → new-path map](manifests/source-map.json).
+
+The sections below describe the original raw import (now at tag `pre-restructure`).
+
+
 Source-only working import of the server's `garrysmod/` directory.
 
 The goal is an organized, consolidated US1 code addon with separate content packs

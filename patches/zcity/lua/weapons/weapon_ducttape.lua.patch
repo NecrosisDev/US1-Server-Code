@@ -1,0 +1,144 @@
+--- a/lua/weapons/weapon_ducttape.lua
++++ b/lua/weapons/weapon_ducttape.lua
+@@ -83,6 +83,7 @@
+ SWEP.angHold = Angle(0, 0, 0)
+ SWEP.UnTapeables = {MAT_SAND, MAT_SLOSH, MAT_SNOW}
+ SWEP.TapeAmount = 100
++SWEP.ZCConstraintRepairVersion = "20260919.bind1"
+ SWEP.AnimList = {
+ 	["start"] = {"start", 2.5, false},
+ 	["stop"] = {"start", 1, false},
+@@ -190,24 +191,30 @@
+ end
+ 
+ local function BindObjects(ent1, pos1, ent2, pos2, power, bone1, bone2)
+-	ent1.DuctTape = ent1.DuctTape or {}
+-	ent2.DuctTape = ent2.DuctTape or {}
+-	local Strength = ent1.DuctTape and ent1.DuctTape[bone1] and #ent1.DuctTape[bone1] or 1
+-	local weld = not ent1:IsRagdoll() and not ent2:IsRagdoll() and constraint.Rope(ent1, ent2, 0, 0, ent1:WorldToLocal(pos1), ent2:WorldToLocal(pos2), (pos1 - pos2):Length(), -.1, (500 + Strength * 100) * 5, 0, "", false) or constraint.Weld(ent1, ent2, bone1, bone2, (500 + Strength * 100) * 15, false, false)
+-	if not ent1.DuctTape[bone1] then
+-		ent1.DuctTape[bone1] = {weld, 1}
+-		weld:CallOnRemove("removefromtbl", function() ent1.DuctTape[bone1] = nil end)
+-	else
+-		ent1.DuctTape[bone1][2] = ent1.DuctTape[bone1][2] + 1
+-	end
+-
+-	if not ent2.DuctTape[bone2] then
+-		ent2.DuctTape[bone2] = {weld, 1}
+-		weld:CallOnRemove("removefromtbl", function() ent2.DuctTape[bone2] = nil end)
+-	else
+-		ent2.DuctTape[bone2][2] = ent2.DuctTape[bone2][2] + 1
+-	end
+-	return ent1:IsWorld() and ent2.DuctTape[bone2][2] or ent1.DuctTape[bone1][2]
++    local world = game.GetWorld()
++    if (not IsValid(ent1) and ent1 ~= world) or (not IsValid(ent2) and ent2 ~= world)
++        or ent1 == ent2 or type(bone1) ~= "number" or type(bone2) ~= "number"
++        or bone1 < 0 or bone2 < 0 or bone1 % 1 ~= 0 or bone2 % 1 ~= 0 then return false end
++    local Strength = ent1.DuctTape and ent1.DuctTape[bone1] and #ent1.DuctTape[bone1] or 1
++    local weld = not ent1:IsRagdoll() and not ent2:IsRagdoll() and constraint.Rope(ent1, ent2, 0, 0, ent1:WorldToLocal(pos1), ent2:WorldToLocal(pos2), (pos1 - pos2):Length(), -.1, (500 + Strength * 100) * 5, 0, "", false) or constraint.Weld(ent1, ent2, bone1, bone2, (500 + Strength * 100) * 15, false, false)
++    -- Rope/Weld explicitly return false on failure. Commit no tape state until success.
++    if not IsValid(weld) then return false end
++    ent1.DuctTape = ent1.DuctTape or {}
++    ent2.DuctTape = ent2.DuctTape or {}
++    local function record(ent, bone, identifier)
++        local row = ent.DuctTape[bone]
++        if row and IsValid(row[1]) then row[2] = row[2] + 1;return end
++        row = {weld, 1};ent.DuctTape[bone] = row
++        weld:CallOnRemove(identifier, function()
++            if (IsValid(ent) or ent == world) and ent.DuctTape and ent.DuctTape[bone] == row then
++                ent.DuctTape[bone] = nil
++            end
++        end)
++    end
++    -- Both ends need distinct callbacks; reusing one ID replaces the first callback.
++    record(ent1, bone1, "ZCityTape_End1")
++    record(ent2, bone2, "ZCityTape_End2")
++    return ent1:IsWorld() and ent2.DuctTape[bone2][2] or ent1.DuctTape[bone1][2]
+ end
+ 
+ function hgCheckDuctTapeObjects(ent1)
+@@ -246,42 +253,27 @@
+ 	end)
+ end
+ 
++-- Candidate only: same search directions, reach, random attempts and return shape.
++-- Removes repeated identical traces within this synchronous search; no cached targets.
+ function SWEP:FindObjects()
+-	local Owner = self:GetOwner()
+-	local Pos, Vec, GotOne, Tries, TrOne, TrTwo = select(1, hg.eye(Owner)), Owner:GetAimVector(), false, 0, nil, nil
+-	while not GotOne and (Tries < 100) do
+-		local Tr = util.QuickTrace(Pos - Vec * 10, Vec * 60, {Owner})
+-		local FindBone = util.QuickTrace(Pos, Vec * 60, {Owner})
+-		if Tr.Hit and not Tr.HitSky and not table.HasValue(self.UnTapeables, Tr.MatType) then
+-			GotOne = true
+-			TrOne = Tr
+-			TrOne.PhysicsBone = FindBone.PhysicsBone
+-		end
+-
+-		Tries = Tries + 1
+-	end
+-
+-	if GotOne then
+-		GotOne = false
+-		Tries = 0
+-		while not GotOne and (Tries < 100) do
+-			local Tr = util.QuickTrace(Pos - Vec * 10, Vec * 60 + VectorRand() * 1, {Owner, TrOne.Entity})
+-			local FindBone = util.QuickTrace(Pos, Vec * 60, {Owner, TrOne.Entity})
+-			if Tr.Hit and not Tr.HitSky and not table.HasValue(self.UnTapeables, Tr.MatType) and (Tr.Entity ~= TrOne.Entity) then
+-				GotOne = true
+-				TrTwo = Tr
+-				TrTwo.PhysicsBone = FindBone.PhysicsBone
+-			end
+-
+-			Tries = Tries + 1
+-		end
+-	end
+-
+-	if TrOne and TrTwo then
+-		return true, TrOne, TrTwo
+-	else
+-		return false, nil, nil
+-	end
++    local Owner = self:GetOwner()
++    local Pos, Vec = select(1, hg.eye(Owner)), Owner:GetAimVector()
++    local TrOne = util.QuickTrace(Pos - Vec * 10, Vec * 60, {Owner})
++    local FindBone = util.QuickTrace(Pos, Vec * 60, {Owner})
++    if not TrOne.Hit or TrOne.HitSky or table.HasValue(self.UnTapeables, TrOne.MatType) then
++        return false, nil, nil
++    end
++    TrOne.PhysicsBone = FindBone.PhysicsBone
++    for attempt = 1, 100 do
++        local Tr = util.QuickTrace(Pos - Vec * 10, Vec * 60 + VectorRand() * 1, {Owner, TrOne.Entity})
++        if Tr.Hit and not Tr.HitSky and not table.HasValue(self.UnTapeables, Tr.MatType)
++            and Tr.Entity ~= TrOne.Entity then
++            local Bone = util.QuickTrace(Pos, Vec * 60, {Owner, TrOne.Entity})
++            Tr.PhysicsBone = Bone.PhysicsBone
++            return true, TrOne, Tr
++        end
++    end
++    return false, nil, nil
+ end
+ 
+ function SWEP:PrimaryAttack()
+@@ -331,10 +323,11 @@
+ 				Owner:ViewPunch(Angle(3, 0, 0))
+ 				self:SprayDecals()
+ 				Owner:PrintMessage(HUD_PRINTCENTER, "Door Sealed")
+-				timer.Simple(.1, function() if self.TapeAmount <= 0 then self:Remove() end end)
++				timer.Simple(.1, function() if IsValid(self) and self.TapeAmount <= 0 then self:Remove() end end)
+ 				self:SetHolding(25)
+ 			else
+ 				local Strength = BindObjects(TrOne.Entity, TrOne.HitPos, TrTwo.Entity, TrTwo.HitPos, 2, TrOne.PhysicsBone, TrTwo.PhysicsBone)
++				if not Strength then self:SetHolding(25);return end
+ 				if not self.TapeAmount then self.TapeAmount = 100 end
+ 				self.TapeAmount = self.TapeAmount - 10
+ 				self:SetTapeAmount(self.TapeAmount)
+@@ -345,7 +338,7 @@
+ 				util.Decal("hmcd_jackatape", TrTwo.HitPos + TrTwo.HitNormal, TrTwo.HitPos - TrTwo.HitNormal)
+ 				--Owner:PrintMessage(HUD_PRINTCENTER,"Bond strength: "..tostring(Strength))
+ 				Owner:ChatPrint("Bond strength: " .. tostring(Strength))
+-				timer.Simple(.1, function() if self.TapeAmount <= 0 then self:Remove() end end)
++				timer.Simple(.1, function() if IsValid(self) and self.TapeAmount <= 0 then self:Remove() end end)
+ 				self:SetHolding(25)
+ 			end
+ 		end

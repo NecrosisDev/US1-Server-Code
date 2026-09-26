@@ -1,0 +1,63 @@
+--- a/gamemodes/zcity/gamemode/modes/sfd/cl_sfd.lua
++++ b/gamemodes/zcity/gamemode/modes/sfd/cl_sfd.lua
+@@ -133,7 +133,7 @@
+ 	end
+ 	
+ 	for i, ply in player.Iterator() do
+-		if ply == LocalPlayer() or not ply:Alive() then continue end
++		if not IsValid(ply) or ply == LocalPlayer() or not ply:Alive() then continue end
+ 		local tr = hg.eyeTrace(ply)
+ 		local dist = ply:GetPos():Distance(LocalPlayer():GetPos())
+ 		local pos = tr.StartPos + vector_up * 15
+@@ -187,7 +187,9 @@
+ 	
+ 	roundend = CurTime()
+ 
+-	hook.Remove("Think", "ZoneSoundThink")
++	-- 2026-09-23: do not remove dm's "ZoneSoundThink" Think here. dm registers it once at file
++	-- load and its body already returns when the current round is not dm; removing it silenced
++	-- the deathmatch zone audio for the rest of the map after any Superfighters round.
+ 	
+ 	if(MODE.SoundStation and MODE.SoundStation:IsValid())then
+ 		MODE.SoundStation:Stop()
+@@ -266,7 +268,7 @@
+ 
+     hmcdEndMenu.Paint = function(self,w,h)
+ 		BlurBackground(self)
+-		local txt = (wonply and wonply:GetPlayerName() or "Nobody").." won!"
++		local txt = (IsValid(wonply) and wonply:GetPlayerName() or "Nobody").." won!"
+ 		surface.SetFont( "ZB_InterfaceMediumLarge" )
+ 		surface.SetTextColor(col.r,col.g,col.b,col.a)
+ 		local lengthX, lengthY = surface.GetTextSize(txt)
+@@ -295,6 +297,15 @@
+ 		but:DockMargin( 8, 6, 8, -1 )
+ 		but:SetText("")
+ 		but.Paint = function(self,w,h)
++			if not IsValid(ply) then
++				surface.SetDrawColor(colGray.r,colGray.g,colGray.b,colGray.a)
++				surface.DrawRect(0,0,w,h)
++				surface.SetFont( "ZB_InterfaceMediumLarge" )
++				surface.SetTextColor(255,255,255,255)
++				surface.SetTextPos(15, h/2 - 12)
++				surface.DrawText("He quited...")
++				return
++			end
+ 			local col1 = (ply.won and colRed) or (ply:Alive() and colBlue) or colGray
+             local col2 = (ply.won and colRedUp) or (ply:Alive() and colBlueUp) or colSpect1
+ 			
+@@ -331,8 +342,13 @@
+ 		end
+ 
+ 		function but:DoClick()
+-			if ply:IsBot() then chat.AddText(Color(255,0,0), "no, you can't") return end
+-			gui.OpenURL("https://steamcommunity.com/profiles/"..ply:SteamID64())
++			if not IsValid(ply) then return end
++			local id64 = ply:SteamID64()
++			if ply:IsBot() then
++				id64 = ply:GetNWString("zcSteamID64", "")
++				if id64 == "" then return end
++			end
++			gui.OpenURL("https://steamcommunity.com/profiles/"..id64)
+ 		end
+ 
+ 		DScrollPanel:AddItem(but)

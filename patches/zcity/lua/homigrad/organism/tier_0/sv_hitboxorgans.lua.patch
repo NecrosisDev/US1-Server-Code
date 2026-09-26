@@ -1,0 +1,62 @@
+--- a/lua/homigrad/organism/tier_0/sv_hitboxorgans.lua
++++ b/lua/homigrad/organism/tier_0/sv_hitboxorgans.lua
+@@ -26,6 +26,7 @@
+ 	local dirSub = 0
+ 	local ricocheted
+ 	local ricochetAng
++	local traceReason -- 1 budget exhausted in body, 2 cleared organ trace, 3 limit, 4 boundary, 5 unknown
+ 	distance = math.Clamp(distance, 0, 50)
+ 	dir:Normalize()
+ 	dir = dir * stepDis
+@@ -37,7 +38,7 @@
+ 	while(passing < distance and maxtries > 0)do
+ 		maxtries = maxtries - 1
+ 		
+-		if maxpen ~= 0 and passing >= maxpen then break end
++		if maxpen ~= 0 and passing >= maxpen then traceReason = 3 break end
+ 
+ 		dir:Normalize()
+ 
+@@ -45,6 +46,9 @@
+ 		local iHit
+ 		local normal
+ 		local hit
++		-- The ray is unchanged while testing this step against candidate boxes.
++		local startpos = tracePos - dir * 0
++		local endpos = dir * 100
+ 		for i = 1, #boxs do
+ 			if hitBoxs[i] then continue end
+ 
+@@ -52,9 +56,6 @@
+ 			
+ 			if not organs[box[6]] then continue end
+ 			
+-			local startpos = tracePos - dir * 0
+-			local endpos = dir * 100
+-
+ 			local hit_, normal_, frac_ = util_IntersectRayWithOBB(startpos, endpos, box[1], box[2], box[3], box[4])
+ 			
+ 			if hit_ then
+@@ -129,7 +130,11 @@
+ 		
+ 		tracePoses[#tracePoses + 1] = Vector(tracePos[1], tracePos[2], tracePos[3])
+ 		
+-		if passing >= distance or (tracePos - center):LengthSqr() > endDisSqr then break end
++		if passing >= distance then
++			traceReason = inBody and 1 or (hitSomething and 2 or 5)
++			break
++		end
++		if (tracePos - center):LengthSqr() > endDisSqr then traceReason = 4 break end
+ 	end
+ 	
+ 	if !hitSomething then
+@@ -142,7 +147,8 @@
+ 
+ 	dir:Normalize()
+ 
+-	return tracePos, hitBoxs, inputHole, outputHole, dir, distance, tracePoses
++	return tracePos, hitBoxs, inputHole, outputHole, dir, distance, tracePoses,
++		{v = 1, reason = traceReason or (maxtries <= 0 and 3 or 5), points = tracePoses}
+ end
+ 
+ function hg.organism.BlastTrace(pos, size, dmg, boxs, organs, funcInput, ...)

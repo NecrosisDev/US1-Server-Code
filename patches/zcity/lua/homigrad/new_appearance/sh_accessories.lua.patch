@@ -1,0 +1,26 @@
+--- a/lua/homigrad/new_appearance/sh_accessories.lua
++++ b/lua/homigrad/new_appearance/sh_accessories.lua
+@@ -1509,13 +1509,22 @@
+     hg.PointShop = hg.PointShop or {}
+ 
+     local PLUGIN = hg.PointShop
++    -- 2026-09-26: owner decision -- everything currently in the catalog is handed out to everyone
++    -- in the wardrobe, even after hg_appearance_access_for_all is turned off, and drops out of the
++    -- shop listing (zc_goobos/shop.lua). Stamped by id, at creation, so it never depends on whether
++    -- this hook or sh_shared.lua's AddBodygroups hook (both on "Think") runs first.
++    PLUGIN.FreeItems = PLUGIN.FreeItems or {}
+ 
+-    PLUGIN.Items = {}
++    -- 2026-09-26: was `PLUGIN.Items = {}` -- an unconditional wipe. sh_shared.lua's AddBodygroups
++    -- hook (also a self-removing "Think" hook, run order not guaranteed) adds the 18 glove items to
++    -- this same table; if it ran first, this line silently deleted them for the rest of the map.
++    PLUGIN.Items = PLUGIN.Items or {}
+ 
+     for k, acces in pairs(hg.Accessories) do
+         if not acces.bPointShop then continue end
+ 
+         PLUGIN:CreateItem( k, string.NiceName( acces.name or k ), acces.model, acces.bodygroups, acces.skin, acces.vpos or Vector(0,0,0), acces.price, acces.isdpoint, {[0] = acces.SubMat} )
++        PLUGIN.FreeItems[k] = true
+     end
+ 
+     hook.Remove( "Think", "RemoveME" )

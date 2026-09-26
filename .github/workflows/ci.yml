@@ -1,0 +1,36 @@
+name: ci
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      GLUALINT_VERSION: "1.29.0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install glualint
+        run: |
+          curl -sSL -o gl.zip "https://github.com/FPtje/GLuaFixer/releases/download/${GLUALINT_VERSION}/glualint-${GLUALINT_VERSION}-x86_64-linux.zip"
+          unzip -q gl.zip -d "$HOME/bin"
+          echo "GLUALINT=$HOME/bin/glualint" >> "$GITHUB_ENV"
+      - name: Unit tests
+        run: python -m unittest discover -s tests -v
+      - name: Cache upstream checkouts
+        uses: actions/cache@v4
+        with:
+          path: .cache/upstream
+          key: upstream-${{ hashFiles('manifests/dependencies.json') }}
+      - name: Build (upstream + patches + us1) and check
+        run: python tools/build.py --check
+      - name: Strict check
+        run: python tools/check.py --dist --strict
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 14

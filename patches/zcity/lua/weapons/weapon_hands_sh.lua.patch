@@ -1,0 +1,180 @@
+--- a/lua/weapons/weapon_hands_sh.lua
++++ b/lua/weapons/weapon_hands_sh.lua
+@@ -1,3 +1,5 @@
++ZCityStealthOwnerCapabilities=ZCityStealthOwnerCapabilities or {}
++ZCityStealthOwnerCapabilities["weapons/weapon_hands_sh.lua"]="20260920.stealth3"
+ if SERVER then AddCSLuaFile() end
+ SWEP.Base = "weapon_base"
+ local function RagdollOwner(ent)
+@@ -703,8 +705,9 @@
+ 	if not IsFirstTimePredicted() then
+ 		self:DoBFSAnimation("fists_draw",1)
+ 		local owner = self:GetOwner()
+-		if not IsValid(owner:GetViewModel()) then
+-			owner:GetViewModel():SetPlaybackRate(.1)
++		local viewmodel = IsValid(owner) and owner:GetViewModel()
++		if IsValid(viewmodel) then
++			viewmodel:SetPlaybackRate(.1)
+ 		end
+ 		return true
+ 	end
+@@ -744,6 +747,7 @@
+ local trMins, trMaxs = Vector(-5, -5, -5), Vector(5, 5, 5)
+ local trMinsClaws, trMaxsClaws = Vector(-8, -8, -8), Vector(8, 8, 8)
+ function SWEP:SecondaryAttack()
++    if ZCityStealth and IsValid(self:GetOwner()) and ZCityStealth.Locked(self:GetOwner()) then return end
+ 	local owner = self:GetOwner()
+ 	if owner:InVehicle() then return end
+ 	if not IsFirstTimePredicted() then return end
+@@ -796,7 +800,7 @@
+ 			local Dist = (select(1, hg.eye(owner)) - tr.HitPos):Length()
+ 			--if Dist < self.ReachDistance then
+ 				sound.Play("Flesh.ImpactSoft", owner:GetShootPos(), 65, math.random(90, 110))
+-				self:SetCarrying(tr.Entity, tr.PhysicsBone, tr.HitPos, Dist)
++				if self:SetCarrying(tr.Entity, tr.PhysicsBone, tr.HitPos, Dist) == false then return end
+ 				tr.Entity.Touched = true
+ 				self:ApplyForce()
+ 			--end
+@@ -839,8 +843,8 @@
+ 
+ function SWEP:ApplyForce()
+ 	local ply = self:GetOwner()
+-	local target = self:GetOwner():GetAimVector() * self.CarryDist + select(1, hg.eye(ply))
+-	if not IsValid(self.CarryEnt) then return end
++	if not IsValid(ply) or not IsValid(self.CarryEnt) or not isnumber(self.CarryDist) then return end
++	local target = ply:GetAimVector() * self.CarryDist + select(1, hg.eye(ply))
+ 	local phys = self.CarryEnt:GetPhysicsObjectNum(self.CarryBone)
+ 
+ 	if ply.organism and ply.organism.rarmamputated and ply:IsTyping() then
+@@ -882,6 +886,8 @@
+ 			mul = mul * 5
+ 		end
+ 
++		local isCrusher = ply.SubRole == "traitor_strangler" or ply.SubRole == "traitor_strangler_soe"
++
+ 		if (ply.organism and ply:IsBerserk()) then
+ 			mul = mul * (1 + ply.organism.berserk / 5)
+ 		end
+@@ -893,7 +899,7 @@
+ 
+ 		Force = Force:GetNormalized() * ForceMagnitude
+ 
+-		if len > 100 then
++		if len > (isCrusher and 300 or 100) then
+ 			self:SetCarrying()
+ 			return
+ 		end
+@@ -1010,7 +1016,7 @@
+ 		if SERVER then
+ 			local ply2 = self.CarryEnt
+ 			local org = ply2.organism
+-			if ply:KeyDown(IN_ATTACK) and !ply.organism.superfighter and !(org and ply.PlayerClassName == "furry" and org.owner.PlayerClassName != "furry") and !ply:IsBerserk() then
++			if ply:KeyDown(IN_ATTACK) and !ply.organism.superfighter and !isCrusher and !(org and ply.PlayerClassName == "furry" and org.owner.PlayerClassName != "furry") and !ply:IsBerserk() then
+ 				local bone = self.CarryEnt:GetBoneName(self.CarryEnt:TranslatePhysBoneToBone(self.CarryBone))
+ 
+ 				local tr = {}
+@@ -1077,8 +1083,9 @@
+ 				//self:SetCarrying()
+ 			end
+ 
+-			if ply:KeyDown(IN_ATTACK) and (ply.organism.superfighter or ply:IsBerserk()) then
+-				phys:ApplyForceCenter(ply:GetAimVector() * 40000 * self.Penetration * (1 + ply.organism.berserk / 10))
++			if ply:KeyDown(IN_ATTACK) and (ply.organism.superfighter or ply:IsBerserk() or isCrusher) then
++				local crusherScale = (isCrusher and not ply:IsBerserk() and not ply.organism.superfighter) and 0.4 or 1
++				phys:ApplyForceCenter(ply:GetAimVector() * 40000 * self.Penetration * crusherScale * (1 + ply.organism.berserk / 10))
+ 				self:SetCarrying()
+ 			end
+ 		end
+@@ -1118,6 +1125,7 @@
+ function SWEP:SetCarrying(ent, bone, pos, dist)
+ 	local owner = self:GetOwner()
+ 	if not IsValid(owner) then return end
++	if SERVER and IsValid(ent) and ZCityInteractions and not ZCityInteractions.CanNativeCarry(owner,ent) then return false end
+ 
+ 	if IsValid(ent) or game.GetWorld() == ent then
+ 		self.CarryEnt = ent
+@@ -1169,6 +1177,7 @@
+ 			owner:SetNetVar("carrymass",0)
+ 		end
+ 
++		if SERVER and ZCityInteractions and IsValid(self.CarryEnt) then ZCityInteractions.NativeCarryReleased(self.CarryEnt) end
+ 		self.CarryEnt = nil
+ 		self.CarryBone = nil
+ 		self.CarryPos = nil
+@@ -1358,6 +1367,7 @@
+ end
+ 
+ function SWEP:PrimaryAttack(forcespecial)
++    if ZCityStealth and IsValid(self:GetOwner()) and ZCityStealth.Locked(self:GetOwner()) then return end
+ 	local owner = self:GetOwner()
+ 	if not IsValid(owner) or owner:InVehicle() then return end
+ 	if (self.attacked or 0) > CurTime() then return end
+@@ -1673,7 +1683,13 @@
+ heldents = heldents or {}
+ 
+ function hg.RemoveCarryEnt2(ent)
+-	heldents[ent] = nil
++	if not IsValid(ent) then return end
++	local key=ent:EntIndex()
++	local held=heldents[key]
++	if held and held[1]==ent then
++		heldents[key]=nil
++		if SERVER and ZCityInteractions then ZCityInteractions.NativeCarryReleased(ent) end
++	end
+ 
+ 	ent.rememberedang = nil
+ 	ent.oldaddang = nil
+@@ -1690,6 +1706,7 @@
+ end
+ 
+ function hg.SetCarryEnt2(ply, ent, bone, mass, carrypos, targetpos, targetang, dist)
++	if SERVER and IsValid(ent) and ZCityInteractions and not ZCityInteractions.CanNativeCarry(ply,ent) then return false end
+ 	if not IsValid(ent) then
+ 		local ent2 = ply:GetNetVar("carryent2")
+ 
+@@ -1774,8 +1791,15 @@
+ 
+ if SERVER then
+ 	local angZero = Angle(0, 0, 0)
++	-- perf round 2 items 3/5: scratch Vector reused every held-entity per frame instead of
++	-- allocating a fresh one each iteration. Safe because all 3 components are unconditionally
++	-- overwritten before use (see below) and the value is never retained past this iteration.
++	local angVelVec = Vector(0, 0, 0)
+ 	hook.Add("Think", "held-entities", function()
+ 		heldents = heldents or {}
++		-- perf round 2 item 5: skip the loop entirely when nothing is held (no behaviour change,
++		-- the loop body would have been a no-op anyway).
++		if not next(heldents) then return end
+ 		for i, tbl in pairs(heldents) do
+ 			if not tbl or not IsValid(tbl[1]) then
+ 				if IsValid(tbl[2]) then
+@@ -1867,10 +1891,9 @@
+ 			local _,huy = WorldToLocal(vector_origin,phys:GetAngles(),vector_origin,ang)
+ 			local _,needed_ang = WorldToLocal(vector_origin,lang,vector_origin,huy)
+ 
+-			local vec = Vector(0,0,0)
+-			vec[3] = needed_ang[2]
+-			vec[1] = needed_ang[3]
+-			vec[2] = needed_ang[1]
++			-- perf round 2 item 3: reuse the hoisted scratch vector instead of allocating a new
++			-- one per held entity per frame; same component values as before.
++			angVelVec:SetUnpacked(needed_ang[3], needed_ang[1], needed_ang[2])
+ 
+ 			if tbl[6] then
+ 				phys:ApplyForceOffset(Force, TargetPos)
+@@ -1880,7 +1903,7 @@
+ 
+ 			phys:ApplyForceCenter(Vector(0, 0, mul))
+ 			local m2 = 1 / phys:GetMass() * math.min(phys:GetMass(), 5)
+-			phys:AddAngleVelocity(-phys:GetAngleVelocity() * m2 + vec / 1 * (ent:IsRagdoll() and 1 or 1) * m2)
++			phys:AddAngleVelocity(-phys:GetAngleVelocity() * m2 + angVelVec / 1 * (ent:IsRagdoll() and 1 or 1) * m2)
+ 
+ 			if wep.GetCarrying and ply:KeyDown(IN_ATTACK) then
+ 				phys:ApplyForceCenter(ply:GetAimVector() * math.min(5000, phys:GetMass() * 800))
+@@ -2021,4 +2044,4 @@
+ -- 			end
+ -- 		end
+ -- 	end
+--- end)
+\ No newline at end of file
++-- end)

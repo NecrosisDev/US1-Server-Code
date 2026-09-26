@@ -1,0 +1,48 @@
+--- a/gamemodes/zcity/gamemode/cl_init.lua
++++ b/gamemodes/zcity/gamemode/cl_init.lua
+@@ -736,8 +736,12 @@
+ 		end
+ 
+ 		function but:DoClick()
+-			if ply:IsBot() then chat.AddText(Color(255,0,0), "no, you can't") return end
+-			gui.OpenURL("https://steamcommunity.com/profiles/"..ply:SteamID64())
++			local id64 = ply:SteamID64()
++			if ply:IsBot() then
++				id64 = ply:GetNWString("zcSteamID64", "")
++				if id64 == "" then return end
++			end
++			gui.OpenURL("https://steamcommunity.com/profiles/"..id64)
+ 		end
+ 
+ 		function but:DoRightClick()
+@@ -812,8 +816,12 @@
+ 		end
+ 
+ 		function but:DoClick()
+-			if ply:IsBot() then chat.AddText("That bot.") return end
+-			gui.OpenURL("https://steamcommunity.com/profiles/"..ply:SteamID64())
++			local id64 = ply:SteamID64()
++			if ply:IsBot() then
++				id64 = ply:GetNWString("zcSteamID64", "")
++				if id64 == "" then return end
++			end
++			gui.OpenURL("https://steamcommunity.com/profiles/"..id64)
+ 		end
+ 
+ 		function but:DoRightClick()
+@@ -849,12 +857,9 @@
+ end
+ local AdminShowVoiceChat = CreateClientConVar("zb_admin_show_voicechat","0",false,false,"Show voicechat panels for admins",0,1)
+ hook.Add("PlayerStartVoice", "showVoicePanels", function(ply)
+-	if !IsValid(ply) then return end
+-	if LocalPlayer():IsAdmin() and AdminShowVoiceChat:GetBool() then return end
+-
+-	local other_alive = (ply:Alive() and LocalPlayer() != ply) or (ply.organism and (ply.organism.otrub or (ply.organism.brain and ply.organism.brain > 0.05)))
+-
+-	return other_alive or nil
++    if not IsValid(ply) then return end
++    ply.IsSpeak=true
++    if isfunction(hg.ShouldSuppressVoicePanel) then return hg.ShouldSuppressVoicePanel(ply) end
+ end)
+ 
+ -- свет от молнии а саму молнию я не сделал skill issue

@@ -1,0 +1,34 @@
+--- a/lua/homigrad/libraries/core/sv_mysql.lua
++++ b/lua/homigrad/libraries/core/sv_mysql.lua
+@@ -541,9 +541,30 @@
+ end
+ 
+ -- A function to query the MySQL database.
++-- Do not turn a disconnected database into a fake success or nil-method cascade.
++local function DatabaseUnavailable(db,reason)
++    db.ZCFailedUnavailable=(db.ZCFailedUnavailable or 0)+1
++    db.ZCLastUnavailable=reason
++    local now=RealTime()
++    if not db.ZCUnavailableLoggedAt or now-db.ZCUnavailableLoggedAt>=60 then
++        db.ZCUnavailableLoggedAt=now
++        file.CreateDir("zc_database")
++        file.Append("zc_database/unavailable.txt",os.date().." "..reason.."; rejected="..db.ZCFailedUnavailable.."\n")
++        if not db.ZCUnavailableWarned then
++            db.ZCUnavailableWarned=true
++            ErrorNoHalt("[ZCity database] Database unavailable; persistence is NOT confirmed. See data/zc_database/unavailable.txt\n")
++        end
++    end
++    return false,reason
++end
++
+ function mysql:RawQuery(query, callback, flags, ...)
+ 	if (self.module == "mysqloo") then
+-		local queryObj = self.connection:query(query)
++        if not istable(mysqloo) or not self.connection or not isfunction(self.connection.query) then
++            return DatabaseUnavailable(self, "MySQLOO connection is unavailable")
++        end
++        local queryObj = self.connection:query(query)
++        if not queryObj then return DatabaseUnavailable(self, "MySQLOO did not return a query object") end
+ 
+ 		queryObj:setOption(mysqloo.OPTION_NAMED_FIELDS)
+ 

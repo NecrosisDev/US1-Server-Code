@@ -1,0 +1,610 @@
+{
+ "schema_version": 1,
+ "note": "Everything not authored in this repo. 'upstream' entries are built by tools/build.py from a pinned git commit plus our patches (byte-identical to what the server ran before the restructure). 'workshop'/'external' entries are mounted separately. verify=true means the ID was not confirmed against the live server.",
+ "workshop": [
+  {
+   "name": "Advanced Duplicator 2",
+   "id": "773402917",
+   "verify": true,
+   "replaces": "garrysmod/addons/advdupe2 (pure upstream, verified)"
+  },
+  {
+   "name": "Glide",
+   "id": "3389728250",
+   "verify": false,
+   "source": "steam_cache inventory"
+  },
+  {
+   "name": "Glide GTA V helicopters",
+   "id": "3389795738",
+   "verify": false,
+   "source": "steam_cache inventory"
+  }
+ ],
+ "external": [
+  {
+   "name": "eProtect 1.5.35",
+   "source": "gmodstore / GitHub release (not Workshop)",
+   "replaces": "garrysmod/addons/eprotect-keep-exploiterscheaters-at-bay-v1.5.35",
+   "local_edits": "autorun/eprotect_loader.lua carries a Lua-Patcher nil-index compatibility wrapper (ZCEProtectStartup, 20260918.1); keep it when installing"
+  },
+  {
+   "name": "zcity_drones_compat.gma",
+   "source": "server addons/ (not in repo; contents never extracted)"
+  },
+  {
+   "name": "zcity_pillpack_compat.gma",
+   "source": "server addons/ (not in repo; contents never extracted)"
+  },
+  {
+   "name": "ZCity appearance mod (patched by lua/homigrad/new_appearance in us1)",
+   "source": "unknown - confirm on server"
+  },
+  {
+   "name": "ZCITY Fiber Wire Mod (overlaid by us1 sv_fiberwire_extras)",
+   "source": "Workshop - confirm ID"
+  },
+  {
+   "name": "WFA weapons (patched by us1 zc_wfa_tpik_fix)",
+   "source": "Workshop - confirm ID"
+  }
+ ],
+ "workshop_cache_inventory": [
+  {
+   "id": "104607712",
+   "file": "104607712"
+  },
+  {
+   "id": "1169579845",
+   "file": "temp"
+  },
+  {
+   "id": "160250458",
+   "file": "160250458"
+  },
+  {
+   "id": "1620875048",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "1762151370",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "1873907782",
+   "file": "temp"
+  },
+  {
+   "id": "2000865255",
+   "file": "hide_ulx_ulib_commands"
+  },
+  {
+   "id": "2017098025",
+   "file": "temp"
+  },
+  {
+   "id": "2082598948",
+   "file": "zs_adrift_v4"
+  },
+  {
+   "id": "2188264931",
+   "file": "temp"
+  },
+  {
+   "id": "2206993805",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "2249362659",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "2251357708",
+   "file": "ttt_ile_v4"
+  },
+  {
+   "id": "2264867796",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "2350858257",
+   "file": "temp"
+  },
+  {
+   "id": "2403043112",
+   "file": "lua_patcher"
+  },
+  {
+   "id": "2410639636",
+   "file": "ttt_aircraft_1105014193"
+  },
+  {
+   "id": "2484790252",
+   "file": "temp"
+  },
+  {
+   "id": "2558150898",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "2641379954",
+   "file": "temp"
+  },
+  {
+   "id": "264467687",
+   "file": "improved_stacker"
+  },
+  {
+   "id": "2659980741",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "2701275326",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "2716242595",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "2787722791",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "2807511588",
+   "file": "ttt_gas_station_22-05-22"
+  },
+  {
+   "id": "2823321919",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "2825686616",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "2827004973",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "2899115076",
+   "file": "gm_renostruct_v2"
+  },
+  {
+   "id": "2905263284",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "2907192625",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "2937403645",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "2982286549",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3001397905",
+   "file": "workshop"
+  },
+  {
+   "id": "3015478782",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3106964356",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3117864575",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3200936715",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3257817980",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3257937532",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3271780856",
+   "file": "3271780856_via_crowbar"
+  },
+  {
+   "id": "3283190993",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3284799153",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3286261704",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3322707383",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3330744597",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3357629647",
+   "file": "temp"
+  },
+  {
+   "id": "3389728250",
+   "file": "glide"
+  },
+  {
+   "id": "3389795738",
+   "file": "glide_gtav_helis"
+  },
+  {
+   "id": "3393352147",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3407479980",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3415418882",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3415635566",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3432497883",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3434547967",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3441411282",
+   "file": "temp"
+  },
+  {
+   "id": "3443920823",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3446456040",
+   "file": "temp"
+  },
+  {
+   "id": "3454674958",
+   "file": "groverhaus"
+  },
+  {
+   "id": "3457317640",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3491623803",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3534116529",
+   "file": "ivaylo_street"
+  },
+  {
+   "id": "3536905594",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3537612611",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3544105055",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3554375309",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3558455765",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3560775288",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3569203772",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3578751621",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3591502168",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3599740510",
+   "file": "gm_prison"
+  },
+  {
+   "id": "3608909815",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3657166179",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3657294321",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3657897364",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3664783005",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3666245817",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3668481858",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3670522798",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3671331409",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3672748415",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3675753816",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3681615626",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3683079310",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3683648045",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3684346989",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3684389164",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3684456533",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3684466601",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3685014743",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3685034437",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3685875391",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3686174019",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3687778518",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3687832222",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3687918763",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3688107233",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3691902281",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3694177662",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3695771892",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3699477814",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3701366943",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3702088753",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3703797859",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3703837108",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3709219849",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3709333398",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3714182343",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3714689074",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3714924215",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3717703126",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3720595282",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3721036330",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3721037390",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3721038395",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3721806933",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3723540354",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3726268819",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3734028848",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3735532784",
+   "file": "zzcity-hor-additions"
+  },
+  {
+   "id": "3737422346",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3737887777",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3741271420",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3750959251",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3780773397",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "3782152589",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "531458635",
+   "file": "531458635_via_crowbar"
+  },
+  {
+   "id": "534491717",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "718665054",
+   "file": "temp"
+  },
+  {
+   "id": "897138102",
+   "file": "gmpublisher"
+  },
+  {
+   "id": "950845673",
+   "file": "GmodPillPack"
+  }
+ ],
+ "upstream": {
+  "zcity": {
+   "repo": "https://github.com/uzelezz123/Z-City",
+   "commit": "81aee519709836114bd10f1a23210b0c2db59f5e",
+   "patches": "patches/zcity",
+   "output_addon": "zcity",
+   "exclude_from_build": [],
+   "exclude_note": "Upstream bundles Glide (lua/glide, lua/entities/base_glide*, autorun/sh_glide*.lua). Add those globs to exclude_from_build once the Workshop Glide below is confirmed mounted, so the classes are not defined twice."
+  },
+  "ulx": {
+   "repo": "https://github.com/TeamUlysses/ulx",
+   "commit": "987806aa80e10295f6c2482b2b1ace5e40c367d9",
+   "patches": "patches/ulx",
+   "output_addon": "ulx",
+   "exclude_from_build": []
+  },
+  "ulib": {
+   "repo": "https://github.com/TeamUlysses/ulib",
+   "commit": "147657e31a15bdcc5b5fec89dd9f5650aebeb54a",
+   "patches": null,
+   "output_addon": "ulib",
+   "exclude_from_build": []
+  }
+ }
+}

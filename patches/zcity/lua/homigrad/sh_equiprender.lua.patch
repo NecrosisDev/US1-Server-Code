@@ -1,0 +1,48 @@
+--- a/lua/homigrad/sh_equiprender.lua
++++ b/lua/homigrad/sh_equiprender.lua
+@@ -89,6 +89,7 @@
+ 	}
+ 
+ 	function RenderArmors(ply, armors, ent)
++	if ZCKillcamView and ZCKillcamView.IsolatingScene and ZCKillcamView.IsolatingScene() then return end
+ 
+ 		if not IsValid(ply) or not armors then return end
+ 	
+@@ -96,7 +97,7 @@
+ 		
+ 		local wep = ply:IsPlayer() and ply:GetActiveWeapon()
+ 		
+-		islply = ((ply:IsRagdoll() and hg.RagdollOwner(ply)) or ply) == (LocalPlayer():Alive() and LocalPlayer() or LocalPlayer():GetNWEntity("spect",LocalPlayer())) and GetViewEntity() == (LocalPlayer():Alive() and LocalPlayer() or LocalPlayer():GetNWEntity("spect",LocalPlayer()))
++		islply = ((ply:IsRagdoll() and hg.RagdollOwner(ply)) or ply) == (LocalPlayer():Alive() and LocalPlayer() or LocalPlayer():GetNWEntity("spect",LocalPlayer())) and GetViewEntity() == (LocalPlayer():Alive() and LocalPlayer() or LocalPlayer():GetNWEntity("spect",LocalPlayer())) if hg.camSelfieRender and islply then if IsValid(wep) and whitelist[wep:GetClass()] then return end islply = false end
+ 	
+ 		if islply and IsValid(wep) and whitelist[wep:GetClass()] then
+ 			if not ent.modelArmor then return end
+@@ -126,10 +127,11 @@
+ 	end	
+ 
+ 	function DrawArmors(ply, armors, ent)
++	if ZCKillcamView and ZCKillcamView.IsolatingScene and ZCKillcamView.IsolatingScene() then return end
+ 		if not IsValid(ply) or not armors then return end
+ 		if blmodels[ply:GetModel()] then return end
+ 		local lply = LocalPlayer():Alive() and LocalPlayer() or LocalPlayer():GetNWEntity("spect")
+-		islply = ((ply:IsRagdoll() and hg.RagdollOwner(ply)) or ply) == lply and (LocalPlayer():Alive() and (GetViewEntity() == lply) or (viewmode == 1))
++		islply = ((ply:IsRagdoll() and hg.RagdollOwner(ply)) or ply) == lply and (LocalPlayer():Alive() and (GetViewEntity() == lply) or (viewmode == 1)) and not hg.camSelfieRender
+ 		
+ 		for placement, armor in pairs(armors) do
+ 			if placement == "torso" and blVestmodels[ply:GetModel()] then continue end
+@@ -274,6 +276,7 @@
+ 
+ 	local hg_gopro = ConVarExists("hg_gopro") and GetConVar("hg_gopro") or CreateClientConVar("hg_gopro", "0", true, false, "Toggle GoPro-like first-person camera view", 0, 1)
+ 	hook.Add("Post Pre Post Processing", "renderHelmetThingy", function()
++	if ZCKillcamView and ZCKillcamView.IsolatingScene and ZCKillcamView.IsolatingScene() then return end
+ 		cam.IgnoreZ(true)
+ 		//cam.Start2D()
+ 		local armors = lply.armors
+@@ -366,6 +369,7 @@
+ 			NVGEnabled = false
+ 			ViewPunch2(Angle(-2,-1,2))
+ 			hook.Add("RenderScreenspaceEffects","renderblur",function()
++	if ZCKillcamView and ZCKillcamView.IsolatingScene and ZCKillcamView.IsolatingScene() then return end
+ 				BlurScreen(BlurAfterNVG,BlurAfterNVG*55)
+ 				local color = color_black
+ 				color.a = BlurAfterNVG*55

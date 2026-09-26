@@ -1,0 +1,24 @@
+--- a/lua/weapons/weapon_tpik_base.lua
++++ b/lua/weapons/weapon_tpik_base.lua
+@@ -301,6 +301,7 @@
+     if not ply.shouldTransmit or ply.NotSeen then return end
+ 
+     local ent = hg.GetCurrentCharacter(ply)
++    if not IsValid(ent) then return end
+ 
+ 	local bones = hg.TPIKBonesLH
+ 
+@@ -315,9 +316,11 @@
+ 	-- ent:SetupBones()
+ 
+ 	self.rhandik = self.setrh
+-	self.lhandik = self.setlh and (ply:GetTable().ChatGestureWeight < 0.1)
++	self.lhandik = self.setlh and ((ply:GetTable().ChatGestureWeight or 0) < 0.1)
+ 
+-    local rhmat, lhmat = ent:GetBoneMatrix(ent:LookupBone("ValveBiped.Bip01_R_Hand")), ent:GetBoneMatrix(ent:LookupBone("ValveBiped.Bip01_L_Hand"))
++    local rhbone, lhbone = ent:LookupBone("ValveBiped.Bip01_R_Hand"), ent:LookupBone("ValveBiped.Bip01_L_Hand")
++    local rhmat, lhmat = rhbone and ent:GetBoneMatrix(rhbone), lhbone and ent:GetBoneMatrix(lhbone)
++    if not rhmat or not lhmat then self.rhandik = false self.lhandik = false return end
+ 
+ 	ply.rhold = rhmat
+ 	ply.lhold = lhmat

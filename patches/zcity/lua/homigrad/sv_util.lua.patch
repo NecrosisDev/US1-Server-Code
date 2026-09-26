@@ -1,0 +1,123 @@
+--- a/lua/homigrad/sv_util.lua
++++ b/lua/homigrad/sv_util.lua
+@@ -405,21 +405,32 @@
+ 	ply:AddFlags(FL_NOTARGET)
+ end)
+ 
++-- Only NoHolster weapons matter here, and NoHolster is a class-level SWEP flag. ply:GetWeapons() allocates a table per call,
++-- so skip the scan while the last one found no such weapon. WeaponEquip re-arms it; the 5 s rescan is the safety net for any
++-- acquisition path that does not fire WeaponEquip.
++hook.Add("WeaponEquip", "homigrad-dropholstered", function(wep, ply)
++	if wep.NoHolster and IsValid(ply) then ply.hgNoHolsterScan = nil end
++end)
++
+ hook.Add("Player Think", "homigrad-dropholstered", function(ply)
+ 	if (ply.thinkdropwep or 0) > CurTime() then return end
+ 	ply.thinkdropwep = CurTime() + 0.1
+ 	if ply.organism and ply.organism.allowholster then return end
++	if ply.hgNoHolsterScan and ply.hgNoHolsterScan > CurTime() then return end
+ 
+ 	local activewep = ply:GetActiveWeapon()
+ 	local weps = ply:GetWeapons()
+ 	local wep
++	local any = false
+ 	for i = 1, #weps do
+ 		wep = weps[i]
+ 		
++		if wep.NoHolster then any = true end
+ 		if wep.NoHolster and activewep ~= wep and wep.picked then 
+ 			ply:DropWeapon(wep)
+ 		end
+ 	end
++	ply.hgNoHolsterScan = (not any) and (CurTime() + 5) or nil
+ end)
+ 
+ util.AddNetworkString( "DoPlayerFlinch" )
+@@ -468,34 +479,42 @@
+ 	local dmg = bullet.Damage
+ 	if ent == Entity(0) then return end
+ 	if !IsValid(ent) then return end
++
++	-- PERF: cheap rejects first, the expensive visibility trace LAST.
++	-- The original traced line-of-sight to every player per bullet,
++	-- then threw most of them away on the 120u distance check - the
++	-- costly part ran for players who were never candidates. Same
++	-- behavior, gates reordered.
++	local owner = ent:GetOwner()
++	local ownerValid = IsValid(owner)
++
+ 	for i,ply in player.Iterator() do--five pebbles
+-		if (IsValid(ent:GetOwner()) and ply == ent:GetOwner()) or ent == ply then continue end
++		if (ownerValid and ply == owner) or ent == ply then continue end
+ 		if !ply:Alive() then continue end
+-		local dist,pos = util.DistanceToLine(tr.StartPos,tr.HitPos,ply:EyePos())
+-		local org = ply.organism
++
+ 		local eyePos = ply:EyePos()
++		local dist,pos = util.DistanceToLine(tr.StartPos,tr.HitPos,eyePos)
++
++		if dist > 120 then continue end
++
++		local shooterdist = tr.StartPos:Distance(eyePos)
++		if shooterdist < 200 and !IsLookingAt(owner,eyePos) then continue end
+ 
+ 		local isVisible = !util.TraceLine({
+ 			start = pos,
+ 			endpos = eyePos,
+-			filter = {ent, ply, hg.GetCurrentCharacter(ply), ent:GetOwner()},
++			filter = {ent, ply, hg.GetCurrentCharacter(ply), owner},
+ 			mask = MASK_SHOT
+ 		}).Hit
+ 
+ 		if !isVisible then continue end
+ 
+-		local shooterdist = tr.StartPos:Distance(eyePos)
+-
+-		if dist > 120 then continue end
+-
+-		if shooterdist < 200 and !IsLookingAt(ent:GetOwner(),eyePos) then continue end
+-
+-		if ent:GetOwner():IsPlayer() then
+-			hg.DynaMusic:AddPanic(ent:GetOwner(),0.5)
++		if ownerValid and owner:IsPlayer() then
++			hg.DynaMusic:AddPanic(owner,0.5)
+ 		end
+ 
++		local org = ply.organism
+ 		if !org.otrub then
+-			--print(1 * dmg / math.max(dist / 2,10) / 1)
+ 			ply:AddNaturalAdrenaline(0.05 * dmg / math.max(dist / 2,10) / 1)
+ 			org.fearadd = org.fearadd + 0.2
+ 		end
+@@ -1725,7 +1744,8 @@
+ 	--if not ply then return end
+ 	local ent = IsValid(ply.FakeRagdoll) and ply.FakeRagdoll or ply
+ 	local vel = ent:GetVelocity():Length()
+-	if ent:GetVelocity():Length() > 1000 and (ent:IsRagdoll() or !ply:OnGround()) and (ent:IsRagdoll() and !ent:IsConstrained() or ply:GetMoveType() != MOVETYPE_NOCLIP) and ply:Alive() and !ply:InVehicle() then
++	if vel <= 1000 then return end
++	if (ent:IsRagdoll() or !ply:OnGround()) and (ent:IsRagdoll() and !ent:IsConstrained() or ply:GetMoveType() != MOVETYPE_NOCLIP) and ply:Alive() and !ply:InVehicle() then
+ 		if ply.organism and ply.organism.adrenaline < 2.5 then
+ 			ply:AddNaturalAdrenaline(0.02)
+ 		end
+@@ -1734,7 +1754,6 @@
+ 	if ply:InVehicle() then
+ 		local vehicle = ply:GetVehicle()
+ 		if IsValid(vehicle) then
+-			vel = ent:GetVelocity():Length()
+ 			if vel > 1050 and ply.organism then
+ 				ply:AddNaturalAdrenaline(0.0005)
+ 			end
+@@ -1748,9 +1767,12 @@
+ 	if ply:InVehicle() then return end
+ 
+ 	local should_play = false
+-	local moving = (ply:KeyDown(IN_FORWARD) or ply:KeyDown(IN_BACK) or ply:KeyDown(IN_MOVELEFT) or ply:KeyDown(IN_MOVERIGHT))
+ 
+ 	ply.bm_fsteptime = math.max((ply.bm_fsteptime or 0) - 1000 * FrameTime(), 0)
++	if ply.bm_fsteptime > 0 or not ply:OnGround() then return end
++
++	local moving = (ply:KeyDown(IN_FORWARD) or ply:KeyDown(IN_BACK) or ply:KeyDown(IN_MOVELEFT) or ply:KeyDown(IN_MOVERIGHT))
++	if not moving then return end
+ 	local fmaxspeed = ply:GetVelocity():Length()
+ 	-- https://github.com/lua9520/source-engine-2018-hl2_src/blob/3bf9df6b2785fa6d951086978a3e66f49427166a/game/shared/baseplayer_shared.cpp#L770
+ 	if ply:Crouching() then

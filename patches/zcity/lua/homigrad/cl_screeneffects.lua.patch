@@ -1,0 +1,120 @@
+--- a/lua/homigrad/cl_screeneffects.lua
++++ b/lua/homigrad/cl_screeneffects.lua
+@@ -55,6 +55,22 @@
+ 	["$pp_colour_colour"] = 1
+ }
+ 
++-- The root colour pass is skipped when it would be an identity pass. DrawColorModify (lua/postprocess/color_modify.lua)
++-- copies the screen and draws a quad on every call and only sets the keys it is given, so the keys other effects left on
++-- the shared pp/colour material are checked too; the three keys in tab are still written so that material state is unchanged.
++-- Skipping also skips DrawColorModify's copy into the screen-effect texture. Nothing later depends on that copy:
++-- sh_equiprender's visor/mask/head overlays draw their own materials and its blur calls render.UpdateScreenEffectTexture itself.
++local colourModMat = Material("pp/colour")
++local colourModLeftover = {"$pp_colour_addr", "$pp_colour_addg", "$pp_colour_addb", "$pp_colour_mulr", "$pp_colour_mulg", "$pp_colour_mulb", "$pp_colour_inv"}
++local function colourModIsIdentity(brightness)
++	if math.abs(brightness) >= 0.002 then return false end
++	for i = 1, #colourModLeftover do
++		local v = colourModMat:GetFloat(colourModLeftover[i])
++		if v and math.abs(v) >= 0.002 then return false end
++	end
++	return true
++end
++
+ --local potatopc = GetConVar("hg_potatopc") or CreateClientConVar("hg_potatopc", "0", true, false, "enable this if you are noob", 0, 1)
+ local hook_Run = hook.Run
+ hook.Add("RenderScreenspaceEffects", "homigrad", function()
+@@ -75,7 +91,11 @@
+ 	//if not brain_motionblur then DrawMotionBlur(addtiveLayer.blur_addalpha, addtiveLayer.blur_drawalpha, addtiveLayer.blur_delay) end
+ 	//DrawToyTown(addtiveLayer.toytown, addtiveLayer.toytown_h * ScrH())
+ 	tab["$pp_colour_brightness"] = addtiveLayer.brightness
+-	DrawColorModify(tab)
++	if colourModIsIdentity(addtiveLayer.brightness) then
++		for k, v in pairs(tab) do colourModMat:SetFloat(k, v) end
++	else
++		DrawColorModify(tab)
++	end
+ 
+ 	hook_Run("Post Pre Post Processing")
+ 
+@@ -126,6 +146,12 @@
+ local LayerSetWeight = postprs.LayerSetWeight
+ local CurTime = CurTime
+ local timecheck = CurTime()
++-- The spectator's view mode as the CAMERA uses it (cl_init.lua HG_CalcView reads the same NWInt). The global `viewmode`
++-- only changes when a spectate key is pressed, while the server also sets the mode on death and spawn (sv_tier_0.lua
++-- PostPlayerDeath -> 3), so the global disagrees with what is on screen. 1 first person, 2 third person, 3 free roam.
++local function specMode()
++	return lply:GetNWInt("viewmode", viewmode or 1)
++end
+ hook.Add("Post Processing", "Main", function()
+ 	//if potatopc:GetInt() >= 1 then return end
+ 	//if !lply:Alive() then return end
+@@ -133,11 +159,13 @@
+ 	if !IsValid(ply) then return end
+ 	local waterLevel = oldWaterLevel
+ 	if timecheck < CurTime() then
+-		local pos = hg.eye(lply)
++		local first = lply:Alive() or specMode() == 1
++		local pos = first and hg.eye(lply) or EyePos()
+ 		
+ 		if !pos then return end
+ 
+ 		waterLevel = (ply:WaterLevel() == 3) or ((ply:WaterLevel() > 1) and bit.band(util.PointContents(pos), CONTENTS_WATER) == CONTENTS_WATER)//lply:WaterLevel()
++		if not first then waterLevel = bit.band(util.PointContents(pos), CONTENTS_WATER) == CONTENTS_WATER end -- third person / free roam: under water when the CAMERA is, not when the spectated player is
+ 
+ 		timecheck = CurTime() + 0.1
+ 	end
+@@ -325,6 +353,7 @@
+ local lerpblood = 0
+ local addtime = CurTime()
+ local hurtoverlay = Material("zcity/neurotrauma/damageOverlay.png", "smooth")
++local hurtoverlayMatrix = Matrix() -- one matrix, rewritten each frame before SetMatrix
+ hook.Add("Post Post Processing", "ItHurts", function()
+ 	local spect = IsValid(lply:GetNWEntity("spect")) and lply:GetNWEntity("spect")
+ 	
+@@ -333,7 +362,7 @@
+ 	end
+ 	
+ 	if !lply:Alive() and !IsValid(spect) then stopthings() return end
+-	if !lply:Alive() and viewmode != 1 then stopthings() return end
++	if !lply:Alive() and specMode() != 1 then stopthings() return end
+ 	local organism = lply:Alive() and lply.organism or (IsValid(spect) and spect.organism)
+ 	if not organism then stopthings() return end
+ 	if not organism.brain then stopthings() return end
+@@ -359,12 +388,8 @@
+ 		addtime = addtime + FrameTime() / 6
+ 		local amt = (math.cos(addtime) + math.sin(addtime * 3) + math.sin(addtime * 2)) / 90
+ 		local amt2 = (math.sin(addtime) + math.cos(addtime * 5) + math.sin(addtime * 6)) / 90
+-		local mat = Matrix({
+-			{1 - amt, amt, 0, -amt2 / 2},
+-			{amt2, 1 - amt2, 0, -amt / 2},
+-			{0, 0, 1, 0},
+-			{0, 0, 0, 1},
+-		})
++		local mat = hurtoverlayMatrix
++		mat:SetUnpacked(1 - amt, amt, 0, -amt2 / 2, amt2, 1 - amt2, 0, -amt / 2, 0, 0, 1, 0, 0, 0, 0, 1)
+ 		hurtoverlay:SetMatrix("$basetexturetransform", mat)
+ 		surface.SetMaterial(hurtoverlay)
+ 		surface.SetDrawColor(0, 0, 0, lerpblood)
+@@ -452,8 +477,10 @@
+ 		end
+ 	end
+ 
+-	if (org.consciousness or 0) < 1 then
+-		local consciousness = 1 - consciousnessLerp
++	-- Grain from 0.9 consciousness (owner 2026-09-25), ramping from zero there to full strength at 0; gated on the
++	-- smoothed value so recovery fades the grain out instead of cutting it.
++	if (consciousnessLerp or 1) < 0.9 then
++		local consciousness = math.Clamp((0.9 - consciousnessLerp) / 0.9, 0, 1)
+ 		render.UpdateScreenEffectTexture()
+ 		render.UpdateFullScreenDepthTexture()
+ 		
+@@ -706,7 +733,7 @@
+ 	local spect = IsValid(lply:GetNWEntity("spect")) and lply:GetNWEntity("spect")
+ 	
+ 	if !lply:Alive() and !IsValid(spect) then removeflash() return end
+-	if !lply:Alive() and viewmode != 1 then removeflash() return end
++	if !lply:Alive() and specMode() != 1 then removeflash() return end
+ 
+ 	local organism = lply:Alive() and lply.organism or (IsValid(spect) and spect.organism)
+ 	if not organism or isbool(organism) then return end

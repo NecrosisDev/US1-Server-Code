@@ -1,0 +1,10 @@
+--- a/lua/initpost/cl_atlases.lua
++++ b/lua/initpost/cl_atlases.lua
+@@ -12,6 +12,7 @@
+ local tex3 = mater3:GetTexture("$basetexture")
+ 
+ local function getAtlas(texture, x, y, amt, name)
++    if texture == nil then return Material("icon16/error.png") end
+ 	local mat = CreateMaterial(name, "UnlitGeneric", {
+ 		["$translucent"] = 1,
+ 		["$vertexalpha"] = 1,

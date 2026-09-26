@@ -1,0 +1,95 @@
+--- a/lua/homigrad/fake/sv_tier_0.lua
++++ b/lua/homigrad/fake/sv_tier_0.lua
+@@ -60,7 +60,21 @@
+ 
+ hg = hg or {}
+ 
+-hg.cachedmodels = {}
++-- Only the player's validated fake command may voluntarily enter fake as a Super Crusher.
++-- A one-use, server-local permit cannot leak into later collision/stun callbacks.
++local supercrusherManual = setmetatable({}, {__mode = "k"})
++hg.SupercrusherFakeVersion = "20260915.1"
++function hg.FakeByPlayerRequest(ply)
++    if not IsValid(ply) or not ply:IsPlayer() or not ply:Alive() then return end
++    supercrusherManual[ply] = "request"
++    local result = {pcall(hg.Fake, ply)}
++    supercrusherManual[ply] = nil
++    if not result[1] then error(result[2], 0) end
++    return unpack(result, 2)
++end
++
++
++hg.cachedmodels = hg.cachedmodels or {}
+ 
+ local function cacheModel(ragdoll)
+ 	local model = ragdoll:GetModel()
+@@ -92,6 +106,10 @@
+ }
+ 
+ function hg.Ragdoll_Create(ply)
++    if IsValid(ply) and ply:IsPlayer() and ply:Alive() and ply.SuperCrusher then
++        if supercrusherManual[ply] ~= "create" then return end
++        supercrusherManual[ply] = nil
++    end
+ 	local Data = duplicator.CopyEntTable( ply )
+ 	local ragdoll = ents.Create("prop_ragdoll")
+ 	duplicator.DoGeneric( ragdoll, Data )
+@@ -480,10 +498,26 @@
+ 
+ hook.Add("SetupPlayerVisibility", "fuckragdolls", function( ply )
+ 	local queue = hg.queue_ragdolls
++	if next(queue) == nil then return end
++	local tick = engine.TickCount()
++	local currentHumans
+ 
+ 	for ent, tbl in pairs(queue) do--ему, наверное, больно
+ 		if not IsValid(ent) then queue[ent] = nil continue end
+-		if queue[ent].count == #hg.humans_cached then queue[ent] = nil continue end
++		-- A count can outlive disconnected viewers or match a different audience.
++		-- Retire only after every currently connected human has a preparation mark.
++		if tbl.count and tbl.count >= #hg.humans_cached
++			and (tbl._zcVisibilityCheckTick ~= tick or tbl._zcVisibilityCheckCount ~= tbl.count) then
++			-- Recheck pending records once per tick, or immediately when marks change.
++			tbl._zcVisibilityCheckTick = tick
++			tbl._zcVisibilityCheckCount = tbl.count
++			currentHumans = currentHumans or player.GetHumans()
++			local complete = true
++			for _, viewer in ipairs(currentHumans) do
++				if not tbl[viewer] then complete = false break end
++			end
++			if complete then queue[ent] = nil continue end
++		end
+ 		if queue[ent][ply] then continue end
+ 
+ 		if IsValid(ent) then
+@@ -535,6 +569,11 @@
+ end
+ 
+ function hg.Fake(ply, huyragdoll, no_freemove, force)
++    if not IsValid(ply) or not ply:IsPlayer() then return end
++    local voluntary = supercrusherManual[ply] == "request"
++    supercrusherManual[ply] = nil
++    if ply:Alive() and ply.SuperCrusher and not voluntary then return end
++    if voluntary then supercrusherManual[ply] = "create" end
+ 	ply.switchingseat = nil
+ 	if ply:GetMoveType() == 0 then return end
+ 	if ply.InVehicle and ply:InVehicle() and not force then return end
+@@ -805,15 +844,14 @@
+ 			ply:DrawShadow(false)
+ 
+ 			timer.Create("faking_up"..ply:EntIndex(), 1, 1, function()
+-				if IsValid(ragdoll) then
+-					local posit = ragdoll:GetBoneMatrix(ragdoll:LookupBone("ValveBiped.Bip01_Spine4")):GetTranslation()
+-					//pos = hg.GetUpPos(ply, posit, 50, 50) or oldpos
+-				end
+ 
+ 				if IsValid(ragdoll) then
+ 					ragdoll:Remove()
+ 				end
+ 
++				-- Retire the old body, but only finish the player state we still own.
++				if not IsValid(ply) or hg.ragdollFake[ply] ~= ragdoll then return end
++
+ 				ply:SetNWEntity("FakeRagdoll",NULL)
+ 
+ 				ply:DrawShadow(true)

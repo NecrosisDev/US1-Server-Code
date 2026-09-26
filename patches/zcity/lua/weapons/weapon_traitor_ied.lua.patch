@@ -1,0 +1,12 @@
+--- a/lua/weapons/weapon_traitor_ied.lua
++++ b/lua/weapons/weapon_traitor_ied.lua
+@@ -232,6 +232,9 @@
+ 			local dis = BlastDis / 0.01905
+ 			local disorientation_dis = 10 / 0.01905  
+ 			for _, enta in ipairs(ents.FindInSphere(EntPos, disorientation_dis)) do
++				-- Nothing below acts on an entity with no organism and no physics object that is not a
++				-- player, and hg.ExplosionTrace is ~14 us each (TraceLine + a Lua filter callback).
++				if not enta.organism and not enta:IsPlayer() and not IsValid(enta:GetPhysicsObject()) then continue end
+ 				local tracePos = enta:IsPlayer() and (enta:GetPos() + enta:OBBCenter()) or enta:GetPos()
+ 				local tr = hg.ExplosionTrace(EntPos, tracePos, {ent})
+ 

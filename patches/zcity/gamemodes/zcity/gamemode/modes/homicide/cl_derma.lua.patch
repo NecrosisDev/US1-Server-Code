@@ -1,0 +1,32 @@
+--- a/gamemodes/zcity/gamemode/modes/homicide/cl_derma.lua
++++ b/gamemodes/zcity/gamemode/modes/homicide/cl_derma.lua
+@@ -24,11 +24,20 @@
+ local function set_role(role, mode)
+ 	if mode == "soe" then
+ 		RunConsoleCommand(MODE.ConVarName_SubRole_Traitor_SOE, role)
++	elseif mode == "gunfreezone" then
++		RunConsoleCommand(MODE.ConVarName_SubRole_Traitor_GFZ, role)
+ 	else
+ 		RunConsoleCommand(MODE.ConVarName_SubRole_Traitor, role)
+ 	end
+ end
+ 
++-- which convar holds the current pick for a given picker mode (soe / gunfreezone / standard)
++local function mode_convar(mode)
++	if mode == "soe" then return MODE.ConVar_SubRole_Traitor_SOE end
++	if mode == "gunfreezone" then return MODE.ConVar_SubRole_Traitor_GFZ end
++	return MODE.ConVar_SubRole_Traitor
++end
++
+ local function screen_scale_2(num)
+ 	return ScreenScale(num) / (ScrW() / ScrH())
+ end
+@@ -54,7 +63,7 @@
+ 	label_name:SetHeight(label_name_height)
+ 	label_name:SetMouseInputEnabled(true)
+ 	label_name.Paint = function(sel, w, h)
+-		if((self.Mode == "soe" and MODE.ConVar_SubRole_Traitor_SOE:GetString() == self.Role) or (self.Mode != "soe" and MODE.ConVar_SubRole_Traitor:GetString() == self.Role))then
++		if(mode_convar(self.Mode):GetString() == self.Role)then
+ 			surface.SetDrawColor(vgui_color_main)
+ 			surface.DrawOutlinedRect(1, 1, w - 2, h - 2, 3)
+ 		end

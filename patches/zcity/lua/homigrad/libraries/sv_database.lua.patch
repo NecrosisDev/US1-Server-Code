@@ -1,0 +1,114 @@
+--- a/lua/homigrad/libraries/sv_database.lua
++++ b/lua/homigrad/libraries/sv_database.lua
+@@ -1,42 +1,68 @@
+---if not util.IsBinaryModuleInstalled("mysqloo") then return end
+-
+-hg.db = hg.db or {}
+-
+-function hg.db.Connect()
+-    local standart_tbl = {
+-            dbmodule = "sqlite",
+-            hostname = "your_MySQLServerAddres",
+-            username = "your_username",
+-            password = "your_password",
+-            database = "your_db",
+-            port = 3306
+-        }
+-
+-    if not file.Exists("zbattle/sql.json","DATA") then file.Write("zbattle/sql.json", util.TableToJSON(standart_tbl,true)) end
+-    local cfg = file.Exists("zbattle/sql.json","DATA") and 
+-        util.JSONToTable(file.Read("zbattle/sql.json","DATA")) or 
+-        standart_tbl
+-
+-    local dbmodule = cfg.dbmodule
+-    local hostname = cfg.hostname
+-    local username = cfg.username
+-    local password = cfg.password
+-    local database = cfg.database
+-    local port = cfg.port
+-
+-    mysql:SetModule(dbmodule)
+-    mysql:Connect(hostname, username, password, database, port)
+-end
+-
+-hook.Add("InitPostEntity", "zbDatabaseConnect", function()
+-	hg.db.Connect()
+-end)
+-
+---zb.db.Connect()
+-
+-hook.Add("DatabaseConnected", "DB_Think", function()
+-    --print("asd")
+-	timer.Create("zbDatabaseThink", 0.5, 0, function()
+-		mysql:Think()
+-	end)
+-end)
+\ No newline at end of file
++--if not util.IsBinaryModuleInstalled("mysqloo") then return end
++
++hg.db = hg.db or {}
++
++function hg.db.Connect()
++    if hg.db.connecting then return end
++    if mysql and mysql.IsConnected and mysql:IsConnected() then return end
++    local standart_tbl = {
++            dbmodule = "sqlite",
++            hostname = "your_MySQLServerAddres",
++            username = "your_username",
++            password = "your_password",
++            database = "your_db",
++            port = 3306
++        }
++
++    if not file.Exists("zbattle/sql.json","DATA") then file.Write("zbattle/sql.json", util.TableToJSON(standart_tbl,true)) end
++    local cfg = file.Exists("zbattle/sql.json","DATA") and 
++        util.JSONToTable(file.Read("zbattle/sql.json","DATA")) or 
++        standart_tbl
++
++    if not istable(cfg) then
++        ErrorNoHalt("[ZCity database] Invalid configuration; connection refused.\n")
++        return
++    end
++    local dbmodule = cfg.dbmodule
++    local hostname = cfg.hostname
++    local username = cfg.username
++    local password = cfg.password
++    local database = cfg.database
++    local port = cfg.port
++
++    if dbmodule~="sqlite" and dbmodule~="mysqloo" then
++        ErrorNoHalt("[ZCity database] Unsupported configured backend; connection refused.\n")
++        return
++    end
++    hg.db.connecting=true
++    local ok,err=pcall(function()
++        mysql:SetModule(dbmodule)
++        mysql:Connect(hostname, username, password, database, port)
++    end)
++    if not ok then hg.db.connecting=nil; ErrorNoHalt("[ZCity database] Native connection failed: "..tostring(err).."\n") end
++end
++
++hook.Add("InitPostEntity", "zbDatabaseConnect", function()
++	hg.db.Connect()
++end)
++
++--zb.db.Connect()
++
++hook.Add("DatabaseConnected", "DB_Think", function()
++    --print("asd")
++	timer.Create("zbDatabaseThink", 0.5, 0, function()
++		mysql:Think()
++	end)
++end)
++-- Deferred bootstrap also covers loading this owner after InitPostEntity.
++-- Never reinterpret a populated server's provisional caches as stored balances.
++timer.Simple(0,function()
++    if mysql and mysql.IsConnected and mysql:IsConnected() then return end
++    if player.GetCount()>0 then
++        ErrorNoHalt("[ZCity database] Recovery deferred: connected-player caches require hydration before reconnection.\n")
++        return
++    end
++    hg.db.Connect()
++end)
++hook.Add("DatabaseConnected","ZCity.Database.Ready",function() hg.db.connecting=nil end)
++hook.Add("DatabaseConnectionFailed","ZCity.Database.Failed",function() hg.db.connecting=nil end)
