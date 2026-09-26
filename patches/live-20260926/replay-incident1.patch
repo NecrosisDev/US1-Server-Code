@@ -1,0 +1,107 @@
+--- a/garrysmod/addons/zcity/lua/homigrad/organism/tier_1/sv_input.lua
++++ b/garrysmod/addons/zcity/lua/homigrad/organism/tier_1/sv_input.lua
+@@ -13,27 +13,11 @@
+ local v2RetainedErrorAt = 0
+ local cvV2 = ConVarExists("hg_ballistics_v2") and GetConVar("hg_ballistics_v2") or CreateConVar("hg_ballistics_v2", "0", FCVAR_ARCHIVE, "In-body ballistics: 0 off, 1 shadow (log only), 2 live", 0, 2)
+ 
+--- One organ-box build per entity per tick. Callers only read the result.
+--- The armor list is part of the key: a plate broken by one pellet must not
+--- keep its box for the next.
+-local boxCache = setmetatable({}, {__mode = "k"})
++-- A server tick may contain multiple attacker-specific rewind poses.
+ function hg.organism.ShootMatrixTick(ent, organs)
+-	local tick = engine.TickCount()
+-	local owner = ent:IsRagdoll() and hg.RagdollOwner and hg.RagdollOwner(ent) or ent
+-	local armors = IsValid(owner) and owner.armors or ent.armors
+-	local sig = ""
+-	if armors then
+-		for slot, name in pairs(armors) do sig = sig .. tostring(slot) .. "=" .. tostring(name) .. ";" end
+-	end
+-	local c = boxCache[ent]
+-	if c and c.tick == tick and c.organs == organs and c.sig == sig then
+-		return c.boxs, c.pos, c.sphere
+-	end
+-	local boxs, pos, sphere = hg.organism.ShootMatrix(ent, organs)
+-	if not c then c = {} boxCache[ent] = c end
+-	c.tick, c.organs, c.sig, c.boxs, c.pos, c.sphere = tick, organs, sig, boxs, pos, sphere
+-	return boxs, pos, sphere
++    return hg.organism.ShootMatrix(ent, organs)
+ end
++hg.organism.PoseCacheRepair = "20260926.per-query"
+ local function Trace_Bullet(box, hit, ricochet, org, organs, dmg, dmgInfo, dir, energyMul)
+ 	dmg = dmgInfo:GetDamage() / 25 * (energyMul or 1)
+ 	local organ = box[6] and organs[box[6]][box[7]]
+--- a/garrysmod/lua/zc_killcam/sv_intent.lua
++++ b/garrysmod/lua/zc_killcam/sv_intent.lua
+@@ -60,6 +60,7 @@
+ K.Intent = K.Intent or {}
+ local I = K.Intent
+ I.Version = "20260926.int3"
++I.RepairVersion = "20260926.false-preserved"
+ 
+ -- PROVISIONAL(2026-09-26, every number below is a first guess to be checked against zc_killcam_intent_stats and the
+ -- per-life timelines; ratify-by: 2026-10-26)
+@@ -299,7 +300,8 @@
+     local fn = w[name]
+     if not isfunction(fn) then return nil end
+     local ok, r = pcall(fn, w)
+-    return ok and r or nil
++    if not ok then return nil end
++    return r
+ end
+ -- Pointed, not carried: not sprinting, not in the low- or high-ready stance (homigrad_base sh_anim.lua ReadyStance),
+ -- not mid-switch, and able to fire right now (CanUse: not reloading, deploying or unconscious).
+--- a/garrysmod/lua/zc_killcam/sv_timeline.lua
++++ b/garrysmod/lua/zc_killcam/sv_timeline.lua
+@@ -28,6 +28,7 @@
+ K.Timeline = K.Timeline or {}
+ local TL = K.Timeline
+ TL.Version = "20260926.tl1"
++TL.RepairVersion = "20260926.fail-closed"
+ 
+ -- Created in autorun/zc_goobos_apps.lua too (replicated, so the phone can hide the app); whichever runs first wins.
+ local MODE = GetConVar("zc_killcam_timeline") or CreateConVar("zc_killcam_timeline", "2", {FCVAR_ARCHIVE, FCVAR_REPLICATED}, "Per-life karma timeline for players: 0 off, 1 tester only, 2 everyone")
+@@ -276,17 +277,25 @@
+ -- ------------------------------------------------------------------------------------- reading
+ -- A life as it may be shown right now: every event in its safe form while its round is still locked.
+ function TL.View(life)
+-    local hide = life.round == TL.round and locked()
++    -- Fail closed for the entire payload during a hidden-role round. Historical counters
++    -- and reused round numbers must not become an alternate role-disclosure channel.
++    local hide = locked()
+     local out = {}
+     for i, e in ipairs(life.events or {}) do
+-        local s = hide and e.safe or nil
+-        out[i] = {t = e.t, kind = e.kind, mine = e.mine, text = s and s.text or e.text, tag = s and s.tag or e.tag, w = (not s) and e.w or nil}
+-    end
+-    return {at = life.at, map = life.map, mode = life.mode, span = life.span, ended = life.ended, by = life.by,
+-        karma0 = life.karma0, karma1 = life.karma1, events = out, held = hide or nil}
+-end
+-
+--- For sv_life.lua: the life that just ended in this death, as the death panel may show it.
++        if hide then
++            local safe = istable(e.safe) and e.safe or nil
++            out[i] = {t = e.t, kind = "other", mine = e.mine,
++                text = safe and safe.text or "Event recorded; details available after round end.",
++                tag = "details at round end"}
++        else
++            out[i] = {t = e.t, kind = e.kind, mine = e.mine, text = e.text, tag = e.tag, w = e.w}
++        end
++    end
++    return {at = life.at, map = life.map, mode = life.mode, span = life.span, ended = life.ended,
++        by = life.by, karma0 = not hide and life.karma0 or nil,
++        karma1 = not hide and life.karma1 or nil, events = out, held = hide or nil}
++end
++
+ function K.LifeTimeline(sid, p)
+     if not sid or MODE:GetInt() <= 0 or not TL.Allowed(p) then return nil end
+     local life = load(sid)[1]
+@@ -316,7 +325,7 @@
+         end
+         -- The player's own row of the staff ledger (sv_karma.lua), when that is recording: nothing staff can see
+         -- about a player's conduct is hidden from that player.
+-        if K.KarmaRate and K.Karma and K.Karma.ledger and K.Karma.ledger[sid] then
++        if not locked() and K.KarmaRate and K.Karma and K.Karma.ledger and K.Karma.ledger[sid] then
+             local e = K.Karma.ledger[sid]
+             local rate = K.KarmaRate(sid)
+             local floor = GetConVar("zc_killcam_karma_rate")
