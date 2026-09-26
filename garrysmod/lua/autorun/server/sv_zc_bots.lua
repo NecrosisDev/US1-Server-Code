@@ -57,6 +57,7 @@ local FILES = {
 	"zc_bots/behaviors/sv_medic.lua",
 	"zc_bots/behaviors/sv_loot.lua",
 	"zc_bots/behaviors/sv_outnumbered.lua",
+	"zc_bots/sv_duel.lua",
 	"zc_bots/sv_shooter_modes.lua",
 	"zc_bots/sv_crowd.lua",
 	"zc_bots/modes/sv_homicide.lua",

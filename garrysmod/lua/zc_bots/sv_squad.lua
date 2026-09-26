@@ -350,6 +350,10 @@ local CALLOUT_LINES = {
 	cover_me = { "reloading", "cover me", "reload", "cover me im reloading" },
 	regroup = { "on me", "wait up", "wait for me", "come here" },
 	down = { "got him", "hes down", "one down", "got one" },
+	-- 2026-09-26 (sv_duel.lua): relocating between covers, and falling back hurt.
+	moving = { "moving", "switching spots", "going left", "going right", "repositioning" },
+	hurt = { "im hit", "im hurt", "falling back", "need to patch up", "hes got me pinned" },
+	flushed = { "hes behind cover", "hes peeking that corner", "watch that corner", "hes hurt" },
 }
 
 -- Team modes only: in masscasualty/activeshooter the shooter(s) share team 0
@@ -361,6 +365,8 @@ local CALLOUT_LINES = {
 local CALLOUT_MODES = {
 	tdm = true, cstrike = true, hl2dm = true,
 	gwars = true, criresp = true, riot = true, uncontainedriot = true, wildcard = true,
+	-- 2026-09-26: every other real team split too (addon mode included).
+	["Cops/Gangsters"] = true, coop = true, defense = true,
 }
 
 function squad.EmitLine(bot, key)

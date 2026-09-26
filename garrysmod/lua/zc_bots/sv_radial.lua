@@ -87,6 +87,8 @@ local CONTEXT = {
 	-- fires when the squad decides its single per-round push -- "Cheer" was
 	-- otherwise unused among the 7 verified contexts.
 	push = "Cheer",
+	-- 2026-09-26 (sv_duel.lua / sv_last_resort.lua): falling back hurt.
+	help = "Yell for help",
 }
 
 -- Verified gesture names (sv_zmanip.lua's `gestures` table). 2026-09-26:
