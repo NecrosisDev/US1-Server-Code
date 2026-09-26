@@ -84,3 +84,7 @@
 *.key
 *.p12
 *.pfx
+
+# Reviewed repository documentation and addon inventory (not asset payloads).
+!/docs/*.md
+!/manifests/addon-packages.json

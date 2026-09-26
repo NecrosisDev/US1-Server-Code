@@ -1,0 +1,3208 @@
+{
+  "schema_version": 1,
+  "inventory_date": "2026-09-26",
+  "summary": {
+    "gma_packages": 153,
+    "gma_package_bytes": 23626874175,
+    "by_origin": {
+      "legacy-ugc-cache": 18,
+      "local-addon": 2,
+      "workshop-cache": 133
+    },
+    "loose_addon_directories": 53,
+    "loose_directories_with_baseline_source": 52,
+    "gma_packages_extracted": 0,
+    "gma_packages_pending": 153,
+    "excluded_package_files": 142,
+    "discovery_errors": []
+  },
+  "scope": "Current addon directories and discovered GMA packages in modern and legacy Workshop caches.",
+  "limitations": [
+    "No archive entry inspection, extraction or checksum completed in this pass.",
+    "Cached presence does not establish active mounting; startup/collection reconciliation is pending.",
+    "Base-game VPKs, runtime data archives, backups and release-staging archives remain excluded.",
+    "Content-pack assignments require per-file dependency and ownership review."
+  ],
+  "loose_addons": [
+    {
+      "name": "admin_max_karma",
+      "source_directory": "garrysmod/addons/admin_max_karma",
+      "baseline_imported_files": 3,
+      "baseline_imported_bytes": 67406,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "advdupe2",
+      "source_directory": "garrysmod/addons/advdupe2",
+      "baseline_imported_files": 18,
+      "baseline_imported_bytes": 241754,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "bigsay",
+      "source_directory": "garrysmod/addons/bigsay",
+      "baseline_imported_files": 2,
+      "baseline_imported_bytes": 11393,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "cops_gangsters",
+      "source_directory": "garrysmod/addons/cops_gangsters",
+      "baseline_imported_files": 7,
+      "baseline_imported_bytes": 14872,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "crash_menu",
+      "source_directory": "garrysmod/addons/crash_menu",
+      "baseline_imported_files": 2,
+      "baseline_imported_bytes": 8140,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "eprotect-keep-exploiterscheaters-at-bay-v1.5.35",
+      "source_directory": "garrysmod/addons/eprotect-keep-exploiterscheaters-at-bay-v1.5.35",
+      "baseline_imported_files": 27,
+      "baseline_imported_bytes": 188530,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "extra_context",
+      "source_directory": "garrysmod/addons/extra_context",
+      "baseline_imported_files": 2,
+      "baseline_imported_bytes": 7256,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "fearbot_clean",
+      "source_directory": "garrysmod/addons/fearbot_clean",
+      "baseline_imported_files": 4,
+      "baseline_imported_bytes": 50121,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "fiberwire_extras",
+      "source_directory": "garrysmod/addons/fiberwire_extras",
+      "baseline_imported_files": 1,
+      "baseline_imported_bytes": 3404,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "giveup_button",
+      "source_directory": "garrysmod/addons/giveup_button",
+      "baseline_imported_files": 2,
+      "baseline_imported_bytes": 3872,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "hurt_grab",
+      "source_directory": "garrysmod/addons/hurt_grab",
+      "baseline_imported_files": 1,
+      "baseline_imported_bytes": 4078,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "indicators",
+      "source_directory": "garrysmod/addons/indicators",
+      "baseline_imported_files": 1,
+      "baseline_imported_bytes": 44241,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "kick_catch",
+      "source_directory": "garrysmod/addons/kick_catch",
+      "baseline_imported_files": 1,
+      "baseline_imported_bytes": 5254,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "kill_zones",
+      "source_directory": "garrysmod/addons/kill_zones",
+      "baseline_imported_files": 2,
+      "baseline_imported_bytes": 14006,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "ko_reaper",
+      "source_directory": "garrysmod/addons/ko_reaper",
+      "baseline_imported_files": 1,
+      "baseline_imported_bytes": 2189,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "make_torso",
+      "source_directory": "garrysmod/addons/make_torso",
+      "baseline_imported_files": 1,
+      "baseline_imported_bytes": 6614,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "persistent_gags_and_mutes",
+      "source_directory": "garrysmod/addons/persistent_gags_and_mutes",
+      "baseline_imported_files": 3,
+      "baseline_imported_bytes": 42768,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "restart_warning",
+      "source_directory": "garrysmod/addons/restart_warning",
+      "baseline_imported_files": 4,
+      "baseline_imported_bytes": 41142,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "roundstart_grace",
+      "source_directory": "garrysmod/addons/roundstart_grace",
+      "baseline_imported_files": 2,
+      "baseline_imported_bytes": 9398,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "scoreboard",
+      "source_directory": "garrysmod/addons/scoreboard",
+      "baseline_imported_files": 14,
+      "baseline_imported_bytes": 142737,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "stamina_bar",
+      "source_directory": "garrysmod/addons/stamina_bar",
+      "baseline_imported_files": 1,
+      "baseline_imported_bytes": 4605,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "super_crusher",
+      "source_directory": "garrysmod/addons/super_crusher",
+      "baseline_imported_files": 2,
+      "baseline_imported_bytes": 7683,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "ulib",
+      "source_directory": "garrysmod/addons/ulib",
+      "baseline_imported_files": 28,
+      "baseline_imported_bytes": 256255,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "ulx",
+      "source_directory": "garrysmod/addons/ulx",
+      "baseline_imported_files": 44,
+      "baseline_imported_bytes": 506700,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "ulx_cmdlog",
+      "source_directory": "garrysmod/addons/ulx_cmdlog",
+      "baseline_imported_files": 6,
+      "baseline_imported_bytes": 74356,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "ulx_zchat_bridge",
+      "source_directory": "garrysmod/addons/ulx_zchat_bridge",
+      "baseline_imported_files": 1,
+      "baseline_imported_bytes": 5312,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "void_cleanup",
+      "source_directory": "garrysmod/addons/void_cleanup",
+      "baseline_imported_files": 1,
+      "baseline_imported_bytes": 844,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "zc_beartrap_rarity",
+      "source_directory": "garrysmod/addons/zc_beartrap_rarity",
+      "baseline_imported_files": 2,
+      "baseline_imported_bytes": 14911,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "zc_crosshair",
+      "source_directory": "garrysmod/addons/zc_crosshair",
+      "baseline_imported_files": 3,
+      "baseline_imported_bytes": 72075,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "zc_endmenu_fix",
+      "source_directory": "garrysmod/addons/zc_endmenu_fix",
+      "baseline_imported_files": 2,
+      "baseline_imported_bytes": 3633,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "zc_gcsmooth",
+      "source_directory": "garrysmod/addons/zc_gcsmooth",
+      "baseline_imported_files": 1,
+      "baseline_imported_bytes": 1604,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "zc_gfz_loot",
+      "source_directory": "garrysmod/addons/zc_gfz_loot",
+      "baseline_imported_files": 1,
+      "baseline_imported_bytes": 12384,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "zc_hd_textures",
+      "source_directory": "garrysmod/addons/zc_hd_textures",
+      "baseline_imported_files": 0,
+      "baseline_imported_bytes": 0,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "zc_hmcd_mutators",
+      "source_directory": "garrysmod/addons/zc_hmcd_mutators",
+      "baseline_imported_files": 27,
+      "baseline_imported_bytes": 196394,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "zc_homelander_complete",
+      "source_directory": "garrysmod/addons/zc_homelander_complete",
+      "baseline_imported_files": 13,
+      "baseline_imported_bytes": 139274,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "zc_hydroxocobalamin",
+      "source_directory": "garrysmod/addons/zc_hydroxocobalamin",
+      "baseline_imported_files": 2,
+      "baseline_imported_bytes": 8989,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "zc_juggernaut",
+      "source_directory": "garrysmod/addons/zc_juggernaut",
+      "baseline_imported_files": 2,
+      "baseline_imported_bytes": 37337,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "zc_micbox",
+      "source_directory": "garrysmod/addons/zc_micbox",
+      "baseline_imported_files": 2,
+      "baseline_imported_bytes": 13310,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "zc_perf",
+      "source_directory": "garrysmod/addons/zc_perf",
+      "baseline_imported_files": 5,
+      "baseline_imported_bytes": 69928,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "zc_selfmenu",
+      "source_directory": "garrysmod/addons/zc_selfmenu",
+      "baseline_imported_files": 2,
+      "baseline_imported_bytes": 3075,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "zc_shovel_spear",
+      "source_directory": "garrysmod/addons/zc_shovel_spear",
+      "baseline_imported_files": 1,
+      "baseline_imported_bytes": 6346,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "zc_solidmapvote",
+      "source_directory": "garrysmod/addons/zc_solidmapvote",
+      "baseline_imported_files": 17,
+      "baseline_imported_bytes": 151168,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "zc_spikewatch",
+      "source_directory": "garrysmod/addons/zc_spikewatch",
+      "baseline_imported_files": 1,
+      "baseline_imported_bytes": 10257,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "zc_spit",
+      "source_directory": "garrysmod/addons/zc_spit",
+      "baseline_imported_files": 1,
+      "baseline_imported_bytes": 2788,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "zc_traitor_population",
+      "source_directory": "garrysmod/addons/zc_traitor_population",
+      "baseline_imported_files": 1,
+      "baseline_imported_bytes": 4785,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "zc_ui_lifecycle_fix",
+      "source_directory": "garrysmod/addons/zc_ui_lifecycle_fix",
+      "baseline_imported_files": 2,
+      "baseline_imported_bytes": 149260,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "zc_watchdog",
+      "source_directory": "garrysmod/addons/zc_watchdog",
+      "baseline_imported_files": 20,
+      "baseline_imported_bytes": 161067,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "zc_wfa_tpik_fix",
+      "source_directory": "garrysmod/addons/zc_wfa_tpik_fix",
+      "baseline_imported_files": 3,
+      "baseline_imported_bytes": 28636,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "zc_wildwest_karma",
+      "source_directory": "garrysmod/addons/zc_wildwest_karma",
+      "baseline_imported_files": 1,
+      "baseline_imported_bytes": 10804,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "zcity",
+      "source_directory": "garrysmod/addons/zcity",
+      "baseline_imported_files": 911,
+      "baseline_imported_bytes": 7058270,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "zcity_hostage",
+      "source_directory": "garrysmod/addons/zcity_hostage",
+      "baseline_imported_files": 23,
+      "baseline_imported_bytes": 274502,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "zcity_stealth",
+      "source_directory": "garrysmod/addons/zcity_stealth",
+      "baseline_imported_files": 25,
+      "baseline_imported_bytes": 503110,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    },
+    {
+      "name": "zcity_traitor_picker",
+      "source_directory": "garrysmod/addons/zcity_traitor_picker",
+      "baseline_imported_files": 8,
+      "baseline_imported_bytes": 162592,
+      "packaged": false,
+      "noncode_inventory": "pending",
+      "active_on_server": "not_verified"
+    }
+  ],
+  "gma_packages": [
+    {
+      "path": "Steam/userdata/gameserver/ugc/referenced/1046251891047971452/addon_uploads/1382094104_1702010580.gma",
+      "size": 10031699,
+      "mtime_ns": 1780863898372578944,
+      "origin": "legacy-ugc-cache",
+      "source_id": "1046251891047971452",
+      "proposed_code_directory": "vendor/ugc/1046251891047971452/1382094104_1702010580",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "Steam/userdata/gameserver/ugc/referenced/1081141376163066772/addon_uploads/1369199094_222825205.gma",
+      "size": 30575829,
+      "mtime_ns": 1780863888101649049,
+      "origin": "legacy-ugc-cache",
+      "source_id": "1081141376163066772",
+      "proposed_code_directory": "vendor/ugc/1081141376163066772/1369199094_222825205",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "Steam/userdata/gameserver/ugc/referenced/1101419736435858360/addon_uploads/1381151355_3704534564.gma",
+      "size": 2549730,
+      "mtime_ns": 1782042914843123871,
+      "origin": "legacy-ugc-cache",
+      "source_id": "1101419736435858360",
+      "proposed_code_directory": "vendor/ugc/1101419736435858360/1381151355_3704534564",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "Steam/userdata/gameserver/ugc/referenced/34098425734324891/addon_uploads/1411134255_581077218.gma",
+      "size": 46293070,
+      "mtime_ns": 1784906820922598710,
+      "origin": "legacy-ugc-cache",
+      "source_id": "34098425734324891",
+      "proposed_code_directory": "vendor/ugc/34098425734324891/1411134255_581077218",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "Steam/userdata/gameserver/ugc/referenced/384287337097606340/addon_uploads/1443802494_3702904992.gma",
+      "size": 66357281,
+      "mtime_ns": 1782783604522550668,
+      "origin": "legacy-ugc-cache",
+      "source_id": "384287337097606340",
+      "proposed_code_directory": "vendor/ugc/384287337097606340/1443802494_3702904992",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "Steam/userdata/gameserver/ugc/referenced/430446696393214235/addon_uploads/1441174792_232767776.gma",
+      "size": 7127674,
+      "mtime_ns": 1784906796744730086,
+      "origin": "legacy-ugc-cache",
+      "source_id": "430446696393214235",
+      "proposed_code_directory": "vendor/ugc/430446696393214235/1441174792_232767776",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "Steam/userdata/gameserver/ugc/referenced/43098445000611881/addon_uploads/1404401160_1884183940.gma",
+      "size": 35490415,
+      "mtime_ns": 1780864448873034346,
+      "origin": "legacy-ugc-cache",
+      "source_id": "43098445000611881",
+      "proposed_code_directory": "vendor/ugc/43098445000611881/1404401160_1884183940",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "Steam/userdata/gameserver/ugc/referenced/451793768183534510/addon_uploads/1398516532_443833990.gma",
+      "size": 3896588,
+      "mtime_ns": 1780863873935745744,
+      "origin": "legacy-ugc-cache",
+      "source_id": "451793768183534510",
+      "proposed_code_directory": "vendor/ugc/451793768183534510/1398516532_443833990",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "Steam/userdata/gameserver/ugc/referenced/543006977232531613/addon_uploads/1412818328_1884098076.gma",
+      "size": 11511304,
+      "mtime_ns": 1780863859746842602,
+      "origin": "legacy-ugc-cache",
+      "source_id": "543006977232531613",
+      "proposed_code_directory": "vendor/ugc/543006977232531613/1412818328_1884098076",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "Steam/userdata/gameserver/ugc/referenced/574565056145764780/addon_uploads/1444738186_432731380.gma",
+      "size": 44391287,
+      "mtime_ns": 1780863921657420021,
+      "origin": "legacy-ugc-cache",
+      "source_id": "574565056145764780",
+      "proposed_code_directory": "vendor/ugc/574565056145764780/1444738186_432731380",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "Steam/userdata/gameserver/ugc/referenced/780659091815659580/addon_uploads/1496021752_2648384629.gma",
+      "size": 86136352,
+      "mtime_ns": 1784906854846414254,
+      "origin": "legacy-ugc-cache",
+      "source_id": "780659091815659580",
+      "proposed_code_directory": "vendor/ugc/780659091815659580/1496021752_2648384629",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "Steam/userdata/gameserver/ugc/referenced/805493128602723519/addon_uploads/1557605053_574147689.gma",
+      "size": 34094851,
+      "mtime_ns": 1780863981412012248,
+      "origin": "legacy-ugc-cache",
+      "source_id": "805493128602723519",
+      "proposed_code_directory": "vendor/ugc/805493128602723519/1557605053_574147689",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "Steam/userdata/gameserver/ugc/referenced/805493608465253400/addon_uploads/1557805462_2863000469.gma",
+      "size": 5474562,
+      "mtime_ns": 1780863838511987568,
+      "origin": "legacy-ugc-cache",
+      "source_id": "805493608465253400",
+      "proposed_code_directory": "vendor/ugc/805493608465253400/1557805462_2863000469",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "Steam/userdata/gameserver/ugc/referenced/842586079405093666/addon_uploads/1498406148_3831563731.gma",
+      "size": 4515892,
+      "mtime_ns": 1784906801056706661,
+      "origin": "legacy-ugc-cache",
+      "source_id": "842586079405093666",
+      "proposed_code_directory": "vendor/ugc/842586079405093666/1498406148_3831563731",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "Steam/userdata/gameserver/ugc/referenced/842586079405097120/addon_uploads/1498406210_3394348461.gma",
+      "size": 3999705,
+      "mtime_ns": 1784906831167543020,
+      "origin": "legacy-ugc-cache",
+      "source_id": "842586079405097120",
+      "proposed_code_directory": "vendor/ugc/842586079405097120/1498406210_3394348461",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "Steam/userdata/gameserver/ugc/referenced/914674483607510383/addon_uploads/1527802914_1296184703.gma",
+      "size": 29843899,
+      "mtime_ns": 1780863906468523686,
+      "origin": "legacy-ugc-cache",
+      "source_id": "914674483607510383",
+      "proposed_code_directory": "vendor/ugc/914674483607510383/1527802914_1296184703",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "Steam/userdata/gameserver/ugc/referenced/954104409051473080/addon_uploads/1550285770_2674291587.gma",
+      "size": 86246029,
+      "mtime_ns": 1780864436753904564,
+      "origin": "legacy-ugc-cache",
+      "source_id": "954104409051473080",
+      "proposed_code_directory": "vendor/ugc/954104409051473080/1550285770_2674291587",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "Steam/userdata/gameserver/ugc/referenced/964222183914217828/addon_uploads/1535832014_2040942907.gma",
+      "size": 70032869,
+      "mtime_ns": 1780863822000000000,
+      "origin": "legacy-ugc-cache",
+      "source_id": "964222183914217828",
+      "proposed_code_directory": "vendor/ugc/964222183914217828/1535832014_2040942907",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "garrysmod/addons/zcity_drones_compat.gma",
+      "size": 11273,
+      "mtime_ns": 1789452080697481035,
+      "origin": "local-addon",
+      "source_id": "zcity_drones_compat",
+      "proposed_code_directory": "garrysmod/addons/zcity_drones_compat",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "garrysmod/addons/zcity_pillpack_compat.gma",
+      "size": 31043,
+      "mtime_ns": 1789476314893919788,
+      "origin": "local-addon",
+      "source_id": "zcity_pillpack_compat",
+      "proposed_code_directory": "garrysmod/addons/zcity_pillpack_compat",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/104607712/104607712.gma",
+      "size": 40878,
+      "mtime_ns": 1780864250232178666,
+      "origin": "workshop-cache",
+      "source_id": "104607712",
+      "proposed_code_directory": "vendor/workshop/104607712",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/1169579845/temp.gma",
+      "size": 7298,
+      "mtime_ns": 1780864237164267773,
+      "origin": "workshop-cache",
+      "source_id": "1169579845",
+      "proposed_code_directory": "vendor/workshop/1169579845",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/160250458/160250458.gma",
+      "size": 20685180,
+      "mtime_ns": 1790373502610036108,
+      "origin": "workshop-cache",
+      "source_id": "160250458",
+      "proposed_code_directory": "vendor/workshop/160250458",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/1620875048/gmpublisher.gma",
+      "size": 3503,
+      "mtime_ns": 1780878147358526907,
+      "origin": "workshop-cache",
+      "source_id": "1620875048",
+      "proposed_code_directory": "vendor/workshop/1620875048",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/1762151370/gmpublisher.gma",
+      "size": 487612,
+      "mtime_ns": 1785117673728129193,
+      "origin": "workshop-cache",
+      "source_id": "1762151370",
+      "proposed_code_directory": "vendor/workshop/1762151370",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/1873907782/temp.gma",
+      "size": 181539348,
+      "mtime_ns": 1780863792183303893,
+      "origin": "workshop-cache",
+      "source_id": "1873907782",
+      "proposed_code_directory": "vendor/workshop/1873907782",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/2000865255/hide_ulx_ulib_commands.gma",
+      "size": 453,
+      "mtime_ns": 1782042913130134322,
+      "origin": "workshop-cache",
+      "source_id": "2000865255",
+      "proposed_code_directory": "vendor/workshop/2000865255",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/2017098025/temp.gma",
+      "size": 37249592,
+      "mtime_ns": 1780863953995199333,
+      "origin": "workshop-cache",
+      "source_id": "2017098025",
+      "proposed_code_directory": "vendor/workshop/2017098025",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/2082598948/zs_adrift_v4.gma",
+      "size": 116657799,
+      "mtime_ns": 1780863943579270413,
+      "origin": "workshop-cache",
+      "source_id": "2082598948",
+      "proposed_code_directory": "vendor/workshop/2082598948",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/2188264931/temp.gma",
+      "size": 170124083,
+      "mtime_ns": 1780863892737617405,
+      "origin": "workshop-cache",
+      "source_id": "2188264931",
+      "proposed_code_directory": "vendor/workshop/2188264931",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/2206993805/gmpublisher.gma",
+      "size": 128341,
+      "mtime_ns": 1781035551183705911,
+      "origin": "workshop-cache",
+      "source_id": "2206993805",
+      "proposed_code_directory": "vendor/workshop/2206993805",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/2249362659/gmpublisher.gma",
+      "size": 69811724,
+      "mtime_ns": 1780863871697761020,
+      "origin": "workshop-cache",
+      "source_id": "2249362659",
+      "proposed_code_directory": "vendor/workshop/2249362659",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/2251357708/ttt_ile_v4.gma",
+      "size": 80013505,
+      "mtime_ns": 1780864454523093396,
+      "origin": "workshop-cache",
+      "source_id": "2251357708",
+      "proposed_code_directory": "vendor/workshop/2251357708",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/2264867796/gmpublisher.gma",
+      "size": 167001683,
+      "mtime_ns": 1780863866905793732,
+      "origin": "workshop-cache",
+      "source_id": "2264867796",
+      "proposed_code_directory": "vendor/workshop/2264867796",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/2350858257/temp.gma",
+      "size": 65308,
+      "mtime_ns": 1781035553078698420,
+      "origin": "workshop-cache",
+      "source_id": "2350858257",
+      "proposed_code_directory": "vendor/workshop/2350858257",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/2403043112/lua_patcher.gma",
+      "size": 46012,
+      "mtime_ns": 1785391221910295573,
+      "origin": "workshop-cache",
+      "source_id": "2403043112",
+      "proposed_code_directory": "vendor/workshop/2403043112",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/2410639636/ttt_aircraft_1105014193.gma",
+      "size": 206862697,
+      "mtime_ns": 1784906862133374613,
+      "origin": "workshop-cache",
+      "source_id": "2410639636",
+      "proposed_code_directory": "vendor/workshop/2410639636",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/2484790252/temp.gma",
+      "size": 41036440,
+      "mtime_ns": 1784906828821555774,
+      "origin": "workshop-cache",
+      "source_id": "2484790252",
+      "proposed_code_directory": "vendor/workshop/2484790252",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/2558150898/gmpublisher.gma",
+      "size": 2492,
+      "mtime_ns": 1780878143607536617,
+      "origin": "workshop-cache",
+      "source_id": "2558150898",
+      "proposed_code_directory": "vendor/workshop/2558150898",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/2641379954/temp.gma",
+      "size": 83487,
+      "mtime_ns": 1785593397849966950,
+      "origin": "workshop-cache",
+      "source_id": "2641379954",
+      "proposed_code_directory": "vendor/workshop/2641379954",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/264467687/improved_stacker.gma",
+      "size": 197798,
+      "mtime_ns": 1782506281327357732,
+      "origin": "workshop-cache",
+      "source_id": "264467687",
+      "proposed_code_directory": "vendor/workshop/264467687",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/2659980741/gmpublisher.gma",
+      "size": 161479459,
+      "mtime_ns": 1783259436464016589,
+      "origin": "workshop-cache",
+      "source_id": "2659980741",
+      "proposed_code_directory": "vendor/workshop/2659980741",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/2701275326/gmpublisher.gma",
+      "size": 191807570,
+      "mtime_ns": 1780863834542014672,
+      "origin": "workshop-cache",
+      "source_id": "2701275326",
+      "proposed_code_directory": "vendor/workshop/2701275326",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/2716242595/gmpublisher.gma",
+      "size": 2352,
+      "mtime_ns": 1780864251479170163,
+      "origin": "workshop-cache",
+      "source_id": "2716242595",
+      "proposed_code_directory": "vendor/workshop/2716242595",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/2787722791/gmpublisher.gma",
+      "size": 69695220,
+      "mtime_ns": 1787694682703111814,
+      "origin": "workshop-cache",
+      "source_id": "2787722791",
+      "proposed_code_directory": "vendor/workshop/2787722791",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/2807511588/ttt_gas_station_22-05-22.gma",
+      "size": 155873471,
+      "mtime_ns": 1780863985110987009,
+      "origin": "workshop-cache",
+      "source_id": "2807511588",
+      "proposed_code_directory": "vendor/workshop/2807511588",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/2823321919/gmpublisher.gma",
+      "size": 220553574,
+      "mtime_ns": 1782044388096400565,
+      "origin": "workshop-cache",
+      "source_id": "2823321919",
+      "proposed_code_directory": "vendor/workshop/2823321919",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/2825686616/gmpublisher.gma",
+      "size": 86592865,
+      "mtime_ns": 1780863850288907168,
+      "origin": "workshop-cache",
+      "source_id": "2825686616",
+      "proposed_code_directory": "vendor/workshop/2825686616",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/2827004973/gmpublisher.gma",
+      "size": 6313691,
+      "mtime_ns": 1782741711512874280,
+      "origin": "workshop-cache",
+      "source_id": "2827004973",
+      "proposed_code_directory": "vendor/workshop/2827004973",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/2899115076/gm_renostruct_v2.gma",
+      "size": 26550687,
+      "mtime_ns": 1785593402577940038,
+      "origin": "workshop-cache",
+      "source_id": "2899115076",
+      "proposed_code_directory": "vendor/workshop/2899115076",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/2905263284/gmpublisher.gma",
+      "size": 156702915,
+      "mtime_ns": 1784906826354569184,
+      "origin": "workshop-cache",
+      "source_id": "2905263284",
+      "proposed_code_directory": "vendor/workshop/2905263284",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/2907192625/gmpublisher.gma",
+      "size": 23427499,
+      "mtime_ns": 1787896826071226364,
+      "origin": "workshop-cache",
+      "source_id": "2907192625",
+      "proposed_code_directory": "vendor/workshop/2907192625",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/2937403645/gmpublisher.gma",
+      "size": 172107098,
+      "mtime_ns": 1780863940088294237,
+      "origin": "workshop-cache",
+      "source_id": "2937403645",
+      "proposed_code_directory": "vendor/workshop/2937403645",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/2982286549/gmpublisher.gma",
+      "size": 2149,
+      "mtime_ns": 1780864235361280068,
+      "origin": "workshop-cache",
+      "source_id": "2982286549",
+      "proposed_code_directory": "vendor/workshop/2982286549",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3001397905/workshop.gma",
+      "size": 1781293,
+      "mtime_ns": 1790100018422673775,
+      "origin": "workshop-cache",
+      "source_id": "3001397905",
+      "proposed_code_directory": "vendor/workshop/3001397905",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3015478782/gmpublisher.gma",
+      "size": 252656607,
+      "mtime_ns": 1784302208384448044,
+      "origin": "workshop-cache",
+      "source_id": "3015478782",
+      "proposed_code_directory": "vendor/workshop/3015478782",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3106964356/gmpublisher.gma",
+      "size": 27496242,
+      "mtime_ns": 1780863842431960806,
+      "origin": "workshop-cache",
+      "source_id": "3106964356",
+      "proposed_code_directory": "vendor/workshop/3106964356",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3117864575/gmpublisher.gma",
+      "size": 1832,
+      "mtime_ns": 1780864233521292614,
+      "origin": "workshop-cache",
+      "source_id": "3117864575",
+      "proposed_code_directory": "vendor/workshop/3117864575",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3200936715/gmpublisher.gma",
+      "size": 71279367,
+      "mtime_ns": 1780863852973888838,
+      "origin": "workshop-cache",
+      "source_id": "3200936715",
+      "proposed_code_directory": "vendor/workshop/3200936715",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3257817980/gmpublisher.gma",
+      "size": 233424991,
+      "mtime_ns": 1780863895656597481,
+      "origin": "workshop-cache",
+      "source_id": "3257817980",
+      "proposed_code_directory": "vendor/workshop/3257817980",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3257937532/gmpublisher.gma",
+      "size": 146043845,
+      "mtime_ns": 1785952823720448068,
+      "origin": "workshop-cache",
+      "source_id": "3257937532",
+      "proposed_code_directory": "vendor/workshop/3257937532",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3271780856/3271780856_via_crowbar.gma",
+      "size": 69970417,
+      "mtime_ns": 1784906793514747630,
+      "origin": "workshop-cache",
+      "source_id": "3271780856",
+      "proposed_code_directory": "vendor/workshop/3271780856",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3283190993/gmpublisher.gma",
+      "size": 85322522,
+      "mtime_ns": 1785477619760297271,
+      "origin": "workshop-cache",
+      "source_id": "3283190993",
+      "proposed_code_directory": "vendor/workshop/3283190993",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3284799153/gmpublisher.gma",
+      "size": 34328331,
+      "mtime_ns": 1783469255635761749,
+      "origin": "workshop-cache",
+      "source_id": "3284799153",
+      "proposed_code_directory": "vendor/workshop/3284799153",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3286261704/gmpublisher.gma",
+      "size": 5259037,
+      "mtime_ns": 1780864410897613070,
+      "origin": "workshop-cache",
+      "source_id": "3286261704",
+      "proposed_code_directory": "vendor/workshop/3286261704",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3322707383/gmpublisher.gma",
+      "size": 211931381,
+      "mtime_ns": 1780864386352317178,
+      "origin": "workshop-cache",
+      "source_id": "3322707383",
+      "proposed_code_directory": "vendor/workshop/3322707383",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3330744597/gmpublisher.gma",
+      "size": 238793652,
+      "mtime_ns": 1783144834509341358,
+      "origin": "workshop-cache",
+      "source_id": "3330744597",
+      "proposed_code_directory": "vendor/workshop/3330744597",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3357629647/temp.gma",
+      "size": 31835148,
+      "mtime_ns": 1780863840731972412,
+      "origin": "workshop-cache",
+      "source_id": "3357629647",
+      "proposed_code_directory": "vendor/workshop/3357629647",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3389728250/glide.gma",
+      "size": 167464400,
+      "mtime_ns": 1790129754035625526,
+      "origin": "workshop-cache",
+      "source_id": "3389728250",
+      "proposed_code_directory": "vendor/workshop/3389728250",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3389795738/glide_gtav_helis.gma",
+      "size": 82830242,
+      "mtime_ns": 1780864353313475851,
+      "origin": "workshop-cache",
+      "source_id": "3389795738",
+      "proposed_code_directory": "vendor/workshop/3389795738",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3393352147/gmpublisher.gma",
+      "size": 428733834,
+      "mtime_ns": 1780863830773040404,
+      "origin": "workshop-cache",
+      "source_id": "3393352147",
+      "proposed_code_directory": "vendor/workshop/3393352147",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3407479980/gmpublisher.gma",
+      "size": 274524728,
+      "mtime_ns": 1780878153760510271,
+      "origin": "workshop-cache",
+      "source_id": "3407479980",
+      "proposed_code_directory": "vendor/workshop/3407479980",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3415418882/gmpublisher.gma",
+      "size": 4827,
+      "mtime_ns": 1780878145506531705,
+      "origin": "workshop-cache",
+      "source_id": "3415418882",
+      "proposed_code_directory": "vendor/workshop/3415418882",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3415635566/gmpublisher.gma",
+      "size": 244919267,
+      "mtime_ns": 1780863877540721136,
+      "origin": "workshop-cache",
+      "source_id": "3415635566",
+      "proposed_code_directory": "vendor/workshop/3415635566",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3432497883/gmpublisher.gma",
+      "size": 150713143,
+      "mtime_ns": 1784302211184432562,
+      "origin": "workshop-cache",
+      "source_id": "3432497883",
+      "proposed_code_directory": "vendor/workshop/3432497883",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3434547967/gmpublisher.gma",
+      "size": 104418940,
+      "mtime_ns": 1780864421344733284,
+      "origin": "workshop-cache",
+      "source_id": "3434547967",
+      "proposed_code_directory": "vendor/workshop/3434547967",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3441411282/temp.gma",
+      "size": 72670719,
+      "mtime_ns": 1780863863962813821,
+      "origin": "workshop-cache",
+      "source_id": "3441411282",
+      "proposed_code_directory": "vendor/workshop/3441411282",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3443920823/gmpublisher.gma",
+      "size": 321743711,
+      "mtime_ns": 1780864444468987677,
+      "origin": "workshop-cache",
+      "source_id": "3443920823",
+      "proposed_code_directory": "vendor/workshop/3443920823",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3446456040/temp.gma",
+      "size": 113674383,
+      "mtime_ns": 1780864452422071544,
+      "origin": "workshop-cache",
+      "source_id": "3446456040",
+      "proposed_code_directory": "vendor/workshop/3446456040",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3454674958/groverhaus.gma",
+      "size": 26905629,
+      "mtime_ns": 1784302213182421514,
+      "origin": "workshop-cache",
+      "source_id": "3454674958",
+      "proposed_code_directory": "vendor/workshop/3454674958",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3457317640/gmpublisher.gma",
+      "size": 100398006,
+      "mtime_ns": 1780864423500757678,
+      "origin": "workshop-cache",
+      "source_id": "3457317640",
+      "proposed_code_directory": "vendor/workshop/3457317640",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3491623803/gmpublisher.gma",
+      "size": 90069651,
+      "mtime_ns": 1780863936827316491,
+      "origin": "workshop-cache",
+      "source_id": "3491623803",
+      "proposed_code_directory": "vendor/workshop/3491623803",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3534116529/ivaylo_street.gma",
+      "size": 101349690,
+      "mtime_ns": 1788955790774168502,
+      "origin": "workshop-cache",
+      "source_id": "3534116529",
+      "proposed_code_directory": "vendor/workshop/3534116529",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3536905594/gmpublisher.gma",
+      "size": 54097964,
+      "mtime_ns": 1785909619975475925,
+      "origin": "workshop-cache",
+      "source_id": "3536905594",
+      "proposed_code_directory": "vendor/workshop/3536905594",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3537612611/gmpublisher.gma",
+      "size": 76792359,
+      "mtime_ns": 1784302205034466566,
+      "origin": "workshop-cache",
+      "source_id": "3537612611",
+      "proposed_code_directory": "vendor/workshop/3537612611",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3544105055/gmpublisher.gma",
+      "size": 1350838583,
+      "mtime_ns": 1783705073746911578,
+      "origin": "workshop-cache",
+      "source_id": "3544105055",
+      "proposed_code_directory": "vendor/workshop/3544105055",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3554375309/gmpublisher.gma",
+      "size": 51819003,
+      "mtime_ns": 1780863794530287866,
+      "origin": "workshop-cache",
+      "source_id": "3554375309",
+      "proposed_code_directory": "vendor/workshop/3554375309",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3558455765/gmpublisher.gma",
+      "size": 3578,
+      "mtime_ns": 1781028061237055930,
+      "origin": "workshop-cache",
+      "source_id": "3558455765",
+      "proposed_code_directory": "vendor/workshop/3558455765",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3560775288/gmpublisher.gma",
+      "size": 190267272,
+      "mtime_ns": 1780863845464940100,
+      "origin": "workshop-cache",
+      "source_id": "3560775288",
+      "proposed_code_directory": "vendor/workshop/3560775288",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3569203772/gmpublisher.gma",
+      "size": 15766971,
+      "mtime_ns": 1780863847261927832,
+      "origin": "workshop-cache",
+      "source_id": "3569203772",
+      "proposed_code_directory": "vendor/workshop/3569203772",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3578751621/gmpublisher.gma",
+      "size": 59686506,
+      "mtime_ns": 1780864425392778969,
+      "origin": "workshop-cache",
+      "source_id": "3578751621",
+      "proposed_code_directory": "vendor/workshop/3578751621",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3591502168/gmpublisher.gma",
+      "size": 23416,
+      "mtime_ns": 1789610755417764993,
+      "origin": "workshop-cache",
+      "source_id": "3591502168",
+      "proposed_code_directory": "vendor/workshop/3591502168",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3599740510/gm_prison.gma",
+      "size": 230019802,
+      "mtime_ns": 1784904875751817671,
+      "origin": "workshop-cache",
+      "source_id": "3599740510",
+      "proposed_code_directory": "vendor/workshop/3599740510",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3608909815/gmpublisher.gma",
+      "size": 183113996,
+      "mtime_ns": 1780863946510250412,
+      "origin": "workshop-cache",
+      "source_id": "3608909815",
+      "proposed_code_directory": "vendor/workshop/3608909815",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3657166179/gmpublisher.gma",
+      "size": 304634462,
+      "mtime_ns": 1782044384567414521,
+      "origin": "workshop-cache",
+      "source_id": "3657166179",
+      "proposed_code_directory": "vendor/workshop/3657166179",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3657294321/gmpublisher.gma",
+      "size": 4285455451,
+      "mtime_ns": 1783360878060923112,
+      "origin": "workshop-cache",
+      "source_id": "3657294321",
+      "proposed_code_directory": "vendor/workshop/3657294321",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3657897364/gmpublisher.gma",
+      "size": 4281666377,
+      "mtime_ns": 1783360905990765605,
+      "origin": "workshop-cache",
+      "source_id": "3657897364",
+      "proposed_code_directory": "vendor/workshop/3657897364",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3664783005/gmpublisher.gma",
+      "size": 273706237,
+      "mtime_ns": 1782044391344387680,
+      "origin": "workshop-cache",
+      "source_id": "3664783005",
+      "proposed_code_directory": "vendor/workshop/3664783005",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3666245817/gmpublisher.gma",
+      "size": 2640956,
+      "mtime_ns": 1788192504971702456,
+      "origin": "workshop-cache",
+      "source_id": "3666245817",
+      "proposed_code_directory": "vendor/workshop/3666245817",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3668481858/gmpublisher.gma",
+      "size": 343209618,
+      "mtime_ns": 1780864249225185532,
+      "origin": "workshop-cache",
+      "source_id": "3668481858",
+      "proposed_code_directory": "vendor/workshop/3668481858",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3670522798/gmpublisher.gma",
+      "size": 15636,
+      "mtime_ns": 1781109467417613633,
+      "origin": "workshop-cache",
+      "source_id": "3670522798",
+      "proposed_code_directory": "vendor/workshop/3670522798",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3671331409/gmpublisher.gma",
+      "size": 422211190,
+      "mtime_ns": 1780864404742540661,
+      "origin": "workshop-cache",
+      "source_id": "3671331409",
+      "proposed_code_directory": "vendor/workshop/3671331409",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3672748415/gmpublisher.gma",
+      "size": 32667198,
+      "mtime_ns": 1780863952393210266,
+      "origin": "workshop-cache",
+      "source_id": "3672748415",
+      "proposed_code_directory": "vendor/workshop/3672748415",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3675753816/gmpublisher.gma",
+      "size": 112294148,
+      "mtime_ns": 1780864355326462128,
+      "origin": "workshop-cache",
+      "source_id": "3675753816",
+      "proposed_code_directory": "vendor/workshop/3675753816",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3681615626/gmpublisher.gma",
+      "size": 1374307,
+      "mtime_ns": 1780864356807452031,
+      "origin": "workshop-cache",
+      "source_id": "3681615626",
+      "proposed_code_directory": "vendor/workshop/3681615626",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3683079310/gmpublisher.gma",
+      "size": 8128178,
+      "mtime_ns": 1782982787308442525,
+      "origin": "workshop-cache",
+      "source_id": "3683079310",
+      "proposed_code_directory": "vendor/workshop/3683079310",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3683648045/gmpublisher.gma",
+      "size": 8673757,
+      "mtime_ns": 1783663318024044292,
+      "origin": "workshop-cache",
+      "source_id": "3683648045",
+      "proposed_code_directory": "vendor/workshop/3683648045",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3684346989/gmpublisher.gma",
+      "size": 26254,
+      "mtime_ns": 1780864346806520213,
+      "origin": "workshop-cache",
+      "source_id": "3684346989",
+      "proposed_code_directory": "vendor/workshop/3684346989",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3684389164/gmpublisher.gma",
+      "size": 8078617,
+      "mtime_ns": 1780864368796370299,
+      "origin": "workshop-cache",
+      "source_id": "3684389164",
+      "proposed_code_directory": "vendor/workshop/3684389164",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3684456533/gmpublisher.gma",
+      "size": 70502,
+      "mtime_ns": 1780878141968540851,
+      "origin": "workshop-cache",
+      "source_id": "3684456533",
+      "proposed_code_directory": "vendor/workshop/3684456533",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3684466601/gmpublisher.gma",
+      "size": 5488,
+      "mtime_ns": 1780864253525156212,
+      "origin": "workshop-cache",
+      "source_id": "3684466601",
+      "proposed_code_directory": "vendor/workshop/3684466601",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3685014743/gmpublisher.gma",
+      "size": 3138,
+      "mtime_ns": 1780864378939301152,
+      "origin": "workshop-cache",
+      "source_id": "3685014743",
+      "proposed_code_directory": "vendor/workshop/3685014743",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3685034437/gmpublisher.gma",
+      "size": 156243,
+      "mtime_ns": 1789335177278840589,
+      "origin": "workshop-cache",
+      "source_id": "3685034437",
+      "proposed_code_directory": "vendor/workshop/3685034437",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3685875391/gmpublisher.gma",
+      "size": 25076,
+      "mtime_ns": 1783259447749960033,
+      "origin": "workshop-cache",
+      "source_id": "3685875391",
+      "proposed_code_directory": "vendor/workshop/3685875391",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3686174019/gmpublisher.gma",
+      "size": 20203,
+      "mtime_ns": 1780864344624535088,
+      "origin": "workshop-cache",
+      "source_id": "3686174019",
+      "proposed_code_directory": "vendor/workshop/3686174019",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3687778518/gmpublisher.gma",
+      "size": 4551886,
+      "mtime_ns": 1780864409007590963,
+      "origin": "workshop-cache",
+      "source_id": "3687778518",
+      "proposed_code_directory": "vendor/workshop/3687778518",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3687832222/gmpublisher.gma",
+      "size": 2723200,
+      "mtime_ns": 1787583136754927325,
+      "origin": "workshop-cache",
+      "source_id": "3687832222",
+      "proposed_code_directory": "vendor/workshop/3687832222",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3687918763/gmpublisher.gma",
+      "size": 4223,
+      "mtime_ns": 1780864416778681154,
+      "origin": "workshop-cache",
+      "source_id": "3687918763",
+      "proposed_code_directory": "vendor/workshop/3687918763",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3688107233/gmpublisher.gma",
+      "size": 87824,
+      "mtime_ns": 1782669624223669589,
+      "origin": "workshop-cache",
+      "source_id": "3688107233",
+      "proposed_code_directory": "vendor/workshop/3688107233",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3691902281/gmpublisher.gma",
+      "size": 3450,
+      "mtime_ns": 1781132795821730540,
+      "origin": "workshop-cache",
+      "source_id": "3691902281",
+      "proposed_code_directory": "vendor/workshop/3691902281",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3694177662/gmpublisher.gma",
+      "size": 51816517,
+      "mtime_ns": 1787983228112068235,
+      "origin": "workshop-cache",
+      "source_id": "3694177662",
+      "proposed_code_directory": "vendor/workshop/3694177662",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3695771892/gmpublisher.gma",
+      "size": 4114,
+      "mtime_ns": 1780864389851360536,
+      "origin": "workshop-cache",
+      "source_id": "3695771892",
+      "proposed_code_directory": "vendor/workshop/3695771892",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3699477814/gmpublisher.gma",
+      "size": 661739,
+      "mtime_ns": 1780864387614332861,
+      "origin": "workshop-cache",
+      "source_id": "3699477814",
+      "proposed_code_directory": "vendor/workshop/3699477814",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3701366943/gmpublisher.gma",
+      "size": 75074343,
+      "mtime_ns": 1787940012646175416,
+      "origin": "workshop-cache",
+      "source_id": "3701366943",
+      "proposed_code_directory": "vendor/workshop/3701366943",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3702088753/gmpublisher.gma",
+      "size": 1844375,
+      "mtime_ns": 1788703323106103911,
+      "origin": "workshop-cache",
+      "source_id": "3702088753",
+      "proposed_code_directory": "vendor/workshop/3702088753",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3703797859/gmpublisher.gma",
+      "size": 104800657,
+      "mtime_ns": 1788285615705212716,
+      "origin": "workshop-cache",
+      "source_id": "3703797859",
+      "proposed_code_directory": "vendor/workshop/3703797859",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3703837108/gmpublisher.gma",
+      "size": 3716838571,
+      "mtime_ns": 1788192533136577973,
+      "origin": "workshop-cache",
+      "source_id": "3703837108",
+      "proposed_code_directory": "vendor/workshop/3703837108",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3709219849/gmpublisher.gma",
+      "size": 92286,
+      "mtime_ns": 1780864225774345441,
+      "origin": "workshop-cache",
+      "source_id": "3709219849",
+      "proposed_code_directory": "vendor/workshop/3709219849",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3709333398/gmpublisher.gma",
+      "size": 36701,
+      "mtime_ns": 1780864348644507682,
+      "origin": "workshop-cache",
+      "source_id": "3709333398",
+      "proposed_code_directory": "vendor/workshop/3709333398",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3714182343/gmpublisher.gma",
+      "size": 15121,
+      "mtime_ns": 1787088851328957896,
+      "origin": "workshop-cache",
+      "source_id": "3714182343",
+      "proposed_code_directory": "vendor/workshop/3714182343",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3714689074/gmpublisher.gma",
+      "size": 2378895,
+      "mtime_ns": 1780864407069568177,
+      "origin": "workshop-cache",
+      "source_id": "3714689074",
+      "proposed_code_directory": "vendor/workshop/3714689074",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3714924215/gmpublisher.gma",
+      "size": 39498640,
+      "mtime_ns": 1780864375216326533,
+      "origin": "workshop-cache",
+      "source_id": "3714924215",
+      "proposed_code_directory": "vendor/workshop/3714924215",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3717703126/gmpublisher.gma",
+      "size": 38247,
+      "mtime_ns": 1780864350628494156,
+      "origin": "workshop-cache",
+      "source_id": "3717703126",
+      "proposed_code_directory": "vendor/workshop/3717703126",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3720595282/gmpublisher.gma",
+      "size": 8510288,
+      "mtime_ns": 1782576427423808124,
+      "origin": "workshop-cache",
+      "source_id": "3720595282",
+      "proposed_code_directory": "vendor/workshop/3720595282",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3721036330/gmpublisher.gma",
+      "size": 43899870,
+      "mtime_ns": 1783259446013968742,
+      "origin": "workshop-cache",
+      "source_id": "3721036330",
+      "proposed_code_directory": "vendor/workshop/3721036330",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3721037390/gmpublisher.gma",
+      "size": 55786193,
+      "mtime_ns": 1783259433587030984,
+      "origin": "workshop-cache",
+      "source_id": "3721037390",
+      "proposed_code_directory": "vendor/workshop/3721037390",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3721038395/gmpublisher.gma",
+      "size": 144485580,
+      "mtime_ns": 1783259443720980240,
+      "origin": "workshop-cache",
+      "source_id": "3721038395",
+      "proposed_code_directory": "vendor/workshop/3721038395",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3721806933/gmpublisher.gma",
+      "size": 2422930,
+      "mtime_ns": 1781978453583551744,
+      "origin": "workshop-cache",
+      "source_id": "3721806933",
+      "proposed_code_directory": "vendor/workshop/3721806933",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3723540354/gmpublisher.gma",
+      "size": 16273574,
+      "mtime_ns": 1782576456037683006,
+      "origin": "workshop-cache",
+      "source_id": "3723540354",
+      "proposed_code_directory": "vendor/workshop/3723540354",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3726268819/gmpublisher.gma",
+      "size": 15899191,
+      "mtime_ns": 1785304821530054085,
+      "origin": "workshop-cache",
+      "source_id": "3726268819",
+      "proposed_code_directory": "vendor/workshop/3726268819",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3734028848/gmpublisher.gma",
+      "size": 50298895,
+      "mtime_ns": 1785736819179781035,
+      "origin": "workshop-cache",
+      "source_id": "3734028848",
+      "proposed_code_directory": "vendor/workshop/3734028848",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3735532784/zzcity-hor-additions.gma",
+      "size": 1371703,
+      "mtime_ns": 1785166657983050695,
+      "origin": "workshop-cache",
+      "source_id": "3735532784",
+      "proposed_code_directory": "vendor/workshop/3735532784",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3737422346/gmpublisher.gma",
+      "size": 2022,
+      "mtime_ns": 1780864358791438506,
+      "origin": "workshop-cache",
+      "source_id": "3737422346",
+      "proposed_code_directory": "vendor/workshop/3737422346",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3737887777/gmpublisher.gma",
+      "size": 20384,
+      "mtime_ns": 1781034105853792545,
+      "origin": "workshop-cache",
+      "source_id": "3737887777",
+      "proposed_code_directory": "vendor/workshop/3737887777",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3741271420/gmpublisher.gma",
+      "size": 37937,
+      "mtime_ns": 1781109471201595539,
+      "origin": "workshop-cache",
+      "source_id": "3741271420",
+      "proposed_code_directory": "vendor/workshop/3741271420",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3750959251/gmpublisher.gma",
+      "size": 48470151,
+      "mtime_ns": 1782649756066469066,
+      "origin": "workshop-cache",
+      "source_id": "3750959251",
+      "proposed_code_directory": "vendor/workshop/3750959251",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3780773397/gmpublisher.gma",
+      "size": 23403673,
+      "mtime_ns": 1789106419138966807,
+      "origin": "workshop-cache",
+      "source_id": "3780773397",
+      "proposed_code_directory": "vendor/workshop/3780773397",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/3782152589/gmpublisher.gma",
+      "size": 1308097,
+      "mtime_ns": 1788826966173236696,
+      "origin": "workshop-cache",
+      "source_id": "3782152589",
+      "proposed_code_directory": "vendor/workshop/3782152589",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/531458635/531458635_via_crowbar.gma",
+      "size": 29916440,
+      "mtime_ns": 1788826969345222520,
+      "origin": "workshop-cache",
+      "source_id": "531458635",
+      "proposed_code_directory": "vendor/workshop/531458635",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/534491717/gmpublisher.gma",
+      "size": 92727190,
+      "mtime_ns": 1786644016464151992,
+      "origin": "workshop-cache",
+      "source_id": "534491717",
+      "proposed_code_directory": "vendor/workshop/534491717",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/718665054/temp.gma",
+      "size": 123827,
+      "mtime_ns": 1780864227675332478,
+      "origin": "workshop-cache",
+      "source_id": "718665054",
+      "proposed_code_directory": "vendor/workshop/718665054",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/897138102/gmpublisher.gma",
+      "size": 126525276,
+      "mtime_ns": 1782783610643526932,
+      "origin": "workshop-cache",
+      "source_id": "897138102",
+      "proposed_code_directory": "vendor/workshop/897138102",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    },
+    {
+      "path": "steam_cache/content/4000/950845673/GmodPillPack.gma",
+      "size": 35116709,
+      "mtime_ns": 1783144831088348479,
+      "origin": "workshop-cache",
+      "source_id": "950845673",
+      "proposed_code_directory": "vendor/workshop/950845673",
+      "extraction_status": "pending_tool_blocked",
+      "sha256": null,
+      "archive_entries": null,
+      "active_on_server": "not_verified",
+      "content_pack_assignment": "pending_entry_and_ownership_review"
+    }
+  ],
+  "excluded_package_files": [
+    {
+      "path": "_archive/cleanup-20260926/garrysmod/cache/srcds/934024763.gma",
+      "size": 221790861,
+      "mtime_ns": 1784906859204390548
+    },
+    {
+      "path": "_archive/cleanup-20260926/garrysmod/cache/srcds/534491717.gma",
+      "size": 92732956,
+      "mtime_ns": 1780863924070403553
+    },
+    {
+      "path": "_archive/cleanup-20260926/garrysmod/cache/srcds/214144067.gma",
+      "size": 89392854,
+      "mtime_ns": 1780864450918055826
+    },
+    {
+      "path": "_archive/cleanup-20260926/garrysmod/cache/srcds/314994389.gma",
+      "size": 97286736,
+      "mtime_ns": 1784906823557584388
+    },
+    {
+      "path": "_archive/cleanup-20260926/garrysmod/cache/srcds/951320281.gma",
+      "size": 32967802,
+      "mtime_ns": 1784906831746539872
+    },
+    {
+      "path": "_archive/cleanup-20260926/garrysmod/cache/srcds/1279413779.gma",
+      "size": 68339774,
+      "mtime_ns": 1780863983191000110
+    },
+    {
+      "path": "_archive/cleanup-20260926/garrysmod/cache/srcds/268821209.gma",
+      "size": 55748592,
+      "mtime_ns": 1780863934693331055
+    },
+    {
+      "path": "_archive/cleanup-20260926/garrysmod/cache/srcds/439526795.gma",
+      "size": 147,
+      "mtime_ns": 1780864238476258827
+    },
+    {
+      "path": "_archive/cleanup-20260926/garrysmod/cache/srcds/951320773.gma",
+      "size": 32497789,
+      "mtime_ns": 1784906801722703043
+    },
+    {
+      "path": "_archive/cleanup-20260926/garrysmod/cache/srcds/159321088.gma",
+      "size": 22244784,
+      "mtime_ns": 1780863910267497757
+    },
+    {
+      "path": "_archive/cleanup-20260926/garrysmod/cache/srcds/528388058.gma",
+      "size": 275565180,
+      "mtime_ns": 1782783607789538007
+    },
+    {
+      "path": "_archive/cleanup-20260926/garrysmod/cache/srcds/286757719.gma",
+      "size": 28198170,
+      "mtime_ns": 1780863860625836601
+    },
+    {
+      "path": "_archive/cleanup-20260926/garrysmod/cache/srcds/510837069.gma",
+      "size": 29629407,
+      "mtime_ns": 1784906797524725848
+    },
+    {
+      "path": "_archive/cleanup-20260926/garrysmod/cache/srcds/855745780.gma",
+      "size": 245931955,
+      "mtime_ns": 1780864441419955038
+    },
+    {
+      "path": "_archive/cleanup-20260926/garrysmod/cache/srcds/1740863217.gma",
+      "size": 21530359,
+      "mtime_ns": 1780863839162983124
+    },
+    {
+      "path": "_archive/cleanup-20260926/garrysmod/cache/srcds/145316417.gma",
+      "size": 89087823,
+      "mtime_ns": 1780863890377633513
+    },
+    {
+      "path": "_archive/cleanup-20260926/garrysmod/cache/srcds/1499934731.gma",
+      "size": 125672785,
+      "mtime_ns": 1780863825895073708
+    },
+    {
+      "path": "_archive/cleanup-20260926/garrysmod/cache/srcds/186842624.gma",
+      "size": 41711754,
+      "mtime_ns": 1780863899812569115
+    },
+    {
+      "path": "_archive/cleanup-20260926/garrysmod/cache/srcds/1388481216.gma",
+      "size": 96907800,
+      "mtime_ns": 1780863908093512595
+    },
+    {
+      "path": "_archive/cleanup-20260926/garrysmod/cache/srcds/183797802.gma",
+      "size": 21725283,
+      "mtime_ns": 1782042915120122181
+    },
+    {
+      "path": "_archive/cleanup-20260926/garrysmod/cache/srcds/107455292.gma",
+      "size": 20985006,
+      "mtime_ns": 1785593396948972079
+    },
+    {
+      "path": "garrysmod/garrysmod_001.vpk",
+      "size": 274036682,
+      "mtime_ns": 1789581611258043294
+    },
+    {
+      "path": "garrysmod/fallbacks_dir.vpk",
+      "size": 327592,
+      "mtime_ns": 1789581610418051137
+    },
+    {
+      "path": "garrysmod/garrysmod_dir.vpk",
+      "size": 533006,
+      "mtime_ns": 1789581610541049988
+    },
+    {
+      "path": "garrysmod/fallbacks_000.vpk",
+      "size": 108491602,
+      "mtime_ns": 1789581610547049932
+    },
+    {
+      "path": "garrysmod/garrysmod_002.vpk",
+      "size": 273743895,
+      "mtime_ns": 1789581611108044694
+    },
+    {
+      "path": "garrysmod/garrysmod_000.vpk",
+      "size": 274445760,
+      "mtime_ns": 1789581611168044134
+    },
+    {
+      "path": "garrysmod/data/zc_bot_avatars_candidate_compile_input.zip",
+      "size": 26715,
+      "mtime_ns": 1790140927825595368
+    },
+    {
+      "path": "garrysmod/data/zc_hmcd_candidate_compile_input.zip",
+      "size": 64502,
+      "mtime_ns": 1790138449124716444
+    },
+    {
+      "path": "garrysmod/data/zc_bot_reactive_candidate_compile_input.zip",
+      "size": 28879,
+      "mtime_ns": 1790143123695634595
+    },
+    {
+      "path": "garrysmod/data/zc_bot_arrivals_candidate_compile_input.zip",
+      "size": 8447,
+      "mtime_ns": 1790141669221287925
+    },
+    {
+      "path": "garrysmod/data/zc_social_realism_candidate_compile_input.zip",
+      "size": 39600,
+      "mtime_ns": 1790140356397988045
+    },
+    {
+      "path": "garrysmod/data/zc_social_candidate_compile_input.zip",
+      "size": 38455,
+      "mtime_ns": 1790139668232423625
+    },
+    {
+      "path": "home/container-450e82aa/zcity_release_staging/hostage-gameplay-20260920-02f815b5f965/ZCity-Hostage-Gameplay-Candidate.zip",
+      "size": 3099263,
+      "mtime_ns": 1789882771886463747
+    },
+    {
+      "path": "home/container-450e82aa/zcity_release_tools/bot-improvements-20260922T0835Z/candidate.zip",
+      "size": 83648,
+      "mtime_ns": 1790066367546820609
+    },
+    {
+      "path": "platform/platform_misc_dir.vpk",
+      "size": 14073,
+      "mtime_ns": 1780863569588824836
+    },
+    {
+      "path": "platform/platform_misc_000.vpk",
+      "size": 4414937,
+      "mtime_ns": 1780863597178636205
+    },
+    {
+      "path": "sourceengine/content_hl2_000.vpk",
+      "size": 217356402,
+      "mtime_ns": 1780863766073482197
+    },
+    {
+      "path": "sourceengine/content_cstrike_005.vpk",
+      "size": 212433417,
+      "mtime_ns": 1780863634279382603
+    },
+    {
+      "path": "sourceengine/content_hl2_002.vpk",
+      "size": 220101177,
+      "mtime_ns": 1780863657386224689
+    },
+    {
+      "path": "sourceengine/hl2_textures_004.vpk",
+      "size": 105601328,
+      "mtime_ns": 1780863779330391663
+    },
+    {
+      "path": "sourceengine/hl2_sound_misc_002.vpk",
+      "size": 133066873,
+      "mtime_ns": 1780863731488718413
+    },
+    {
+      "path": "sourceengine/hl2_textures_007.vpk",
+      "size": 106247095,
+      "mtime_ns": 1780863779520390365
+    },
+    {
+      "path": "sourceengine/content_hl2_006.vpk",
+      "size": 214309806,
+      "mtime_ns": 1780863688684010833
+    },
+    {
+      "path": "sourceengine/hl2_textures_001.vpk",
+      "size": 107254624,
+      "mtime_ns": 1780863770270453534
+    },
+    {
+      "path": "sourceengine/hl2_textures_006.vpk",
+      "size": 106419664,
+      "mtime_ns": 1780863779520390365
+    },
+    {
+      "path": "sourceengine/hl2_textures_010.vpk",
+      "size": 208824413,
+      "mtime_ns": 1780863780409384294
+    },
+    {
+      "path": "sourceengine/hl2_textures_000.vpk",
+      "size": 105643516,
+      "mtime_ns": 1780863765571485626
+    },
+    {
+      "path": "sourceengine/content_hl2_004.vpk",
+      "size": 215429910,
+      "mtime_ns": 1780863662978186477
+    },
+    {
+      "path": "sourceengine/hl2_textures_009.vpk",
+      "size": 105574068,
+      "mtime_ns": 1780863779620389682
+    },
+    {
+      "path": "sourceengine/hl2_sound_misc_001.vpk",
+      "size": 132906429,
+      "mtime_ns": 1780863722980776529
+    },
+    {
+      "path": "sourceengine/hl2_misc_002.vpk",
+      "size": 112474014,
+      "mtime_ns": 1780863701632922365
+    },
+    {
+      "path": "sourceengine/hl2_misc_000.vpk",
+      "size": 113051756,
+      "mtime_ns": 1780863697487950683
+    },
+    {
+      "path": "sourceengine/hl2_textures_008.vpk",
+      "size": 110175163,
+      "mtime_ns": 1780863779334391635
+    },
+    {
+      "path": "sourceengine/hl2_sound_vo_english_000.vpk",
+      "size": 119762707,
+      "mtime_ns": 1780863740080659725
+    },
+    {
+      "path": "sourceengine/hl2_textures_002.vpk",
+      "size": 105595880,
+      "mtime_ns": 1780863770184454122
+    },
+    {
+      "path": "sourceengine/content_cstrike_002.vpk",
+      "size": 214896305,
+      "mtime_ns": 1780863647486292343
+    },
+    {
+      "path": "sourceengine/hl2_sound_vo_english_004.vpk",
+      "size": 119467000,
+      "mtime_ns": 1780863761381514241
+    },
+    {
+      "path": "sourceengine/hl2_sound_misc_000.vpk",
+      "size": 133689947,
+      "mtime_ns": 1780863714471834655
+    },
+    {
+      "path": "sourceengine/hl2_sound_misc_dir.vpk",
+      "size": 113289,
+      "mtime_ns": 1780863680085069585
+    },
+    {
+      "path": "sourceengine/content_cstrike_003.vpk",
+      "size": 214151118,
+      "mtime_ns": 1780863624181451622
+    },
+    {
+      "path": "sourceengine/hl2_sound_vo_english_dir.vpk",
+      "size": 97210,
+      "mtime_ns": 1780863710291863210
+    },
+    {
+      "path": "sourceengine/hl2_textures_005.vpk",
+      "size": 105011361,
+      "mtime_ns": 1780863779226392373
+    },
+    {
+      "path": "sourceengine/hl2_misc_dir.vpk",
+      "size": 707232,
+      "mtime_ns": 1780863663078185793
+    },
+    {
+      "path": "sourceengine/content_hl2_003.vpk",
+      "size": 216367144,
+      "mtime_ns": 1780863662289191185
+    },
+    {
+      "path": "sourceengine/hl2_textures_003.vpk",
+      "size": 105556977,
+      "mtime_ns": 1780863778784395391
+    },
+    {
+      "path": "sourceengine/hl2_textures_dir.vpk",
+      "size": 213719,
+      "mtime_ns": 1780863779136392987
+    },
+    {
+      "path": "sourceengine/content_hl2_005.vpk",
+      "size": 216334202,
+      "mtime_ns": 1780863671877125669
+    },
+    {
+      "path": "sourceengine/content_hl2_001.vpk",
+      "size": 221526505,
+      "mtime_ns": 1780863652973254846
+    },
+    {
+      "path": "sourceengine/content_cstrike_001.vpk",
+      "size": 213489224,
+      "mtime_ns": 1780863617190499407
+    },
+    {
+      "path": "sourceengine/hl2_sound_vo_english_001.vpk",
+      "size": 119927424,
+      "mtime_ns": 1780863748319603452
+    },
+    {
+      "path": "sourceengine/hl2_sound_vo_english_003.vpk",
+      "size": 120245738,
+      "mtime_ns": 1780863757081543609
+    },
+    {
+      "path": "sourceengine/content_cstrike_004.vpk",
+      "size": 212445751,
+      "mtime_ns": 1780863628778420202
+    },
+    {
+      "path": "sourceengine/hl2_sound_vo_english_002.vpk",
+      "size": 119668742,
+      "mtime_ns": 1780863752862572423
+    },
+    {
+      "path": "sourceengine/hl2_misc_001.vpk",
+      "size": 113103964,
+      "mtime_ns": 1780863697486950690
+    },
+    {
+      "path": "sourceengine/content_cstrike_000.vpk",
+      "size": 213491980,
+      "mtime_ns": 1780863616083506973
+    },
+    {
+      "path": "sourceengine/content_cstrike_dir.vpk",
+      "size": 560709,
+      "mtime_ns": 1780863607181567824
+    },
+    {
+      "path": "sourceengine/content_hl2_dir.vpk",
+      "size": 363239,
+      "mtime_ns": 1780863662585189162
+    },
+    {
+      "path": "sourceengine/hl2_misc_003.vpk",
+      "size": 115043556,
+      "mtime_ns": 1780863705866893440
+    },
+    {
+      "path": "zcity_compat_backups/20260915T034403Z/zcity_drones_compat.gma",
+      "size": 6103,
+      "mtime_ns": 1783110862908081788
+    },
+    {
+      "path": "zcity_compat_backups/20260915T034403Z/zcity_pillpack_compat.gma",
+      "size": 5379,
+      "mtime_ns": 1783110862906081798
+    },
+    {
+      "path": "zcity_compat_backups/20260915T034403Z/staged/zcity_drones_compat.gma",
+      "size": 3722,
+      "mtime_ns": 1789444022478854313
+    },
+    {
+      "path": "zcity_compat_backups/20260915T034403Z/staged/zcity_pillpack_compat.gma",
+      "size": 14721,
+      "mtime_ns": 1789444023269847721
+    },
+    {
+      "path": "zcity_compat_backups/20260915T042433Z-mouse-controls/zcity_drones_compat.gma",
+      "size": 3722,
+      "mtime_ns": 1789444071935450509
+    },
+    {
+      "path": "zcity_compat_backups/20260915T042433Z-mouse-controls/staged/zcity_drones_compat.gma",
+      "size": 10770,
+      "mtime_ns": 1789446290950105985
+    },
+    {
+      "path": "zcity_compat_backups/20260915T045708Z-pill-selection/zcity_pillpack_compat.gma",
+      "size": 14721,
+      "mtime_ns": 1789444082203368726
+    },
+    {
+      "path": "zcity_compat_backups/20260915T045708Z-pill-selection/staged/zcity_pillpack_compat.gma",
+      "size": 22952,
+      "mtime_ns": 1789448263056781493
+    },
+    {
+      "path": "zcity_compat_backups/20260915T045708Z-pill-selection/staged/release.zip",
+      "size": 14026,
+      "mtime_ns": 1789448262342781934
+    },
+    {
+      "path": "zcity_compat_backups/20260915T052959Z-all-pills/zcity_drones_compat.gma",
+      "size": 10770,
+      "mtime_ns": 1789446290950105985
+    },
+    {
+      "path": "zcity_compat_backups/20260915T052959Z-all-pills/zcity_pillpack_compat.gma",
+      "size": 22952,
+      "mtime_ns": 1789448299130754712
+    },
+    {
+      "path": "zcity_compat_backups/20260915T052959Z-all-pills/staged/zcity_pillpack_compat.gma",
+      "size": 25226,
+      "mtime_ns": 1789450257867514233
+    },
+    {
+      "path": "zcity_compat_backups/20260915T055951Z-drone-stability/zcity_drones_compat.gma",
+      "size": 10770,
+      "mtime_ns": 1789446290950105985
+    },
+    {
+      "path": "zcity_compat_backups/20260915T055951Z-drone-stability/staged/zcity_drones_compat.gma",
+      "size": 11273,
+      "mtime_ns": 1789451944551540400
+    },
+    {
+      "path": "zcity_compat_backups/20260915T124422Z-scanner-photo/zcity_drones_compat.gma",
+      "size": 11273,
+      "mtime_ns": 1789452080697481035
+    },
+    {
+      "path": "zcity_compat_backups/20260915T124422Z-scanner-photo/zcity_pillpack_compat.gma",
+      "size": 25226,
+      "mtime_ns": 1789450377020138901
+    },
+    {
+      "path": "zcity_compat_backups/20260915T124422Z-scanner-photo/staged/zcity_pillpack_compat.gma",
+      "size": 31043,
+      "mtime_ns": 1789476314893919788
+    },
+    {
+      "path": "zcity_compat_backups/20260918T051850Z-poop-mesh-decal/staged/assets.gma",
+      "size": 8535114,
+      "mtime_ns": 1789708734614983721
+    },
+    {
+      "path": "zcity_compat_backups/containment_20260916_204938/train.original.gma",
+      "size": 22380,
+      "mtime_ns": 1780864231276307923
+    },
+    {
+      "path": "zcity_compat_backups/containment_20260916_204938/train.patched.gma",
+      "size": 23416,
+      "mtime_ns": 1789610741333818393
+    },
+    {
+      "path": "zcity_release_staging/hostage-gameplay-20260920-02f815b5f965/ZCity-Hostage-Gameplay-Candidate.zip",
+      "size": 3099263,
+      "mtime_ns": 1789882827906195246
+    },
+    {
+      "path": "zcity_release_staging/restart-maintenance-20260920-e93f8b2f2f6c/ZCity-Restart-Maintenance-2.1.0.zip",
+      "size": 35953,
+      "mtime_ns": 1789883256490316803
+    },
+    {
+      "path": "zcity_release_staging/stealth-2f242e95ce85eb1c/zcity-stealth-candidate.zip",
+      "size": 26660366,
+      "mtime_ns": 1789896469059033989
+    },
+    {
+      "path": "zcity_release_tools/bot-arrivals-owner-live-20260923/payload.zip",
+      "size": 10341,
+      "mtime_ns": 1790141687185168600
+    },
+    {
+      "path": "zcity_release_tools/bot-avatars-owner-live-20260923/payload.zip",
+      "size": 29586,
+      "mtime_ns": 1790140978936191893
+    },
+    {
+      "path": "zcity_release_tools/bot-goobos-live-20260923T060806Z/ui-release.zip",
+      "size": 6685,
+      "mtime_ns": 1790144843801533866
+    },
+    {
+      "path": "zcity_release_tools/bot-goobos-live-20260923T060806Z/compile-input.zip",
+      "size": 33796,
+      "mtime_ns": 1790144684220426027
+    },
+    {
+      "path": "zcity_release_tools/bot-gwars-cg-fixes-20260922T065218Z/candidate.zip",
+      "size": 27369,
+      "mtime_ns": 1790060226633726418
+    },
+    {
+      "path": "zcity_release_tools/bot-homicide-owner-live-20260922/payload.zip",
+      "size": 72881,
+      "mtime_ns": 1790138716212601143
+    },
+    {
+      "path": "zcity_release_tools/bot-immersion-20260922T090832Z/candidate.zip",
+      "size": 17724,
+      "mtime_ns": 1790132503590133458
+    },
+    {
+      "path": "zcity_release_tools/bot-immersion-20260923T030230Z/candidate.zip",
+      "size": 14739,
+      "mtime_ns": 1790132626132707260
+    },
+    {
+      "path": "zcity_release_tools/bot-improvements-20260922T0835Z/candidate.zip",
+      "size": 83648,
+      "mtime_ns": 1790066439626380605
+    },
+    {
+      "path": "zcity_release_tools/bot-progression-20260923T031352Z/candidate.zip",
+      "size": 47478,
+      "mtime_ns": 1790133238276558900
+    },
+    {
+      "path": "zcity_release_tools/bot-reactive-owner-live-20260923/payload.zip",
+      "size": 33518,
+      "mtime_ns": 1790143188890247905
+    },
+    {
+      "path": "zcity_release_tools/bot-social-owner-live-20260923/payload.zip",
+      "size": 42858,
+      "mtime_ns": 1790139750794061470
+    },
+    {
+      "path": "zcity_release_tools/bot-social-realism-owner-live-20260923/payload.zip",
+      "size": 44697,
+      "mtime_ns": 1790140441765038049
+    },
+    {
+      "path": "zcity_release_tools/homicide-bots-20260922T080313Z/candidate.zip",
+      "size": 39477,
+      "mtime_ns": 1790064346079446275
+    },
+    {
+      "path": "zcity_release_tools/hostage-public-pistols-20260922T072115Z/candidate.zip",
+      "size": 35105,
+      "mtime_ns": 1790061764602932614
+    },
+    {
+      "path": "zcity_release_tools/interaction-rc2/candidate.zip",
+      "size": 29871753,
+      "mtime_ns": 1789920635412408304
+    },
+    {
+      "path": "zcity_release_tools/interaction-rc2/RC2.upload.zip",
+      "size": 29889896,
+      "mtime_ns": 1789920586780724222
+    },
+    {
+      "path": "zcity_release_tools/interaction-usability-20260920/interaction_usability_candidate.zip",
+      "size": 34887,
+      "mtime_ns": 1789924704356488247
+    },
+    {
+      "path": "zcity_release_tools/interaction-usability-20260920/shitterhunt_candidate.zip",
+      "size": 26038,
+      "mtime_ns": 1789924429746307404
+    },
+    {
+      "path": "zcity_release_tools/interaction-usability-20260920/spawn_incident_candidate.zip",
+      "size": 13096,
+      "mtime_ns": 1789924432532288441
+    },
+    {
+      "path": "zcity_release_tools/staged/chat-assist-pm-20260924-can/GoobOS-chat-candidate.zip",
+      "size": 111225,
+      "mtime_ns": 1790274762375714923
+    },
+    {
+      "path": "zcity_release_tools/staged/chat-groups-20260923T003138Z/payload.zip",
+      "size": 90185,
+      "mtime_ns": 1790123510565884053
+    },
+    {
+      "path": "zcity_release_tools/staged/chat-groups-20260923T003138Z/groups1a/payload.zip",
+      "size": 91017,
+      "mtime_ns": 1790123815315492293
+    },
+    {
+      "path": "zcity_release_tools/staged/chat-identity-20260923T005538Z/candidate.zip",
+      "size": 81182,
+      "mtime_ns": 1790124948981267713
+    },
+    {
+      "path": "zcity_release_tools/staged/chat-identity-20260923T005621Z/candidate.zip",
+      "size": 81184,
+      "mtime_ns": 1790124994121060127
+    },
+    {
+      "path": "zcity_release_tools/staged/chat-identity-20260923T005704Z/candidate.zip",
+      "size": 81200,
+      "mtime_ns": 1790125035912867948
+    },
+    {
+      "path": "zcity_release_tools/staged/chat-identity-20260923T010200Z/candidate.zip",
+      "size": 81148,
+      "mtime_ns": 1790125330660512813
+    },
+    {
+      "path": "zcity_release_tools/staged/chat-identity-20260923T010200Z/public/release.zip",
+      "size": 67904,
+      "mtime_ns": 1790125505952707037
+    },
+    {
+      "path": "zcity_release_tools/staged/chat-pm-20260923T001059Z/payload.zip",
+      "size": 77107,
+      "mtime_ns": 1790122270105409486
+    },
+    {
+      "path": "zcity_release_tools/staged/chat-settings-20260923T011632Z/candidate.zip",
+      "size": 92977,
+      "mtime_ns": 1790126205010414264
+    },
+    {
+      "path": "zcity_release_tools/staged/chat-settings-20260923T012302Z/candidate.zip",
+      "size": 92996,
+      "mtime_ns": 1790126595697317859
+    },
+    {
+      "path": "zcity_release_tools/staged/consolidated-20260923-release1/held-candidates.zip",
+      "size": 23509593,
+      "mtime_ns": 1790136700078495956
+    },
+    {
+      "path": "zcity_release_tools/staged/consolidated-20260923-release1/viewer-delivery.zip",
+      "size": 101694,
+      "mtime_ns": 1790136892249051504
+    },
+    {
+      "path": "zcity_release_tools/staged/consolidated-20260923-release1/release.zip",
+      "size": 543254,
+      "mtime_ns": 1790136440665642722
+    },
+    {
+      "path": "zcity_release_tools/staged/scoreboard-penalty-20260923T015057Z/candidate.zip",
+      "size": 6384,
+      "mtime_ns": 1790128261564829640
+    },
+    {
+      "path": "zcity_release_tools/staged/scoreboard-successor-20260923T020843Z/owner_preview.zip",
+      "size": 52709,
+      "mtime_ns": 1790129330960615158
+    },
+    {
+      "path": "zcity_release_tools/staged/scoreboard-successor-20260923T020902Z/owner_preview.zip",
+      "size": 52709,
+      "mtime_ns": 1790129350968522754
+    },
+    {
+      "path": "zcity_release_tools/staged/scoreboard-successor-20260923T021424Z/owner_preview.zip",
+      "size": 53698,
+      "mtime_ns": 1790129673244010160
+    },
+    {
+      "path": "zcity_release_tools/staged/specdm-beta-core-20260923T015050Z/SpecDM-beta-core-STAGING-ONLY.zip",
+      "size": 116080,
+      "mtime_ns": 1790128319764669868
+    },
+    {
+      "path": "zcity_release_tools/staged/swingdoors-fix-20260923T041309Z/candidate.zip",
+      "size": 147572,
+      "mtime_ns": 1790136793660780386
+    }
+  ]
+}

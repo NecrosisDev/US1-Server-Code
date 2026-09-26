@@ -40,3 +40,15 @@ The import did not modify, restart, stop, or deploy to the live server.
 No GitHub remote or upload was created during the local import.
 
 Third-party source retains its existing notices; this import grants no new rights.
+
+## Planned archive expansion and content separation
+
+A broader inventory located 153 GMA files in addon and Workshop-cache locations,
+plus 53 loose addon directories. Archive inspection/extraction was tool-blocked;
+none of those GMAs has been unpacked in this repository. The baseline remains
+loose-source only, not a complete addon import.
+
+See [current import status](docs/ADDON_IMPORT_STATUS.md), the
+[code/content separation plan](docs/CONTENT_PACK_PLAN.md), and the
+[machine-readable package inventory](manifests/addon-packages.json).
+The content-pack plan does not move assets or authorize public redistribution.
