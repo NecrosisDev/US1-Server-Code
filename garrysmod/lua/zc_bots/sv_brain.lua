@@ -811,6 +811,7 @@ function lib.FollowPath(bot, brain)
 	local meta = brain.pathMeta
 	local narrowHere = meta ~= nil and meta.path == activePath and meta.narrow ~= nil
 		and (meta.narrow[brain.pathIdx] == true or meta.narrow[brain.pathIdx + 1] == true)
+	if narrowHere then brain.pathNarrowAt = now end -- sv_control.lua: steer this bit analog
 	local steerWp = wp
 	local nextWp = activePath[brain.pathIdx + 1]
 	if nextWp and not narrowHere then
