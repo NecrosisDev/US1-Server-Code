@@ -1,0 +1,401 @@
+--- a/gamemodes/zcity/gamemode/libraries/experience/sv_experience.lua
++++ b/gamemodes/zcity/gamemode/libraries/experience/sv_experience.lua
+@@ -1,248 +1,153 @@
+---
+-zb = zb or {}
+-
+-zb.Experience = zb.Experience or {}
+-zb.Experience.PlayerInstances = zb.Experience.PlayerInstances or {}
+-zb.Experience.Active = zb.Experience.Active or false
+-
+-hook.Add("DatabaseConnected", "ExperienceCreateData", function()
+-	local query
+-
+-	query = mysql:Create("zb_experience")
+-		query:Create("steamid", "VARCHAR(20) NOT NULL")
+-		query:Create("steam_name", "VARCHAR(32) NOT NULL")
+-		query:Create("skill", "FLOAT NOT NULL")
+-		query:Create("experience", "INT NOT NULL") -- Надо перевести в большие числа INT НЕ ХВАТАЕТ!!! - хватает просто кое-кто придурок да салат?
+-        query:Create("deaths", "INT NOT NULL")
+-        query:Create("kills", "INT NOT NULL")
+-        query:Create("suicides", "INT NOT NULL")
+-		query:PrimaryKey("steamid")
+-	query:Execute()
+-
+-    zb.Experience.Active = true
++-- Native ZCity experience persistence. Hydrate before any absolute write.
++zb=zb or {}
++zb.Experience=zb.Experience or {}
++local E=zb.Experience
++E.PlayerInstances=E.PlayerInstances or {}
++E.Active=E.Active or false
++E.Persistence=E.Persistence or {}
++E.PersistenceVersion="20260923.hydration1"
++local fields={"skill","experience","deaths","kills","suicides"}
++local allowed={skill=true,experience=true,deaths=true,kills=true,suicides=true}
++local function finite(n) return isnumber(n) and n==n and math.abs(n)<math.huge end
++local function connected() return mysql and mysql.IsConnected and mysql:IsConnected() end
++local function state(sid)
++    local s=E.Persistence[sid]
++    if not s then s={pending={},loaded=false,baseKnown=false};E.Persistence[sid]=s end
++    return s
++end
++-- Adopt pre-fix caches exactly once. Disconnected caches contain provisional
++-- earnings, not stored totals; preserve those values until the row is read.
++for sid,values in pairs(E.PlayerInstances) do
++    if not E.Persistence[sid] then
++        local s=state(sid)
++        s.loaded=E.Active and connected() or false
++        s.baseKnown=s.loaded
++        if not s.loaded then
++            for _,key in ipairs(fields) do
++                local n=tonumber(values[key]) or 0
++                if finite(n) and n~=0 then s.pending[key]={sum=n,floor=math.max(0,n)} end
++            end
++        end
++    end
++end
++local function append(pending,key,amount)
++    local p=pending[key] or {sum=0,floor=0}
++    p.sum=p.sum+amount;p.floor=math.max(0,p.floor+amount);pending[key]=p
++end
++local function restore(first,last)
++    for key,p in pairs(last) do
++        local a=first[key]
++        first[key]=a and {sum=a.sum+p.sum,floor=math.max(p.floor,a.floor+p.sum)} or p
++    end
++    return first
++end
++function E.IsReady(p)
++    local s=IsValid(p) and E.Persistence[p:SteamID64()]
++    return E.Active and connected() and s and s.loaded==true and not s.loading or false
++end
++function E.LoadPlayer(p)
++    if not IsValid(p) or not p:IsPlayer() or p:IsBot() then return false end
++    local sid=p:SteamID64();local s=state(sid)
++    E.PlayerInstances[sid]=E.PlayerInstances[sid] or {}
++    if not E.Active or not connected() or s.loading then return false end
++    if s.loaded and next(s.pending)==nil then return true end
++    local cached=s.loaded and E.PlayerInstances[sid] or nil
++    s.loading=true;s.loaded=false
++    local q=mysql:Select("zb_experience")
++    for _,key in ipairs(fields) do q:Select(key) end
++    q:Where("steamid",sid)
++    local function receive(rows,ok)
++        if not ok or not IsValid(p) or p:SteamID64()~=sid or not connected() then s.loading=false;return end
++        local row=istable(rows) and rows[1]
++        local values={}
++        local pending=s.pending;s.pending={};s.inflight=pending
++        for _,key in ipairs(fields) do
++            local base=tonumber(row and row[key]) or 0
++            if not finite(base) then base=0 end
++            local delta=pending[key]
++            values[key]=delta and math.max(delta.floor,base+delta.sum) or math.max(0,base)
++        end
++        local write=row and mysql:Update("zb_experience") or mysql:Insert("zb_experience")
++        local method=row and "Update" or "Insert"
++        if row then write:Where("steamid",sid) else write:Insert("steamid",sid) end
++        write[method](write,"steam_name",p:Name())
++        for _,key in ipairs(fields) do write[method](write,key,values[key]) end
++        write:Callback(function(_,success)
++            if not success then return end
++            s.inflight=nil;s.loading=false;s.loaded=true;s.baseKnown=true
++            E.PlayerInstances[sid]=values
++            if next(s.pending)~=nil then E.LoadPlayer(p) end
++        end)
++        local success,err=pcall(write.Execute,write)
++        if not success then
++            s.pending=restore(pending,s.pending);s.inflight=nil;s.loading=false;s.loaded=false
++            ErrorNoHalt("[ZCity XP] Hydration write failed; earnings retained. "..tostring(err).."\n")
++        end
++    end
++    q:Callback(receive)
++    if cached then receive({cached},true);return E.IsReady(p) end
++    local ok,err=pcall(q.Execute,q)
++    if not ok then s.loading=false;ErrorNoHalt("[ZCity XP] Hydration read failed; earnings retained. "..tostring(err).."\n") end
++    return E.IsReady(p)
++end
++function E.Add(p,key,amount)
++    if not IsValid(p) or not allowed[key] or not finite(amount) then return false end
++    local sid=p:SteamID64();local s=state(sid)
++    append(s.pending,key,amount)
++    -- One native read/merge/write owns the transaction. An in-flight request
++    -- keeps subsequent changes in pending rather than publishing stale totals.
++    return E.LoadPlayer(p)
++end
++function E.Value(p,key)
++    local sid=p:SteamID64();local data=E.PlayerInstances[sid] or {}
++    local s=E.Persistence[sid]
++    local value=s and s.baseKnown and (tonumber(data[key]) or 0) or 0
++    local flight=s and s.inflight and s.inflight[key]
++    if flight then value=math.max(flight.floor,value+flight.sum) end
++    local pending=s and s.pending[key]
++    if pending then value=math.max(pending.floor,value+pending.sum) end
++    return value
++end
++hook.Add("DatabaseConnected","ExperienceCreateData",function()
++    local q=mysql:Create("zb_experience")
++    q:Create("steamid","VARCHAR(20) NOT NULL")
++    q:Create("steam_name","VARCHAR(32) NOT NULL")
++    q:Create("skill","FLOAT NOT NULL")
++    for _,key in ipairs({"experience","deaths","kills","suicides"}) do q:Create(key,"INT NOT NULL") end
++    q:PrimaryKey("steamid")
++    q:Callback(function(_,ok)
++        if not ok then return end
++        E.Active=true
++        for _,p in ipairs(player.GetHumans()) do E.LoadPlayer(p) end
++    end)
++    q:Execute()
+ end)
+-
+---local query = mysql:Drop("zb_experience")
+---query:Execute()
+-
+-hook.Add( "PlayerInitialSpawn","ZB_Exp_OnInitSpawn", function( ply )
+-    local name = ply:Name()
+-	local steamID64 = ply:SteamID64()
+-
+-    if not zb.Experience.Active then
+-        zb.Experience.PlayerInstances[steamID64] = {}
+-        return
+-    end 
+-
+-	local query = mysql:Select("zb_experience")
+-		query:Select("skill")
+-		query:Select("experience")
+-        query:Select("deaths")
+-        query:Select("kills")
+-        query:Select("suicides")
+-		query:Where("steamid", steamID64)
+-		query:Callback(function(result)
+-			if (IsValid(ply) and istable(result) and #result > 0 and result[1].experience) then
+-				local updateQuery = mysql:Update("zb_experience")
+-					updateQuery:Update("steam_name", name)
+-					updateQuery:Where("steamid", steamID64)
+-				updateQuery:Execute()
+-
+-				zb.Experience.PlayerInstances[steamID64] = {}
+-
+-                zb.Experience.PlayerInstances[steamID64].skill = tonumber(result[1].skill)
+-                zb.Experience.PlayerInstances[steamID64].experience = tonumber(result[1].experience)
+-                zb.Experience.PlayerInstances[steamID64].deaths = tonumber(result[1].deaths)
+-                zb.Experience.PlayerInstances[steamID64].kills = tonumber(result[1].kills)
+-                zb.Experience.PlayerInstances[steamID64].suicides = tonumber(result[1].suicides)
+-
+-			else
+-				local insertQuery = mysql:Insert("zb_experience")
+-					insertQuery:Insert("steamid", steamID64)
+-					insertQuery:Insert("steam_name", name)
+-					insertQuery:Insert("skill", 0)
+-		            insertQuery:Insert("experience", 0)
+-                    insertQuery:Insert("deaths", 0)
+-		            insertQuery:Insert("kills", 0)
+-                    insertQuery:Insert("suicides", 0)
+-				insertQuery:Execute()
+-
+-				zb.Experience.PlayerInstances[steamID64] = {}
+-
+-				zb.Experience.PlayerInstances[steamID64].skill = 0
+-                zb.Experience.PlayerInstances[steamID64].experience = 0
+-                zb.Experience.PlayerInstances[steamID64].deaths = 0
+-                zb.Experience.PlayerInstances[steamID64].kills = 0
+-                zb.Experience.PlayerInstances[steamID64].suicides = 0
+-
+-			end
+-		end)
+-	query:Execute()
+-
+-end)
+-
+-local plyMeta = FindMetaTable("Player")
+-
+-function plyMeta:GetExp()
+-
+-    return math.Round(zb.Experience.PlayerInstances[self:SteamID64()].experience) or 0
+-
+-end
+-
+-function plyMeta:GiveExp( ammout )
+-
+-    local steamID64 = self:SteamID64()
+-
+-    if !zb.Experience or !zb.Experience.PlayerInstances or !zb.Experience.PlayerInstances[steamID64] then return end
+-
+-    zb.Experience.PlayerInstances[steamID64].experience =  math.max( (zb.Experience.PlayerInstances[steamID64].experience or 0) + ammout, 0 )
+-
+-	local updateQuery = mysql:Update("zb_experience")
+-		updateQuery:Update("experience", self:GetExp(),0)
+-		updateQuery:Where("steamid", steamID64)
+-	updateQuery:Execute()
+-
+-    local points = math.min(ammout / 5, 10) * (1 + (self.EA_HasAccess and self:EA_HasAccess() and 2 or 0))
+-    local mul = math.min(player.GetCount() / 10, 1)
+-    self:PS_AddPoints(math.Round(points * mul,0))
+-    --self:SetNWInt( "experience", exp + ammout )
+-end
+-
+-
+-function plyMeta:GetSkill()
+-
+-    return zb.Experience.PlayerInstances[self:SteamID64()].skill or 0
+-
+-end
+-
+-function plyMeta:GiveSkill( ammout )
+-
+-    local steamID64 = self:SteamID64()
+-
+-    if not zb.Experience.Active then
+-        zb.Experience.PlayerInstances[steamID64] = {}
+-        return
+-    end 
+-
+-
+-    zb.Experience.PlayerInstances[steamID64].skill = math.max( zb.Experience.PlayerInstances[steamID64].skill + ammout, 0 )
+-
+-	local updateQuery = mysql:Update("zb_experience")
+-		updateQuery:Update("skill", self:GetSkill())
+-		updateQuery:Where("steamid", steamID64)
+-	updateQuery:Execute()
+-    --self:SetNWFloat( "skill", skill + ammout )
+-    
+-end
+-
+-function plyMeta:GetDeaths()
+-
+-    return zb.Experience.PlayerInstances[self:SteamID64()].deaths or 0
+-
+-end
+-
+-function plyMeta:GiveDeaths( ammout )
+-
+-    local steamID64 = self:SteamID64()
+-
+-    if not zb.Experience.Active then
+-        zb.Experience.PlayerInstances[steamID64] = {}
+-        return
+-    end 
+-
+-
+-    zb.Experience.PlayerInstances[steamID64].deaths = math.max( zb.Experience.PlayerInstances[steamID64].deaths + ammout, 0 )
+-
+-	local updateQuery = mysql:Update("zb_experience")
+-		updateQuery:Update("deaths", self:GetDeaths())
+-		updateQuery:Where("steamid", steamID64)
+-	updateQuery:Execute()
+-    --self:SetNWInt( "experience", exp + ammout )
+-end
+-
+-function plyMeta:GetKills()
+-
+-    return zb.Experience.PlayerInstances[self:SteamID64()].kills or 0
+-
+-end
+-
+-function plyMeta:GiveKills( ammout )
+-
+-    local steamID64 = self:SteamID64()
+-
+-    if not zb.Experience.Active then
+-        zb.Experience.PlayerInstances[steamID64] = {}
+-        return
+-    end 
+-
+-    zb.Experience.PlayerInstances[steamID64].kills = math.max( zb.Experience.PlayerInstances[steamID64].kills + ammout, 0 )
+-
+-	local updateQuery = mysql:Update("zb_experience")
+-		updateQuery:Update("kills", self:GetKills())
+-		updateQuery:Where("steamid", steamID64)
+-	updateQuery:Execute()
+-    --self:SetNWInt( "experience", exp + ammout )
+-end
+-
+-
+-function plyMeta:GetSuicides( ammout )
+-
+-    return zb.Experience.PlayerInstances[self:SteamID64()].suicides or 0
+-
+-end
+-
+-function plyMeta:GiveSuicides( ammout )
+-
+-    local steamID64 = self:SteamID64()
+-
+-    if not zb.Experience.Active then
+-        zb.Experience.PlayerInstances[steamID64] = {}
+-        return
+-    end 
+-
+-    zb.Experience.PlayerInstances[steamID64].suicides =  math.max( zb.Experience.PlayerInstances[steamID64].suicides + ammout, 0 )
+-
+-	local updateQuery = mysql:Update("zb_experience")
+-		updateQuery:Update("suicides", self:GetSuicides())
+-		updateQuery:Where("steamid", steamID64)
+-	updateQuery:Execute()
+-    --self:SetNWInt( "experience", exp + ammout )
+-end
+-
+-
++hook.Add("PlayerInitialSpawn","ZB_Exp_OnInitSpawn",function(p) E.LoadPlayer(p) end)
++local P=FindMetaTable("Player")
++function P:GetExp() return math.Round(E.Value(self,"experience")) end
++function P:GetSkill() return E.Value(self,"skill") end
++function P:GetDeaths() return E.Value(self,"deaths") end
++function P:GetKills() return E.Value(self,"kills") end
++function P:GetSuicides() return E.Value(self,"suicides") end
++function P:GiveExp(amount)
++    if not finite(amount) then return false end
++    local ready=E.IsReady(self)
++    local persisted=E.Add(self,"experience",amount)
++    if not ready and not persisted then return false end
++    local points=math.min(amount/5,10)*(1+(self.EA_HasAccess and self:EA_HasAccess() and 2 or 0))
++    self:PS_AddPoints(math.Round(points*math.min(player.GetCount()/10,1)))
++    return true
++end
++function P:GiveSkill(n) return E.Add(self,"skill",n) end
++function P:GiveDeaths(n) return E.Add(self,"deaths",n) end
++function P:GiveKills(n) return E.Add(self,"kills",n) end
++function P:GiveSuicides(n) return E.Add(self,"suicides",n) end
+ util.AddNetworkString("zb_xp_get")
+-
+-net.Receive("zb_xp_get",function(len,ply)
+-
+-    local steamID64 = ply:SteamID64()
+-
+-    if not zb.Experience.Active then
+-        zb.Experience.PlayerInstances[steamID64] = {}
+-        return
+-    end 
+-
+-    local get_ply = net.ReadEntity()
+-
+-    net.Start("zb_xp_get")
+-        --print( ply:GetExp() )
+-        net.WriteEntity( get_ply )
+-        net.WriteFloat( get_ply:GetSkill() )
+-        net.WriteInt( get_ply:GetExp(), 19 )
+-    net.Send(ply)
+-
++net.Receive("zb_xp_get",function(_,p)
++    if not E.IsReady(p) or (p.ZCXPRequestAt or 0)>CurTime() then return end
++    p.ZCXPRequestAt=CurTime()+0.5
++    local target=net.ReadEntity()
++    if not IsValid(target) or not target:IsPlayer() or not E.IsReady(target) then return end
++    if hg and hg.SpecDM and not hg.SpecDM.CanExchange(p,target) then return end
++    net.Start("zb_xp_get");net.WriteEntity(target);net.WriteFloat(target:GetSkill());net.WriteInt(target:GetExp(),19);net.Send(p)
+ end)
+-
+-
+---hook.Add( "ZB_EndRound", "ZB_Exp_Give", function()
+---    local exp = ply.RoundEXP or 0
+---    local skill = ply.RoundSkill or 0
+---
+---    ply:SetPData( "zb_experience", exp )
+---    ply:SetPData( "zb_skill", skill )
+---
+---    ply:SetNWInt( "experience", exp )
+---    ply:SetNWFloat( "skill", skill )
+---
+---    ply.RoundEXP = 0
+---    ply.RoundSkill = 0
+---end)

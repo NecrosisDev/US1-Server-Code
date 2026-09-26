@@ -1,0 +1,25 @@
+--- a/lua/homigrad/hud/cl_weapon_selector.lua
++++ b/lua/homigrad/hud/cl_weapon_selector.lua
+@@ -28,14 +28,21 @@
+     return Weapons[WS.SelectedSlot] and Weapons[WS.SelectedSlot][WS.SelectedSlotPos] or Weapons[WS.LastSelectedSlot][WS.LastSelectedSlotPos] or Weapons[0][0]
+ end
+ 
++local function bySlotPos(a, b) return (a.SlotPos or 0) > (b.SlotPos or 0) end
++-- Built once per rendered frame per player; the draw path and GetSelectedWeapon both read it (callers only read).
++local tableFrame, tablePly, tableCached = -1, nil, nil
++
+ function WS.GetWeaponTable( ply )
+     if not IsValid( ply ) or not ply:Alive() then return end
++    local frame = FrameNumber()
++    if frame == tableFrame and ply == tablePly and tableCached then return tableCached end
+     local WeaponsGet = ply:GetWeapons()
+     local FormatedTable = {
+         [0] = {}, [1] = {}, [2] = {}, [3] = {}, [4] = {}, [5] = {},
+     }
++    tableFrame, tablePly, tableCached = frame, ply, FormatedTable
+ 
+-    table.sort(WeaponsGet, function(a, b) return (a.SlotPos or 0) > (b.SlotPos or 0) end)
++    table.sort(WeaponsGet, bySlotPos)
+ 
+     for k,wep in ipairs(WeaponsGet) do
+         local tTbl = FormatedTable[wep.Slot or 0]

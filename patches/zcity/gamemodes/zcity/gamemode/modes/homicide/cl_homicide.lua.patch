@@ -1,0 +1,102 @@
+--- a/gamemodes/zcity/gamemode/modes/homicide/cl_homicide.lua
++++ b/gamemodes/zcity/gamemode/modes/homicide/cl_homicide.lua
+@@ -13,7 +13,9 @@
+ 	["gunfreezone"] = "snd_jack_hmcd_panic.mp3" ,
+ 	["suicidelunatic"] = "zbattle/jihadmode.mp3",
+ 	["wildwest"] = "snd_jack_hmcd_wildwest.mp3",
+-	["supermario"] = "snd_jack_hmcd_psycho.mp3"
++	["supermario"] = "snd_jack_hmcd_psycho.mp3",
++	["activeshooter"] = "snd_jack_hmcd_psycho.mp3",
++	["masscasualty"] = "snd_jack_hmcd_psycho.mp3",
+ }
+ local fade = 0
+ net.Receive("HMCD_RoundStart",function()
+@@ -93,7 +95,9 @@
+ 	["gunfreezone"] = "Gun Free Zone",
+ 	["suicidelunatic"] = "Suicide Lunatic",
+ 	["wildwest"] = "Wild west",
+-	["supermario"] = "Super Mario"
++	["supermario"] = "Super Mario",
++	["activeshooter"] = "Active Shooter",
++	["masscasualty"] = "Mass Casualty Event",
+ }
+ 
+ --local hg_coolvetica = ConVarExists("hg_coolvetica") and GetConVar("hg_coolvetica") or CreateClientConVar("hg_coolvetica", "0", true, false, "changes every text to coolvetica because its good", 0, 1)
+@@ -276,6 +280,48 @@
+ 	},
+ }
+ 
++MODE.TypeObjectives.activeshooter = {
++	traitor = {
++		objective = "You've had enough.",
++		name = "the Active Shooter",
++		color1 = Color(190, 0, 0),
++		color2 = Color(190, 0, 0)
++	},
++	gunner = {
++		objective = "Active shooter in the area. Run. Hide. Fight.",
++		name = "a Bystander",
++		color1 = Color(0, 120, 190),
++		color2 = Color(0, 120, 190)
++	},
++	innocent = {
++		objective = "Active shooter in the area. Run. Hide. Fight.",
++		name = "a Bystander",
++		color1 = Color(0, 120, 190),
++		color2 = Color(0, 120, 190)
++	},
++}
++
++MODE.TypeObjectives.masscasualty = {
++	traitor = {
++		objective = "You and your cell are striking together.",
++		name = "a Mass Shooter",
++		color1 = Color(190, 0, 0),
++		color2 = Color(190, 0, 0)
++	},
++	gunner = {
++		objective = "Multiple active shooters. Run. Hide. Fight.",
++		name = "a Bystander",
++		color1 = Color(0, 120, 190),
++		color2 = Color(0, 120, 190)
++	},
++	innocent = {
++		objective = "Multiple active shooters. Run. Hide. Fight.",
++		name = "a Bystander",
++		color1 = Color(0, 120, 190),
++		color2 = Color(0, 120, 190)
++	},
++}
++
+ function MODE:RenderScreenspaceEffects()
+ 	-- MODE.DynamicFadeScreenEndTime = MODE.DynamicFadeScreenEndTime or 0
+ 	fade_end_time = MODE.DynamicFadeScreenEndTime or 0
+@@ -485,6 +531,10 @@
+ 	hmcdEndMenu = vgui.Create("ZFrame")
+ 
+ 	if !IsValid(hmcdEndMenu) then return end
++    local createdAt=CurTime()
++    hmcdEndMenu.Think=function(self)
++        if CurTime()>createdAt+1 and zb.ROUND_STATE~=3 then self:Remove()end
++    end
+ 
+ 	local players = {}
+ 
+@@ -504,7 +554,7 @@
+ 			alive = ply:Alive(),
+ 			col = ply:GetPlayerColor():ToColor(),
+ 			frags = ply:Frags(),
+-			steamid = ply:IsBot() and "BOT" or ply:SteamID64(),
++			steamid = ply:IsBot() and ply:GetNWString("zcSteamID64", "") or ply:SteamID64(),
+ 		}
+ 	end
+ 
+@@ -599,7 +649,7 @@
+ 		end
+ 
+ 		function but:DoClick()
+-			if info.steamid == "BOT" then chat.AddText(Color(255, 0, 0), "That's a bot.") return end
++			if info.steamid == "" then return end
+ 			gui.OpenURL("https://steamcommunity.com/profiles/"..info.steamid)
+ 		end
+ 

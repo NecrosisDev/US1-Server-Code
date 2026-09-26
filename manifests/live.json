@@ -1,0 +1,6 @@
+{
+ "layout": "legacy",
+ "deployed_commit": "b59a5e163b32e10a866d3af887cbe22499f44646",
+ "deployed_at": "2026-09-26T12:06Z",
+ "note": "f4f5a8d is byte-identical to the live snapshot (docs/MIGRATION.md). Set by tools/drop.py --mark-deployed after the owner confirms an upload. Switch layout to 'restructured' after the Phase 1 cutover."
+}

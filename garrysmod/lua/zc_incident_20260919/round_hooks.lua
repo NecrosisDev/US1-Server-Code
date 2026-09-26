@@ -1,1 +1,0 @@
-local r={players=#player.GetHumans(),max=game.MaxPlayers(),round=zb.ROUND_STATE,mode=zb.CROUND,hooks={}} for n,f in pairs(hook.GetTable().ZB_EndRound or {}) do local i=debug.getinfo(f,"S") r.hooks[n]={source=i.source,line=i.linedefined} end file.Write("zc_incident_20260919/round_hooks.json",util.TableToJSON(r,false))

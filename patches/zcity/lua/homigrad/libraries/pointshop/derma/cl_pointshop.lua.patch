@@ -1,0 +1,10 @@
+--- a/lua/homigrad/libraries/pointshop/derma/cl_pointshop.lua
++++ b/lua/homigrad/libraries/pointshop/derma/cl_pointshop.lua
+@@ -373,6 +373,7 @@
+ vgui.Register( "HG_PointShop", PANEL, "ZFrame")
+ 
+ concommand.Add("hg_pointshop",function()
++    if ZCGoobApps and ZCGoobApps.Launch("shop") then return end
+     PLUGIN:SendNET( "SendPointShopVars", nil, function( data )
+         if PLUGIN.MenuPanel then
+             PLUGIN.MenuPanel:Remove()

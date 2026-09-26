@@ -1,0 +1,56 @@
+--- a/lua/homigrad/sh_physhandler.lua
++++ b/lua/homigrad/sh_physhandler.lua
+@@ -54,7 +54,53 @@
+ 	return true
+ end
+ 
++-- Server-only containment: freeze the reported body, then remove the captured
++-- connected group outside the physics callback. Never traverse the group twice.
++local pendingCrazyCleanup = setmetatable({}, {__mode = "k"})
++local function HandleCrazyPhysicsServer(ent, physobj)
++    if not IsValid(ent) or ent:IsWorld() or ent:IsPlayer() then return end
++    if IsValid(physobj) then
++        physobj:EnableMotion(false)
++        physobj:Sleep()
++    end
++    if pendingCrazyCleanup[ent] or ent.__removed__ then return end
++    local connected = constraint.GetAllConstrainedEntities(ent) or {}
++    connected[ent] = ent
++    local batch = {}
++    for _, other in pairs(connected) do
++        if IsValid(other) and not other:IsWorld() and not other:IsPlayer()
++            and not other.__removed__ and not pendingCrazyCleanup[other] then
++            local job = {entity = other, creation = other:GetCreationID()}
++            pendingCrazyCleanup[other] = job
++            batch[#batch + 1] = job
++        end
++    end
++    if #batch == 0 then return end
++    timer.Simple(0, function()
++        local firstError
++        for _, job in ipairs(batch) do
++            local other = job.entity
++            if pendingCrazyCleanup[other] == job then
++                pendingCrazyCleanup[other] = nil
++                if IsValid(other) and other:GetCreationID() == job.creation
++                    and not other.__removed__ then
++                    other.__removed__ = true
++                    local ok, err = pcall(other.Remove, other)
++                    if not ok then
++                        if IsValid(other) then other.__removed__ = nil end
++                        firstError = firstError or tostring(err)
++                    end
++                end
++            end
++        end
++        if firstError then
++            ErrorNoHalt("[ZCity physics] Deferred containment failed: " .. firstError .. "\n")
++        end
++    end)
++end
++
+ hook.Add("OnCrazyPhysics","crazy_physics",function(ent, physobj)--function(a,msg,c,d, r,g,b)
++	if SERVER then HandleCrazyPhysicsServer(ent, physobj); return end
+ 	local a = ent:GetPos()
+ 	local angles = ent:GetAngles()
+ 	local x, y, z = a.x, a.y, a.z

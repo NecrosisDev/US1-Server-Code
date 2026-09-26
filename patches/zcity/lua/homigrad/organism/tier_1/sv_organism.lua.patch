@@ -1,0 +1,175 @@
+--- a/lua/homigrad/organism/tier_1/sv_organism.lua
++++ b/lua/homigrad/organism/tier_1/sv_organism.lua
+@@ -1,3 +1,17 @@
++-- ZCJ3 medical observation taps v1 (server-only)
++local function _zcj_med(org,channel,before,after,kind,object)
++    local r=ZCJusticeV3Integration
++    if r and r.enabled and r.MedicalMutation then
++        r:Safe(r.MedicalMutation,org,channel,before,after,kind,object)
++    end
++end
++local function _zcj_med_kill(owner,org)
++    local r=ZCJusticeV3Integration
++    if r and r.enabled and r.WithMedicalTerminal then
++        return r:WithMedicalTerminal(owner,org,owner.Kill,owner)
++    end
++    return owner:Kill()
++end
+ --local Organism = hg.organism
+ hg.organism.module = hg.organism.module or {}
+ local module = hg.organism.module
+@@ -26,6 +40,7 @@
+ 	org.skull = 0
+ 	org.stomach = 0
+ 	org.intestines = 0
++	org.kidneyL, org.kidneyR, org.spleen, org.bladder = 0, 0, 0, 0 -- organs v2 (organs_20260925)
+ 
+ 	org.thiamine = 0
+ 
+@@ -91,6 +106,7 @@
+ 	
+ 	org.just_damaged_bone = nil
+ 	org.LodgedEntities = nil
++	org.bullets = {}
+ 	
+ 	org.dmgstack = {}
+ 
+@@ -164,6 +180,7 @@
+ 	sendtable.berserk = org.berserk
+ 	sendtable.noradrenaline = org.noradrenaline
+ 	sendtable.LodgedEntities = org.LodgedEntities
++	sendtable.bullets = org.bullets
+ 	sendtable.CantCheckPulse = org.CantCheckPulse
+ 	sendtable.blindness = org.blindness
+ 	sendtable.critical = org.critical
+@@ -220,6 +237,7 @@
+ 	sendtable.larmamputated = org.larmamputated
+ 	sendtable.headamputated = org.headamputated
+ 	sendtable.LodgedEntities = org.LodgedEntities
++	sendtable.bullets = org.bullets
+ 	sendtable.berserkActive2 = org.berserkActive2
+ 	sendtable.CantCheckPulse = org.CantCheckPulse
+ 	sendtable.noradrenalineActive = org.noradrenalineActive
+@@ -238,6 +256,55 @@
+ 	net.Send(rf)
+ end
+ 
++-- A corpse is rebroadcast (bareinfo + wounds) to its PVS every 3 s forever,
++-- long after it has bled out and nothing in it changes. Once two sends in a
++-- row carry the same state, hold 15 s; any change returns it to 3 s.
++-- PROVISIONAL(2026-09-21, 15 s is a guess at how stale a settled body may look to someone who just arrived, ratify-by: 2026-10-05)
++local CORPSE_SETTLED_HOLD = 15
++local function corpseSig(org)
++	local o2 = org.o2
++	return table.concat({
++		tostring(org.blood), tostring(org.pulse), tostring(org.heartbeat), tostring(org.analgesia),
++		tostring(istable(o2) and o2[1] or o2), tostring(org.otrub), tostring(org.alive),
++		tostring(org.lleg), tostring(org.rleg), tostring(org.larm), tostring(org.rarm),
++		tostring(org.llegamputated), tostring(org.rlegamputated), tostring(org.larmamputated),
++		tostring(org.rarmamputated), tostring(org.headamputated),
++		tostring(istable(org.wounds) and #org.wounds), tostring(istable(org.arterialwounds) and #org.arterialwounds),
++		tostring(istable(org.LodgedEntities) and table.Count(org.LodgedEntities)),
++		tostring(istable(org.bullets) and #org.bullets),
++	}, "|")
++end
++hg.organism.corpseSig = corpseSig
++
++-- PROVISIONAL(2026-09-23, retained-bullet tracking for exit-wound/foreign-object extraction project, ratify-by: 2026-10-07)
++function hg.organism.AddRetainedBullet(org, rec)
++	org.bullets = org.bullets or {}
++	if #org.bullets >= 12 then
++		local dropped = table.remove(org.bullets, 1)
++		-- the evicted record's wound must coagulate normally again, or it weeps forever with no record to reach it
++		if dropped and istable(dropped.wound) then dropped.wound[6] = nil dropped.wound[7] = nil end
++	end
++	table.insert(org.bullets, {
++		ammo = rec.ammo,
++		organ = rec.organ,
++		bone = rec.bone,
++		lpos = rec.lpos,
++		frag = rec.frag or false,
++		t = CurTime(),
++		wound = nil,
++	})
++	return #org.bullets
++end
++
++function hg.organism.RemoveRetainedBullet(org, i)
++	if not istable(org.bullets) then return nil end
++	local rec = org.bullets[i]
++	if not rec then return nil end
++	if istable(rec.wound) then rec.wound[6] = nil end
++	table.remove(org.bullets, i)
++	return rec
++end
++
+ hg.send_organism = send_organism
+ hg.send_bareinfo = send_bareinfo
+ 
+@@ -495,6 +562,9 @@
+ 		if org.heart < 1 then org.heart = math.Approach(org.heart, 0, naturalHeal) end
+ 		if org.stomach < 1 then org.stomach = math.Approach(org.stomach, 0, naturalHeal) end
+ 		if org.intestines < 1 then org.intestines = math.Approach(org.intestines, 0, naturalHeal) end
++		for _, key in ipairs({"kidneyL", "kidneyR", "spleen", "bladder"}) do -- organs v2
++			if (org[key] or 0) < 1 then org[key] = math.Approach(org[key] or 0, 0, naturalHeal) end
++		end
+ 		if org.lungsR[1] < 1 then org.lungsR[1] = math.Approach(org.lungsR[1], 0, naturalHeal) end
+ 		if org.lungsL[1] < 1 then org.lungsL[1] = math.Approach(org.lungsL[1], 0, naturalHeal) end
+ 	end
+@@ -538,7 +608,7 @@
+ 	if IsValid(rag) and rag:IsRagdoll() and (not owner.lastFake or owner.lastFake == 0) then rag:SetCollisionGroup((rag:GetVelocity():LengthSqr() > (200*200)) and COLLISION_GROUP_NONE or COLLISION_GROUP_WEAPON) end
+ 	if isPly then
+ 		if org.otrub or org.fake then hg.Fake(owner,nil,true) end
+-		if not org.alive and owner:Alive() then owner:Kill() end
++		if not org.alive and owner:Alive() then _zcj_med_kill(owner,org) end
+ 	end
+ 
+ 	if not org.otrub and isPly then
+@@ -570,7 +640,13 @@
+ 	if IsValid(owner) then
+ 		org.sendPlyTime = org.sendPlyTime or CurTime()
+ 		if (org.sendPlyTime > time) and !just_went_uncon then return end
+-		org.sendPlyTime = CurTime() + 1 + (not isPly and 2 or 0)
++		local hold = 1 + (not isPly and 2 or 0)
++		if not isPly and not org.fakePlayer then
++			local sig = corpseSig(org)
++			if org.zcBareSig == sig then hold = CORPSE_SETTLED_HOLD end
++			org.zcBareSig = sig
++		end
++		org.sendPlyTime = CurTime() + hold
+ 		send_bareinfo(org)
+ 
+ 		org.owner:SetNetVar("wounds", org.wounds)
+@@ -587,7 +663,7 @@
+ 	if !owner:IsBerserk() then return end
+ 	//if org.heartstop then return end
+ 
+-	org.blood = math.Approach(org.blood, 5000, timeValue * 60)
++	do local _zcj_before=org.blood; org.blood = math.Approach(org.blood, 5000, timeValue * 60); _zcj_med(org,"blood",_zcj_before,org.blood,"recovery",nil) end
+ 
+ 	for i, wound in pairs(org.wounds) do
+ 		wound[1] = math.max(wound[1] - timeValue * 10,0)
+@@ -616,11 +692,13 @@
+ 	org.intestines = math.max(org.intestines - regen, 0)
+ 	org.heart = math.max(org.heart - regen, 0)
+ 	org.stomach = math.max(org.stomach - regen, 0)
++	org.kidneyL, org.kidneyR = math.max((org.kidneyL or 0) - regen, 0), math.max((org.kidneyR or 0) - regen, 0) -- organs v2
++	org.spleen, org.bladder = math.max((org.spleen or 0) - regen, 0), math.max((org.bladder or 0) - regen, 0)
+ 	org.lungsR[1] = math.max(org.lungsR[1] - regen, 0)
+ 	org.lungsL[1] = math.max(org.lungsL[1] - regen, 0)
+ 	org.lungsR[2] = math.max(org.lungsR[2] - regen, 0)
+ 	org.lungsL[2] = math.max(org.lungsL[2] - regen, 0)
+-	org.brain = math.max(org.brain - regen, 0)
++	do local _zcj_before=org.brain; org.brain = math.max(org.brain - regen, 0); _zcj_med(org,"brain",_zcj_before,org.brain,"recovery",nil) end
+ 
+ 	org.hungry = 0
+ 
+@@ -660,7 +738,7 @@
+ 	org.analgesia = math.Approach(org.analgesia, 1, regen * 10)
+ 
+ 	if org.noradrenaline > 2 then
+-		org.brain = math.Approach(org.brain, 0.3, timeValue / 60)
++		do local _zcj_before=org.brain; org.brain = math.Approach(org.brain, 0.3, timeValue / 60); _zcj_med(org,"brain",_zcj_before,org.brain,"uncovered_drug",nil) end
+ 	end
+ 
+ 	org.pulse = math.Approach(org.pulse, 70, regen * 10)

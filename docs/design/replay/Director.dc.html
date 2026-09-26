@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Round replay director mode</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&amp;family=Barlow+Semi+Condensed:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0b0b0c}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid #f7c773;outline-offset:2px}
+</style>
+</helmet>
+<div style="width: 1440px; height: 810px; position: relative; overflow: hidden; background: #1c1e21; font-family: Bahnschrift, 'Barlow Semi Condensed', 'Barlow', sans-serif; color: #ececec">
+<div style="position: absolute; left: 0; right: 380px; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center; color: #5b5e63; font-size: 15px; letter-spacing: 3px">REPLAY CAMERA VIEW</div>
+<div style="position: absolute; left: 190px; right: 570px; top: 150px; bottom: 250px; border: 1px dashed rgba(247,199,115,0.55); border-radius: 4px">
+<div style="position: absolute; left: 8px; top: 6px; font-size: 11px; letter-spacing: 1px; color: #f7c773">16:9 CLIP FRAME</div>
+<div style="position: absolute; left: 33.3%; top: 0; bottom: 0; width: 1px; background: rgba(247,199,115,0.18)"></div>
+<div style="position: absolute; left: 66.6%; top: 0; bottom: 0; width: 1px; background: rgba(247,199,115,0.18)"></div>
+<div style="position: absolute; top: 33.3%; left: 0; right: 0; height: 1px; background: rgba(247,199,115,0.18)"></div>
+<div style="position: absolute; top: 66.6%; left: 0; right: 0; height: 1px; background: rgba(247,199,115,0.18)"></div>
+</div>
+
+<div style="position: absolute; left: 16px; right: 16px; top: 16px; height: 60px; box-sizing: border-box; padding: 0 10px 0 18px; background: rgba(15,15,17,0.92); border: 1px solid rgba(83,19,23,0.8); border-radius: 8px; display: flex; align-items: center; gap: 20px">
+<div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1; flex-basis: 0">
+<div style="display: flex; align-items: center; gap: 8px">
+<div style="font-size: 11px; letter-spacing: 1.5px; color: #b9b9b9; font-weight: 600">ROUND REPLAY</div>
+<div style="font-size: 10px; letter-spacing: 1px; font-weight: 700; color: #1a1408; background: #f7c773; padding: 1px 6px; border-radius: 3px">DIRECTOR</div>
+</div>
+<div style="font-size: 20px; font-weight: 700">Homicide · Round 14</div>
+</div>
+<div role="group" aria-label="Mode" style="display: flex; gap: 2px; padding: 3px; background: rgba(0,0,0,0.35); border-radius: 7px">
+<button type="button" style="height: 36px; padding: 0 14px; border: 0; border-radius: 5px; background: transparent; color: #cfcfcf; font-size: 14px; font-weight: 600">Watch</button>
+<button type="button" aria-pressed="true" style="height: 36px; padding: 0 14px; border: 0; border-radius: 5px; background: #a30000; color: #ffffff; font-size: 14px; font-weight: 600">Direct a clip</button>
+<button type="button" style="height: 36px; padding: 0 14px; border: 0; border-radius: 5px; background: transparent; color: #cfcfcf; font-size: 14px; font-weight: 600">Inspect damage</button>
+</div>
+<div style="display: flex; justify-content: flex-end; gap: 8px; flex-grow: 1; flex-basis: 0">
+<button type="button" aria-label="Close replay" style="height: 40px; padding: 0 10px 0 12px; display: flex; align-items: center; gap: 10px; background: #a30000; border: 1px solid #d01010; border-radius: 6px; font-size: 14px; font-weight: 600; color: #ffffff">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+Close
+<span style="font-size: 11px; font-weight: 500; border: 1px solid rgba(255,255,255,0.45); border-radius: 3px; padding: 0 5px">Esc</span>
+</button>
+</div>
+</div>
+
+<div style="position: absolute; right: 16px; top: 88px; bottom: 154px; width: 360px; box-sizing: border-box; padding: 14px; background: rgba(15,15,17,0.94); border: 1px solid rgba(83,19,23,0.8); border-radius: 8px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; justify-content: space-between; align-items: baseline">
+<div style="font-size: 11px; letter-spacing: 1.5px; color: #b9b9b9; font-weight: 600">SHOTS</div>
+<div style="font-size: 12px; color: #9f9f9f">Clip 00:18 of 00:30 max</div>
+</div>
+<sc-for list="{{shots}}" as="s" hint-placeholder-count="3">
+<button type="button" onClick="{{s.pick}}" aria-pressed="{{s.pressed}}" style="{{s.style}}">
+<span style="width: 22px; height: 22px; border-radius: 4px; background: rgba(247,199,115,0.16); color: #f7c773; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center">{{s.n}}</span>
+<span style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px; text-align: left">
+<span style="font-size: 14px; font-weight: 600">{{s.title}}</span>
+<span style="font-size: 12px; color: #a8a8a8">{{s.sub}}</span>
+</span>
+<span style="font-size: 12px; color: #cfcfcf; font-variant-numeric: tabular-nums">{{s.len}}</span>
+</button>
+</sc-for>
+<button type="button" style="height: 40px; display: flex; align-items: center; justify-content: center; gap: 8px; background: transparent; border: 1px dashed rgba(255,255,255,0.25); border-radius: 6px; font-size: 13px; color: #d6d6d6">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+Add shot at playhead
+</button>
+<div style="height: 1px; background: rgba(255,255,255,0.08)"></div>
+<div style="font-size: 11px; letter-spacing: 1.5px; color: #b9b9b9; font-weight: 600">SELECTED SHOT</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; font-size: 13px">
+<label style="display: flex; flex-direction: column; gap: 4px; color: #a8a8a8">Camera
+<span style="height: 34px; display: flex; align-items: center; padding: 0 10px; background: rgba(0,0,0,0.35); border-radius: 5px; color: #ececec">Follow · [Player]</span>
+</label>
+<label style="display: flex; flex-direction: column; gap: 4px; color: #a8a8a8">Speed
+<span style="height: 34px; display: flex; align-items: center; padding: 0 10px; background: rgba(0,0,0,0.35); border-radius: 5px; color: #ececec">½× slow motion</span>
+</label>
+<label style="display: flex; flex-direction: column; gap: 4px; color: #a8a8a8">Move
+<span style="height: 34px; display: flex; align-items: center; padding: 0 10px; background: rgba(0,0,0,0.35); border-radius: 5px; color: #ececec">Orbit left, slow</span>
+</label>
+<label style="display: flex; flex-direction: column; gap: 4px; color: #a8a8a8">Cut
+<span style="height: 34px; display: flex; align-items: center; padding: 0 10px; background: rgba(0,0,0,0.35); border-radius: 5px; color: #ececec">Hard cut</span>
+</label>
+</div>
+<div style="flex-grow: 1"></div>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #a8a8a8">Caption
+<textarea rows="2" style="resize: none; box-sizing: border-box; padding: 8px 10px; background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.14); border-radius: 5px; color: #ececec; font: inherit; font-size: 14px">[Write a caption]</textarea>
+</label>
+<div style="display: flex; gap: 8px">
+<button type="button" style="flex-grow: 1; height: 44px; background: transparent; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; font-size: 14px; font-weight: 600">Preview clip</button>
+<button type="button" style="flex-grow: 1; height: 44px; background: #a30000; border: 1px solid #d01010; border-radius: 6px; font-size: 14px; font-weight: 600; color: #ffffff">Post to CityLeak</button>
+</div>
+</div>
+
+<div style="position: absolute; left: 16px; right: 392px; bottom: 16px; height: 126px; box-sizing: border-box; padding: 12px 16px; background: rgba(15,15,17,0.94); border: 1px solid rgba(83,19,23,0.8); border-radius: 8px; display: flex; flex-direction: column; gap: 10px">
+<div style="position: relative; height: 44px">
+<div style="position: absolute; left: 0; right: 0; top: 24px; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.09)"></div>
+<div style="position: absolute; left: 30%; width: 14%; top: 18px; height: 18px; background: rgba(247,199,115,0.18); border: 1px solid #f7c773; border-radius: 3px; box-sizing: border-box"></div>
+<div style="position: absolute; left: 30%; top: 18px; height: 18px; width: 4.6%; border-right: 1px solid rgba(247,199,115,0.6)"></div>
+<div style="position: absolute; left: 34.6%; top: 18px; height: 18px; width: 5.8%; border-right: 1px solid rgba(247,199,115,0.6)"></div>
+<div style="position: absolute; left: 30%; top: -2px; transform: translateX(-50%); font-size: 11px; color: #f7c773; font-weight: 700">IN 03:30</div>
+<div style="position: absolute; left: 44%; top: -2px; transform: translateX(-50%); font-size: 11px; color: #f7c773; font-weight: 700">OUT 03:48</div>
+<div style="position: absolute; left: 36%; top: 16px; width: 3px; height: 22px; margin-left: -1px; background: #ffffff"></div>
+<div style="position: absolute; left: 32.7%; top: 38px; width: 9px; height: 9px; margin-left: -4px; background: #ff5a5a; transform: rotate(45deg)"></div>
+<div style="position: absolute; left: 18.5%; top: 36px; width: 2px; height: 10px; background: rgba(255,255,255,0.55)"></div>
+<div style="position: absolute; left: 55%; top: 36px; width: 2px; height: 10px; background: rgba(255,255,255,0.55)"></div>
+</div>
+<div style="display: flex; align-items: center; gap: 8px; font-size: 13px">
+<button type="button" style="height: 40px; padding: 0 12px; background: transparent; border: 1px solid rgba(247,199,115,0.6); border-radius: 6px; color: #f7c773; font-weight: 600">Set in · I</button>
+<button type="button" style="height: 40px; padding: 0 12px; background: transparent; border: 1px solid rgba(247,199,115,0.6); border-radius: 6px; color: #f7c773; font-weight: 600">Set out · O</button>
+<button type="button" aria-label="Play" style="width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; background: #c00000; border: 0; border-radius: 50%; color: #ffffff">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5l12 7-12 7z"></path></svg>
+</button>
+<div style="display: flex; align-items: baseline; gap: 6px; font-variant-numeric: tabular-nums">
+<span style="font-size: 22px; font-weight: 700">03:36</span>
+<span style="font-size: 14px; color: #9f9f9f">/ 11:38</span>
+</div>
+<div style="flex-grow: 1"></div>
+<span style="color: #a8a8a8">Snap to</span>
+<button type="button" style="height: 36px; padding: 0 12px; background: rgba(0,0,0,0.35); border: 0; border-radius: 5px; font-size: 13px">Previous kill</button>
+<button type="button" style="height: 36px; padding: 0 12px; background: rgba(0,0,0,0.35); border: 0; border-radius: 5px; font-size: 13px">Next kill</button>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":810}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { shot: 1 }; }
+  renderVals() {
+    const rows = [
+      { title: 'Wide: the hallway', sub: 'Free camera · 1× · slow push in', len: '00:05' },
+      { title: 'Follow [Player]', sub: 'Follow · ½× · orbit left', len: '00:06' },
+      { title: 'The shot', sub: 'Bullet camera · ¼× · hard cut', len: '00:07' },
+    ];
+    return {
+      shots: rows.map((r, i) => ({
+        ...r, n: String(i + 1), pressed: this.state.shot === i ? 'true' : 'false',
+        pick: () => this.setState({ shot: i }),
+        style: 'min-height: 54px; display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 6px; ' +
+          (this.state.shot === i ? 'background: rgba(163,0,0,0.3); border: 1px solid #c00000' : 'background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08)'),
+      })),
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,1 +1,0 @@
-timer.Create('zc_tick_profiler_restore_20260919t013709z',290,1,function() RunConsoleCommand('physgunserver','lua_profiler','true') end)

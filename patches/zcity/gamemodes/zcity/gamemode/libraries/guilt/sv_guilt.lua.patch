@@ -1,0 +1,206 @@
+--- a/gamemodes/zcity/gamemode/libraries/guilt/sv_guilt.lua
++++ b/gamemodes/zcity/gamemode/libraries/guilt/sv_guilt.lua
+@@ -48,14 +48,17 @@
+                 zb.GuiltSQL.PlayerInstances[steamID64].value = tonumber(result[1].value)
+ 
+                 ply.Karma = ply:guilt_GetValue()
++                if ZCityMetaSafety then ZCityMetaSafety.Loaded(ply) end
+                 ply:SetNetVar("Karma", ply.Karma)
++                hook.Run("ZCityKarmaLoaded",ply)
+ 
+-                if zb.GuiltSQL.PlayerInstances[steamID64].value < 0 then
++                if zb.GuiltSQL.PlayerInstances[steamID64].value < 0 and not (ply:IsAdmin() or ply:IsSuperAdmin()) then
+                     ply:guilt_SetValue( 10 )
+                     local karma = ply.Karma
+ 
+                     ply.Karma = 10
+                     ply:SetNetVar("Karma", ply.Karma)
++                hook.Run("ZCityKarmaLoaded",ply)
+ 
+                     timer.Simple(0, function()
+                         ply:Ban(5, false)
+@@ -74,7 +77,9 @@
+ 				zb.GuiltSQL.PlayerInstances[steamID64].value = 100
+ 
+                 ply.Karma = ply:guilt_GetValue()
++                if ZCityMetaSafety then ZCityMetaSafety.Loaded(ply) end
+                 ply:SetNetVar("Karma",ply.Karma)
++                hook.Run("ZCityKarmaLoaded",ply)
+ 			end
+ 		end)
+ 	query:Execute()
+@@ -112,6 +117,10 @@
+ 
+ hook.Add("HomigradDamage", "GuiltReg", function(ply, dmgInfo, hitgroup, ent, harm) 
+     local Attacker, Victim = dmgInfo:GetAttacker(), ply
++    if ZCityFFBrain and ZCityFFBrain.Attacker then Attacker=ZCityFFBrain.Attacker(dmgInfo) or Attacker end
++    local bountyRawHarm = harm
++    local bodyOwner = IsValid(Victim) and not Victim:IsPlayer() and hg.RagdollOwner(Victim)
++    if IsValid(bodyOwner) and bodyOwner:Alive() and bodyOwner.FakeRagdoll == Victim then Victim = bodyOwner end
+     
+     --[[if !IsValid(Attacker) and dmgInfo:GetInflictor().steamid then
+         local steamid = dmgInfo:GetInflictor().steamid
+@@ -162,11 +171,11 @@
+     }
+ 
+     if hg_developer:GetBool() then
+-        Attacker:ChatPrint("This harm done is: "..math.Round(harm,3))
+-        Attacker:ChatPrint("Overall amt done is: "..math.Round(amt,3))
+-        Attacker:ChatPrint("Overall harm done is: "..math.Round(newharm,3))
+-        Attacker:ChatPrint("Guilt done is: "..math.Round(amt * 60,3))
+-        Attacker:ChatPrint(" ")
++
++
++
++
++
+     end
+ 
+     hook.Run("HarmDone", Attacker, Victim, amt)
+@@ -178,7 +187,17 @@
+     Victim = hg.GetCurrentCharacter(Victim) or Victim
+     Victim = hg.RagdollOwner(Victim) or Victim
+ 
++    if ZCityKarmaBounties then ZCityKarmaBounties.Observe(Attacker, Victim, dmgInfo, bountyRawHarm) end
++
+     local rnd, cround = CurrentRound()
++    local combatPolicy
++    if ZCityGuiltJustice and ZCityKarmaBounties and ZCityKarmaBounties.Active() then
++        combatPolicy=ZCityGuiltJustice.PolicyFor(Attacker,Victim,dmgInfo)
++        if combatPolicy.scale<=0 then return end
++        zb.GuiltTable[Attacker]=zb.GuiltTable[Attacker] or {}
++        zb.GuiltTable[Victim]=zb.GuiltTable[Victim] or {}
++        Attacker.LastAttacked=CurTime()
++    else
+     
+     if rnd.GuiltDisabled or GetConVar("zb_dev"):GetBool() then return end
+ 
+@@ -197,6 +216,8 @@
+     if Victim.Guilt and Victim.Guilt > 1 and !zb.IsForce(Attacker) then return end
+     if Attacker:IsBerserk() then return end
+ 
++    end
++
+     local victimWep = Victim:IsPlayer() and IsValid(Victim:GetActiveWeapon()) and Victim:GetActiveWeapon()
+     
+     if newharm >= maxharm and oldharmdone < newharm then
+@@ -221,26 +242,41 @@
+     end
+     
+     local guiltadd = amt * 60
++    if ZCityKarmaBounties then
++        local cost, guilt = ZCityKarmaBounties.HarmCharge(Attacker, Victim, bountyRawHarm, guiltadd, mul)
++        if cost ~= nil then add, guiltadd = cost, guilt end
++    end
++    local bountyKarmaBefore = ZCityGuiltJustice and ZCityGuiltJustice.Balance(Attacker) or Attacker.Karma or 100
+     Attacker.Guilt = (Attacker.Guilt or 0) + guiltadd
+-    Attacker.Karma = math.Clamp((Attacker.Karma or 100) - add * math.max(((1 - (zb.GuiltTable[Victim][Attacker] or 0)) / 1),0), -60, zb.MaxKarma)
+-
+-    zb.HarmDoneKarma[Victim][Attacker] = zb.HarmDoneKarma[Victim][Attacker] + add
++    local charge=add * (combatPolicy and combatPolicy.scale or math.max(1-(zb.GuiltTable[Victim][Attacker] or 0),0))
++    if ZCityGuiltJustice then ZCityGuiltJustice.Change(Attacker,-charge)
++    else Attacker.Karma=math.Clamp((Attacker.Karma or 100)-charge,-60,zb.MaxKarma) end
++    local bountyKarmaAfter=ZCityGuiltJustice and ZCityGuiltJustice.Balance(Attacker) or Attacker.Karma
+ 
+-    if shouldBanGuilt and Attacker.Guilt >= 100 then
++    zb.HarmDoneKarma[Victim] = zb.HarmDoneKarma[Victim] or {}
++    local refundable = add
++    if ZCityKarmaBounties and ZCityKarmaBounties.Active() then
++        ZCityKarmaBounties.RecordCharge(Attacker, Victim, bountyKarmaBefore, bountyKarmaAfter)
++        refundable = math.max(0, bountyKarmaBefore - bountyKarmaAfter)
++    end
++    zb.HarmDoneKarma[Victim][Attacker] = (zb.HarmDoneKarma[Victim][Attacker] or 0) + refundable
++
++    if shouldBanGuilt and Attacker.Guilt>=100 and not (Attacker:IsAdmin() or Attacker:IsSuperAdmin())
++        and ZCityMetaSafety and ZCityMetaSafety.Locked() then ZCityMetaSafety.BanLater(Attacker,30) end
++    if shouldBanGuilt and Attacker.Guilt >= 100 and not (Attacker:IsAdmin() or Attacker:IsSuperAdmin()) and (not ZCityMetaSafety or not ZCityMetaSafety.Locked()) then
+ 		-- if ULib then
+         	ULib.addBan( Attacker:SteamID(), 30, "Kicked and banned for dealing too much team damage.", Attacker:Name(), "System" )
+ 		-- else
+ 		-- 	Attacker:Ban(30, true)
+ 		-- end
+ 
+-        PrintMessage(HUD_PRINTTALK, "Player "..Attacker:Name().." has been banned for 30 minutes for RDMing in a team based gamemode.")
+     end
+ 
+-    Attacker:SetNetVar("Karma", Attacker.Karma)
++    if not ZCityMetaSafety or not ZCityMetaSafety.Locked() then Attacker:SetNetVar("Karma", Attacker.Karma) end
+     
+     zb.GuiltTable[Attacker][Victim] = math.Clamp((zb.GuiltTable[Attacker][Victim] or 0) + guiltadd, 0, 200)
+ 
+-    if Attacker.Karma <= 0 then
++    if Attacker.Karma <= 0 and not (Attacker:IsAdmin() or Attacker:IsSuperAdmin()) and (not ZCityMetaSafety or not ZCityMetaSafety.Locked()) then
+         local steamID = Attacker:SteamID()
+         local name = Attacker:Name()
+         local karma = Attacker.Karma
+@@ -261,8 +297,7 @@
+ 			-- else
+ 			-- 	Attacker:Ban(60, true)
+ 			-- end
+-            
+-            PrintMessage(HUD_PRINTTALK, "Player "..name.." has been banned for "..time.." minutes for having too low karma.")
++
+         end)
+     end
+ end)
+@@ -278,9 +313,10 @@
+ end -- i dont think it should matter if he looks at you or not. just drop your weapon
+ 
+ function zb.ForcesAttackedInnocent(self, Victim)
++    if not IsValid(self) or not IsValid(Victim) then return 0 end
+     local victimWep = Victim:IsPlayer() and IsValid(Victim:GetActiveWeapon()) and Victim:GetActiveWeapon()
+ 
+-    return 1 * ((!Victim.LastAttacked or (Victim.LastAttacked + 10 > CurTime())) and 0 or 1) + 1 * (Victim:IsPlayer() and ((IsLookingAt(Victim, self:EyePos()) and (victimWep and (ishgweapon(victimWep) or ((victimWep:GetClass() == "weapon_hands_sh" and victimWep:GetFists() or victimWep.ismelee2) and Victim:GetPos():DistanceSqr(self:GetPos()) <= (72 * 72))))) and 0 or 1) or 1)
++    return 1 * ((!Victim.LastAttacked or (Victim.LastAttacked + 10 > CurTime())) and 0 or 1) + 1 * (Victim:IsPlayer() and ((IsLookingAt(Victim, self:EyePos()) and (victimWep and (ishgweapon(victimWep) or ((victimWep:GetClass() == "weapon_hands_sh" and victimWep:GetFists() or victimWep.ismelee2) and Victim:GetPos():DistToSqr(self:GetPos()) <= (72 * 72))))) and 0 or 1) or 1)
+ end
+ 
+ hook.Add("PlayerDisconnected","GuiltSaveOnDisconect",function(ply)
+@@ -303,9 +339,11 @@
+     if (ply.KarmaGainThink or 0) > CurTime() then return end
+     ply.KarmaGainThink = CurTime() + 120
+ 
+-    ply.Karma = math.Clamp(ply.Karma + (ply.Karma > 100 and 0.1 or (ply.KarmaGain or 0.75)), 0, zb.MaxKarma)// * (1 + ply:HasPurchase("zpremium")), 0, zb.MaxKarma)
++    local recovery=(ply.Karma or 100)>100 and 0.1 or (ply.KarmaGain or 0.75)
++    if ZCityGuiltJustice then ZCityGuiltJustice.Change(ply,recovery)
++    else ply.Karma=math.Clamp((ply.Karma or 100)+recovery,0,zb.MaxKarma) end
+     
+-    ply:SetNetVar("Karma", ply.Karma)
++    if not ZCityMetaSafety or not ZCityMetaSafety.Locked() then ply:SetNetVar("Karma", ply.Karma) end
+     //ply:guilt_SetValue( ply.Karma or 100 )
+ end)
+ 
+@@ -338,8 +376,7 @@
+             
+             ply:Notify(seizuremsgs[math.random(#seizuremsgs)], 16, "seizure", 1, function()
+                 if !IsValid(ply) then return end
+-                
+-                ply:ChatPrint("You are experiencing an epileptic seizure.")
++
+             end)
+ 
+             org.start_shaking = org.start_shaking or (CurTime() + time)
+@@ -414,6 +451,7 @@
+ util.AddNetworkString("forgive_player")
+ 
+ net.Receive("open_guilt_menu",function(len, ply)
++    if ZCityGuiltJustice then ZCityGuiltJustice.Open(ply);return end
+     if ply:Alive() then return end
+     local tbl = zb.HarmDoneKarma[ply] or {}
+     net.Start("open_guilt_menu")
+@@ -423,6 +461,7 @@
+ end)
+ 
+ net.Receive("forgive_player", function(len, ply)
++    if ZCityGuiltJustice then ZCityGuiltJustice.Open(ply);return end
+     local ent = net.ReadEntity()
+     if not IsValid(ent) or not zb.HarmDoneKarma[ply] then return end
+     local harm = zb.HarmDoneKarma[ply][ent]
+@@ -441,7 +480,7 @@
+ 
+ hook.Add("Player Spawn", "GuiltKnown",function(ply)
+     if ply.Karma then
+-        ply:ChatPrint("Your current karma is "..tostring(math.Round(ply.Karma)).."")
++
+     end
+ end)
+ 

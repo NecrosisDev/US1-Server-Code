@@ -1,0 +1,27 @@
+--- a/lua/homigrad/sh_armorstuff.lua
++++ b/lua/homigrad/sh_armorstuff.lua
+@@ -3,6 +3,7 @@
+ 
+ local vecAdjust2 = Vector(5, -6.3, -5)
+ local function DrawFirstPersonHelmet(ply, strModel, vecAdjust, fFov, setMat)
++	if ZCKillcamView and ZCKillcamView.IsolatingScene and ZCKillcamView.IsolatingScene() then return end
+ 	if ply:GetNetVar("headcrab") then return end
+ 	if not ply:Alive() then return end
+ 	if ply.organism and ply.organism.otrub then return end
+@@ -858,9 +859,7 @@
+ 	
+ 	local found
+ 	for i,armplc in pairs(hg.armor) do
+-		for i2,armor2 in pairs(armplc) do
+-			if i2 == armor then found = i end
+-		end
++		if armplc[armor] ~= nil then found = i end
+ 	end
+ 	return found
+ end
+@@ -876,4 +875,4 @@
+ end
+ 
+ initArmor()
+-hook.Add("Initialize", "init-atts", initArmor)
++hook.Add("Initialize", "init-armor", initArmor) -- 2026-09-23: was "init-atts", which sh_weaponatts.lua also uses

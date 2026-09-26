@@ -1,0 +1,33 @@
+--- a/lua/entities/bomb/init.lua
++++ b/lua/entities/bomb/init.lua
+@@ -66,26 +66,10 @@
+ 				ply:ChatPrint("The bomb must be planted on site")
+ 			end
+ 		else
+-			if ent.code == txt then
+-				ent:DisableBomb()
+-				ent:SetNetVar("knowncode", "******")
+-				ply:ChatPrint("The bomb has been disarmed.")
+-			else
+-				local bombtxt = ent.code
+-				local knownnumbers = ent:GetNetVar("knowncode","******")
+-				local newknownnumbers = ""
+-
+-				for i = 1,#bombtxt do
+-					if (bombtxt[i] == txt[i]) then
+-						newknownnumbers = newknownnumbers..(txt[i])
+-					else
+-						newknownnumbers = newknownnumbers..(knownnumbers[i] == bombtxt[i] and knownnumbers[i] or "*")
+-					end
+-				end
+-
+-				ent:SetNetVar("knowncode", newknownnumbers)
+-				ply:ChatPrint(newknownnumbers)
+-			end
++			-- any 6-digit entry defuses - no code cracking required
++			ent:DisableBomb()
++			ent:SetNetVar("knowncode", "******")
++			ply:ChatPrint("The bomb has been disarmed.")
+ 		end
+ 	end
+ end)

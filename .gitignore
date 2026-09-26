@@ -97,3 +97,14 @@
 # Reviewed storage metadata and placeholder-only developer configuration.
 !/manifests/storage-audit.json
 !/config/examples/mysql-dev.cnf.example
+
+# Restructured layout (see docs/ARCHITECTURE.md).
+!*.patch
+!*.md
+!*.yml
+!/.glualint.json
+!/manifests/*.json
+/.cache/
+
+# Built drops and cutover folders are outputs, not source.
+/drops/

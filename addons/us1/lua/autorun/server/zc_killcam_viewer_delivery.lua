@@ -1,0 +1,82 @@
+-- Bounded client-code transport; does not reload recorder, clips, rounds or active players.
+if not SERVER then return end
+local VERSION="5d6edd9e3d0d19c54e80d464002cf26aa902d3291d77dbc646f6def252170db9"
+util.AddNetworkString("ZCKCViewerRequest")
+util.AddNetworkString("ZCKCViewerPart")
+util.AddNetworkString("ZCKCViewerAck")
+local parts={}
+for i=1,9 do
+    local path=string.format("zc_killcam/viewer_parts/cl_part_%02d.lua",i)
+    AddCSLuaFile(path)
+    local fn=CompileString(assert(file.Read(path,"LUA")),path,false)
+    assert(isfunction(fn),tostring(fn));parts[i]=fn()
+end
+AddCSLuaFile("zc_killcam/cl_viewer.lua")
+local source=table.concat(parts)
+assert(util.SHA256(source)==VERSION,"Replay transport source checksum failed")
+local packed=assert(util.Compress(source))
+assert(#packed<=262144,"Replay transport exceeds bounded capacity")
+local count=math.ceil(#packed/8192)
+local nextRequest=setmetatable({}, {__mode="k"})
+ZCKillcamViewerDeliveryStatus=ZCKillcamViewerDeliveryStatus or setmetatable({}, {__mode="k"})
+-- Review 2026-09-26 (amplification): a zero-byte request made the server send the whole viewer (~17 x 8 KB) every
+-- 5 s, forever, per client. Now: nothing once that player acked this VERSION, at most 3 transfers per player per
+-- connection, and at most 4 transfers in flight server-wide. A request that finds the server busy WAITS in a queue
+-- (final review 2026-09-26: dropping it used up one of the client's 3 tries, and after a VERSION change with a full
+-- server most clients ran out and had no viewer until they reconnected; parts are accepted whenever they arrive).
+local sentTo=setmetatable({}, {__mode="k"})
+local inFlight={}
+local MAX_PER_PLAYER,MAX_IN_FLIGHT=3,4
+local transferSeconds=count*.08+.5
+local pump
+local queue,queued={},setmetatable({}, {__mode="k"})
+local function busyCount()
+    local now,busy=RealTime(),0
+    for k,untilAt in pairs(inFlight) do if untilAt<=now then inFlight[k]=nil else busy=busy+1 end end
+    return busy,now
+end
+local function send(ply)
+    local now=RealTime()
+    sentTo[ply]=(sentTo[ply] or 0)+1
+    inFlight[ply:UserID()]=now+transferSeconds
+    for i=1,count do
+        local index=i
+        local data=packed:sub((i-1)*8192+1,i*8192)
+        timer.Simple((i-1)*.08,function()
+            if not IsValid(ply) then return end
+            net.Start("ZCKCViewerPart");net.WriteString(VERSION)
+            net.WriteUInt(index,8);net.WriteUInt(count,8);net.WriteUInt(#data,16)
+            net.WriteData(data,#data);net.Send(ply)
+        end)
+    end
+end
+pump=function()
+    while #queue>0 do
+        local busy=busyCount()
+        if busy>=MAX_IN_FLIGHT then
+            if not timer.Exists("ZCKCViewerQueue") then timer.Create("ZCKCViewerQueue",.5,1,pump) end
+            return
+        end
+        local ply=table.remove(queue,1)
+        queued[ply]=nil
+        local st=IsValid(ply) and ZCKillcamViewerDeliveryStatus[ply]
+        if IsValid(ply) and not (st and st.ok and st.detail==VERSION) and (sentTo[ply] or 0)<MAX_PER_PLAYER then send(ply) end
+    end
+end
+net.Receive("ZCKCViewerRequest",function(bits,ply)
+    if bits~=0 or not IsValid(ply) or not ply:IsPlayer() or ply:IsBot() or (nextRequest[ply] or 0)>CurTime() then return end
+    local st=ZCKillcamViewerDeliveryStatus[ply]
+    if st and st.ok and st.detail==VERSION then return end
+    if (sentTo[ply] or 0)>=MAX_PER_PLAYER then return end
+    if queued[ply] then return end
+    nextRequest[ply]=CurTime()+5
+    queued[ply]=true
+    queue[#queue+1]=ply
+    pump()
+end)
+net.Receive("ZCKCViewerAck",function(bits,ply)
+    if bits>2048 or not IsValid(ply) or ply:IsBot() then return end
+    local ok,detail=net.ReadBool(),net.ReadString()
+    if #detail>240 or (ok and detail~=VERSION) then return end
+    ZCKillcamViewerDeliveryStatus[ply]={ok=ok,detail=detail,at=os.time()}
+end)

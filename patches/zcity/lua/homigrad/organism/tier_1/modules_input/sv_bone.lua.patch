@@ -1,0 +1,34 @@
+--- a/lua/homigrad/organism/tier_1/modules_input/sv_bone.lua
++++ b/lua/homigrad/organism/tier_1/modules_input/sv_bone.lua
+@@ -1,3 +1,10 @@
++-- ZCJ3 medical observation taps v1 (server-only)
++local function _zcj_med(org,channel,before,after,kind,object)
++    local r=ZCJusticeV3Integration
++    if r and r.enabled and r.MedicalMutation then
++        r:Safe(r.MedicalMutation,org,channel,before,after,kind,object)
++    end
++end
+ --local Organism = hg.organism
+ local function isCrush(dmgInfo)
+ 	return (not dmgInfo:IsDamageType(DMG_BULLET + DMG_BUCKSHOT + DMG_BLAST)) or dmgInfo:GetInflictor().RubberBullets
+@@ -294,6 +301,7 @@
+ 	local oldDmg = org.skull
+ 	
+ 	local result, vecrand = damageBone(org, 0.25, dmg, dmgInfo, "skull", boneindex, dir, hit, ricochet)
++	_zcj_med(org,"skull",oldDmg,org.skull,"impact",dmgInfo)
+ 
+ 	hg.AddHarmToAttacker(dmgInfo, (org.skull - oldDmg) * 4, "Skull bone damage harm")
+ 
+@@ -309,10 +317,10 @@
+ 	local rnd = math.random(10) == 1 or dmgInfo:IsDamageType(DMG_CRUSH)
+ 	org.consciousness = math.Approach(org.consciousness, 0, rnd and dmg * 2 or 0)
+ 
+-	org.brain = math.min(org.brain + (rnd and dmg * 0.05 or 0), 1)
++	do local _zcj_before=org.brain; org.brain = math.min(org.brain + (rnd and dmg * 0.05 or 0), 1); _zcj_med(org,"brain",_zcj_before,org.brain,"impact",dmgInfo) end
+ 
+ 	if (org.skull - oldDmg) > 0.6 then
+-		org.brain = math.min(org.brain + 0.1, 1)
++		do local _zcj_before=org.brain; org.brain = math.min(org.brain + 0.1, 1); _zcj_med(org,"brain",_zcj_before,org.brain,"impact",dmgInfo) end
+ 	end
+ 
+ 	if org.brain >= 0.01 and math.random(3) == 1 and (rnd or (org.skull - oldDmg) > 0.6) then

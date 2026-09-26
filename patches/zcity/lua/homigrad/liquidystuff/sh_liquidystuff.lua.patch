@@ -1,0 +1,33 @@
+--- a/lua/homigrad/liquidystuff/sh_liquidystuff.lua
++++ b/lua/homigrad/liquidystuff/sh_liquidystuff.lua
+@@ -70,6 +70,7 @@
+ 	end)
+ 
+ 	local time2 = CurTime()
++	local lastPathSig, lastPathSend = nil, 0
+ 	local ents_FindInSphere = ents.FindInSphere
+ 	hook.Add("Think", "path_think", function()
+ 		if time2 > CurTime() then return end
+@@ -103,6 +104,22 @@
+ 			end
+ 		end
+ 
++		-- The client only mirrors this table, so an identical copy every second is pure
++		-- reliable-channel traffic to every player. Send on change; while fuel exists also
++		-- refresh every 10 s so a late joiner catches up (an empty path needs no refresh).
++		-- PROVISIONAL(2026-09-21, 10 s join catch-up is a guess; a per-player send on spawn
++		-- would be exact, ratify-by: 2026-10-19)
++		local path = hg.gasolinePath
++		local n = #path
++		local parts = {n}
++		for i = 1, n do
++			local t = path[i]
++			parts[i + 1] = istable(t) and (tostring(t[2]) .. tostring(t[1])) or "?"
++		end
++		local sig = table.concat(parts, "|")
++		if sig == lastPathSig and (n == 0 or lastPathSend + 10 > CurTime()) then return end
++		lastPathSig, lastPathSend = sig, CurTime()
++
+ 		net.Start("gasoline_path")
+ 		net.WriteTable(hg.gasolinePath)
+ 		net.Broadcast()

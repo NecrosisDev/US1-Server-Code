@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Round replay proposed</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&amp;family=Barlow+Semi+Condensed:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0b0b0c}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:2px solid #f7c773;outline-offset:2px}
+</style>
+</helmet>
+<div style="width: 1440px; height: 810px; position: relative; overflow: hidden; background: #1c1e21; font-family: Bahnschrift, 'Barlow Semi Condensed', 'Barlow', sans-serif; color: #ececec">
+<div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #5b5e63; font-size: 15px; letter-spacing: 3px">REPLAY CAMERA VIEW</div>
+
+<div style="position: absolute; left: 16px; right: 16px; top: 16px; height: 60px; box-sizing: border-box; padding: 0 10px 0 18px; background: rgba(15,15,17,0.92); border: 1px solid rgba(83,19,23,0.8); border-radius: 8px; display: flex; align-items: center; gap: 20px">
+<div style="display: flex; flex-direction: column; gap: 2px; min-width: 0; flex-grow: 1; flex-basis: 0">
+<div style="display: flex; align-items: center; gap: 8px">
+<div style="font-size: 11px; letter-spacing: 1.5px; color: #b9b9b9; font-weight: 600">ROUND REPLAY</div>
+<div style="font-size: 10px; letter-spacing: 1px; font-weight: 700; color: #1a1408; background: #f7c773; padding: 1px 6px; border-radius: 3px">BETA</div>
+</div>
+<div style="display: flex; align-items: baseline; gap: 10px; white-space: nowrap">
+<div style="font-size: 20px; font-weight: 700">Homicide · Round 14</div>
+<div style="font-size: 13px; color: #b0b0b0">[map] · 12 players · ended 21:42</div>
+</div>
+</div>
+<div role="group" aria-label="Camera" style="display: flex; gap: 2px; padding: 3px; background: rgba(0,0,0,0.35); border-radius: 7px">
+<sc-for list="{{modes}}" as="m" hint-placeholder-count="3">
+<button type="button" onClick="{{m.pick}}" aria-pressed="{{m.pressed}}" style="{{m.style}}">
+<span style="font-size: 14px; font-weight: 600">{{m.label}}</span>
+<span style="font-size: 11px; color: #9a9a9a; border: 1px solid rgba(255,255,255,0.18); border-radius: 3px; padding: 0 5px">{{m.key}}</span>
+</button>
+</sc-for>
+</div>
+<div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-grow: 1; flex-basis: 0">
+<button type="button" onClick="{{toggleKeys}}" aria-pressed="{{keysPressed}}" aria-label="Keyboard shortcuts" style="height: 40px; padding: 0 12px; display: flex; align-items: center; gap: 8px; background: transparent; border: 1px solid rgba(255,255,255,0.14); border-radius: 6px; font-size: 13px; color: #d6d6d6">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"></rect><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"></path></svg>
+Shortcuts
+</button>
+<button type="button" aria-label="Close replay" style="height: 40px; padding: 0 10px 0 12px; display: flex; align-items: center; gap: 10px; background: #a30000; border: 1px solid #d01010; border-radius: 6px; font-size: 14px; font-weight: 600; color: #ffffff">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+Close
+<span style="font-size: 11px; font-weight: 500; border: 1px solid rgba(255,255,255,0.45); border-radius: 3px; padding: 0 5px">Esc</span>
+</button>
+</div>
+</div>
+
+<div style="position: absolute; left: 16px; top: 88px; height: 52px; box-sizing: border-box; padding: 0 6px; background: rgba(15,15,17,0.92); border: 1px solid rgba(83,19,23,0.8); border-radius: 8px; display: flex; align-items: center; gap: 6px">
+<button type="button" onClick="{{prevPlayer}}" aria-label="Previous player (Q)" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: transparent; border: 0; border-radius: 6px; color: #cfcfcf">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>
+</button>
+<div style="display: flex; flex-direction: column; gap: 1px; min-width: 200px; padding: 0 4px">
+<div style="font-size: 11px; letter-spacing: 1px; color: #9f9f9f">{{subjectLabel}}</div>
+<div style="display: flex; align-items: center; gap: 8px">
+<div style="{{subjectDot}}"></div>
+<div style="font-size: 16px; font-weight: 600">{{subjectName}}</div>
+<div style="font-size: 12px; color: #9f9f9f">{{subjectKills}}</div>
+</div>
+</div>
+<button type="button" onClick="{{nextPlayer}}" aria-label="Next player (E)" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: transparent; border: 0; border-radius: 6px; color: #cfcfcf">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+</button>
+<div style="width: 1px; height: 28px; background: rgba(255,255,255,0.12); margin: 0 6px"></div>
+<div style="font-size: 12px; color: #9f9f9f; padding-right: 10px">{{cameraHint}}</div>
+</div>
+
+<sc-if value="{{showFeed}}" hint-placeholder-val="{{true}}">
+<div style="position: absolute; left: 16px; bottom: 150px; width: 330px; box-sizing: border-box; padding: 12px 14px; background: rgba(15,15,17,0.88); border: 1px solid rgba(83,19,23,0.8); border-radius: 8px; display: flex; flex-direction: column; gap: 8px">
+<div style="font-size: 11px; letter-spacing: 1.5px; color: #b9b9b9; font-weight: 600">KILL FEED</div>
+<sc-for list="{{feed}}" as="f" hint-placeholder-count="4">
+<button type="button" onClick="{{f.pick}}" style="display: flex; gap: 10px; align-items: baseline; padding: 4px 6px; margin: 0 -6px; background: transparent; border: 0; border-radius: 4px; text-align: left; font-size: 13px">
+<span style="color: #9f9f9f; font-variant-numeric: tabular-nums; width: 38px">{{f.t}}</span>
+<span style="{{f.style}}">{{f.text}}</span>
+</button>
+</sc-for>
+</div>
+</sc-if>
+
+<div style="position: absolute; right: 16px; top: 88px; width: 300px; display: flex; flex-direction: column; gap: 10px">
+<sc-if value="{{showMap}}" hint-placeholder-val="{{true}}">
+<div style="height: 210px; box-sizing: border-box; padding: 10px; background: rgba(15,15,17,0.92); border: 1px solid rgba(83,19,23,0.8); border-radius: 8px; display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; justify-content: space-between; align-items: center">
+<div style="font-size: 11px; letter-spacing: 1.5px; color: #b9b9b9; font-weight: 600">MAP</div>
+<div style="font-size: 11px; color: #8f8f8f">M to hide</div>
+</div>
+<div style="flex-grow: 1; background: #16181a; border-radius: 4px; position: relative">
+<div style="position: absolute; left: 12%; top: 18%; width: 38%; height: 30%; border: 1px solid rgba(255,255,255,0.08)"></div>
+<div style="position: absolute; left: 50%; top: 18%; width: 34%; height: 58%; border: 1px solid rgba(255,255,255,0.08)"></div>
+<div style="position: absolute; left: 40%; top: 30%; width: 8px; height: 8px; border-radius: 50%; background: #e1e1e1"></div>
+<div style="position: absolute; left: 61%; top: 50%; width: 14px; height: 14px; border-radius: 50%; border: 2px solid #ffffff; box-sizing: border-box"></div>
+<div style="position: absolute; left: 62.4%; top: 51.8%; width: 8px; height: 8px; border-radius: 50%; background: #4696dc"></div>
+<div style="position: absolute; left: 25%; top: 66%; width: 8px; height: 8px; border-radius: 50%; background: #4a484a"></div>
+<div style="position: absolute; left: 74%; top: 26%; width: 8px; height: 8px; border-radius: 50%; background: #d7994a"></div>
+</div>
+</div>
+</sc-if>
+<div style="box-sizing: border-box; padding: 10px 6px 8px; background: rgba(15,15,17,0.92); border: 1px solid rgba(83,19,23,0.8); border-radius: 8px; display: flex; flex-direction: column; gap: 2px">
+<div style="display: flex; justify-content: space-between; align-items: baseline; padding: 0 8px 6px">
+<div style="font-size: 11px; letter-spacing: 1.5px; color: #b9b9b9; font-weight: 600">PLAYERS · AT 04:12</div>
+<div style="font-size: 12px; color: #9f9f9f">{{aliveCount}}</div>
+</div>
+<sc-for list="{{roster}}" as="r" hint-placeholder-count="7">
+<button type="button" onClick="{{r.pick}}" aria-pressed="{{r.pressed}}" style="{{r.rowStyle}}">
+<span style="{{r.dot}}"></span>
+<span style="{{r.nameStyle}}">{{r.name}}</span>
+<span style="font-size: 11px; color: #9f9f9f">{{r.status}}</span>
+<span style="font-size: 12px; color: #c9c9c9; width: 30px; text-align: right; font-variant-numeric: tabular-nums">{{r.kills}}</span>
+</button>
+</sc-for>
+</div>
+</div>
+
+<sc-if value="{{showKeys}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; right: 332px; top: 88px; width: 300px; box-sizing: border-box; padding: 14px 16px; background: rgba(12,12,14,0.97); border: 1px solid rgba(247,199,115,0.45); border-radius: 8px; display: flex; flex-direction: column; gap: 8px; font-size: 13px">
+<div style="font-size: 11px; letter-spacing: 1.5px; color: #f7c773; font-weight: 600">SHORTCUTS</div>
+<sc-for list="{{keys}}" as="k" hint-placeholder-count="8">
+<div style="display: flex; justify-content: space-between; gap: 12px">
+<span style="color: #d6d6d6">{{k.what}}</span>
+<span style="color: #ffffff; font-weight: 600">{{k.key}}</span>
+</div>
+</sc-for>
+</div>
+</sc-if>
+
+<div style="position: absolute; left: 16px; right: 16px; bottom: 16px; height: 122px; box-sizing: border-box; padding: 12px 16px 12px; background: rgba(15,15,17,0.94); border: 1px solid rgba(83,19,23,0.8); border-radius: 8px; display: flex; flex-direction: column; gap: 8px">
+<div style="position: relative; height: 40px">
+<div style="position: absolute; left: 0; right: 0; top: 20px; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.09)"></div>
+<div style="position: absolute; left: 0; width: 62%; top: 20px; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.2)"></div>
+<div style="position: absolute; left: 0; width: 36%; top: 20px; height: 6px; border-radius: 3px; background: #c00000"></div>
+<sc-for list="{{marks}}" as="k" hint-placeholder-count="6">
+<div style="{{k.style}}"></div>
+</sc-for>
+<div style="position: absolute; left: 36%; top: 14px; width: 18px; height: 18px; margin-left: -9px; border-radius: 50%; background: #ffffff; box-shadow: 0 0 0 3px rgba(192,0,0,0.55)"></div>
+<div style="position: absolute; left: 28.4%; top: -30px; transform: translateX(-50%); white-space: nowrap; padding: 4px 8px; font-size: 12px; background: #0c0c0e; border: 1px solid rgba(255,255,255,0.18); border-radius: 4px">03:18 · [Player] killed [Player]</div>
+</div>
+<div style="display: flex; align-items: center; gap: 6px">
+<button type="button" aria-label="Previous bookmark ([)" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: transparent; border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; color: #d6d6d6">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 5v14M18 6l-8 6 8 6z"></path></svg>
+</button>
+<button type="button" aria-label="Back 5 seconds (Left)" style="height: 40px; padding: 0 10px; display: flex; align-items: center; gap: 4px; background: transparent; border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; color: #d6d6d6; font-size: 13px">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5"></path></svg>
+5 s
+</button>
+<button type="button" onClick="{{togglePlay}}" aria-label="{{playLabel}}" style="width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; background: #c00000; border: 0; border-radius: 50%; color: #ffffff">
+<sc-if value="{{playing}}" hint-placeholder-val="{{true}}">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"></rect><rect x="14" y="5" width="4" height="14" rx="1"></rect></svg>
+</sc-if>
+<sc-if value="{{paused}}" hint-placeholder-val="{{false}}">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5l12 7-12 7z"></path></svg>
+</sc-if>
+</button>
+<button type="button" aria-label="Forward 5 seconds (Right)" style="height: 40px; padding: 0 10px; display: flex; align-items: center; gap: 4px; background: transparent; border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; color: #d6d6d6; font-size: 13px">
+5 s
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"></path></svg>
+</button>
+<button type="button" aria-label="Next bookmark (])" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: transparent; border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; color: #d6d6d6">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 5v14M6 6l8 6-8 6z"></path></svg>
+</button>
+<div style="display: flex; align-items: baseline; gap: 6px; margin-left: 12px; font-variant-numeric: tabular-nums">
+<span style="font-size: 22px; font-weight: 700">04:12</span>
+<span style="font-size: 14px; color: #9f9f9f">/ 11:38</span>
+</div>
+<div style="display: flex; gap: 14px; margin-left: 22px; font-size: 12px; color: #b0b0b0; align-items: center">
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 9px; height: 9px; background: #ff5a5a; transform: rotate(45deg)"></span>Your kills</span>
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 9px; height: 9px; border-radius: 50%; background: #4696dc"></span>Your death</span>
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 2px; height: 11px; background: rgba(255,255,255,0.55)"></span>Other kills</span>
+</div>
+<div style="flex-grow: 1"></div>
+<div role="group" aria-label="Speed" style="display: flex; gap: 2px; padding: 3px; background: rgba(0,0,0,0.35); border-radius: 7px">
+<sc-for list="{{speeds}}" as="s" hint-placeholder-count="5">
+<button type="button" onClick="{{s.pick}}" aria-pressed="{{s.pressed}}" style="{{s.style}}">{{s.label}}</button>
+</sc-for>
+</div>
+<button type="button" onClick="{{toggleFeed}}" aria-pressed="{{feedPressed}}" aria-label="Kill feed" style="{{feedBtn}}">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"></path></svg>
+</button>
+<button type="button" onClick="{{toggleMap}}" aria-pressed="{{mapPressed}}" aria-label="Map (M)" style="{{mapBtn}}">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"></path></svg>
+</button>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":810}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { playing: true, mode: 'follow', speed: 1, follow: 1, keys: false, map: true, feed: true };
+  }
+  renderVals() {
+    const s = this.state;
+    const set = (patch) => () => this.setState(patch);
+    const seg = (on) => 'height: 36px; padding: 0 12px; display: flex; align-items: center; gap: 8px; border: 0; border-radius: 5px; ' +
+      (on ? 'background: #a30000; color: #ffffff' : 'background: transparent; color: #cfcfcf');
+    const iconBtn = (on) => 'width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 6px; ' +
+      (on ? 'background: rgba(163,0,0,0.35); border: 1px solid #c00000; color: #ffffff' : 'background: transparent; border: 1px solid rgba(255,255,255,0.12); color: #9f9f9f');
+    const players = [
+      { name: '[You]', me: true, st: 'alive', k: 1 },
+      { name: '[Player]', st: 'alive', k: 2 },
+      { name: '[Player]', st: 'alive', k: 0 },
+      { name: '[Player]', st: 'down', k: 0 },
+      { name: '[Player]', st: 'alive', k: 1 },
+      { name: '[Player]', st: 'dead', k: 0 },
+      { name: '[Player]', st: 'dead', k: 1 },
+    ];
+    const col = { alive: '#7fb08f', down: '#e0a050', dead: '#4a484a' };
+    const roster = players.map((p, i) => {
+      const sel = i === s.follow;
+      return {
+        name: p.me ? p.name + ' (you)' : p.name,
+        status: p.st === 'alive' ? '' : p.st,
+        kills: p.k + ' K',
+        pressed: sel ? 'true' : 'false',
+        pick: () => this.setState({ follow: i, mode: s.mode === 'free' ? 'follow' : s.mode }),
+        dot: 'width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; background: ' + col[p.st],
+        nameStyle: 'flex-grow: 1; text-align: left; font-size: 14px; ' + (p.me ? 'color: #bfe0ff; font-weight: 600' : p.st === 'dead' ? 'color: #8a878a; text-decoration: line-through' : 'color: #ececec'),
+        rowStyle: 'height: 34px; display: flex; align-items: center; gap: 10px; padding: 0 10px; border: 0; border-radius: 5px; ' + (sel ? 'background: rgba(163,0,0,0.38)' : 'background: transparent'),
+      };
+    });
+    const who = players[s.follow] || players[0];
+    const modes = [['free', 'Free', '1'], ['follow', 'Follow', '2'], ['fp', 'First person', '3']].map(([id, label, key]) => ({
+      label, key, pressed: s.mode === id ? 'true' : 'false', style: seg(s.mode === id), pick: set({ mode: id }),
+    }));
+    const speeds = [[0.25, '¼×'], [0.5, '½×'], [1, '1×'], [2, '2×'], [4, '4×']].map(([v, label]) => ({
+      label, pressed: s.speed === v ? 'true' : 'false', pick: set({ speed: v }),
+      style: 'height: 34px; min-width: 40px; padding: 0 8px; border: 0; border-radius: 5px; font-size: 13px; font-weight: 600; ' + (s.speed === v ? 'background: #a30000; color: #ffffff' : 'background: transparent; color: #cfcfcf'),
+    }));
+    const mark = (left, kind) => {
+      const base = 'position: absolute; left: ' + left + '; ';
+      if (kind === 'kill') return { style: base + 'top: 2px; width: 11px; height: 11px; margin-left: -5px; background: #ff5a5a; transform: rotate(45deg)' };
+      if (kind === 'death') return { style: base + 'top: 1px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: #4696dc; border: 2px solid #0f0f11' };
+      return { style: base + 'top: 30px; width: 2px; height: 10px; margin-left: -1px; background: rgba(255,255,255,0.55)' };
+    };
+    const marks = [mark('12%', 'other'), mark('18.5%', 'other'), mark('28.4%', 'other'), mark('32.7%', 'kill'), mark('47%', 'other'), mark('55%', 'other'), mark('71%', 'death'), mark('83%', 'other')];
+    const feedRows = [
+      ['02:10', '[Player] killed [Player]', false],
+      ['03:18', '[Player] killed [Player]', false],
+      ['03:48', 'You killed [Player]', true],
+      ['04:05', '[Player] was downed', false],
+    ];
+    const feed = feedRows.map(([t, text, mine]) => ({ t, text, pick: set({ playing: false }), style: mine ? 'color: #bfe0ff; font-weight: 600' : 'color: #e6e6e6' }));
+    const hints = { free: 'WASD move · right-drag look · Shift fast', follow: 'Scroll to zoom · right-drag to orbit', fp: 'Their eyes · scroll does nothing here' };
+    return {
+      modes, speeds, roster, marks, feed,
+      playing: s.playing, paused: !s.playing, playLabel: s.playing ? 'Pause (Space)' : 'Play (Space)',
+      togglePlay: () => this.setState({ playing: !s.playing }),
+      showKeys: s.keys, keysPressed: s.keys ? 'true' : 'false', toggleKeys: () => this.setState({ keys: !s.keys }),
+      showMap: s.map, mapPressed: s.map ? 'true' : 'false', toggleMap: () => this.setState({ map: !s.map }), mapBtn: iconBtn(s.map),
+      showFeed: s.feed, feedPressed: s.feed ? 'true' : 'false', toggleFeed: () => this.setState({ feed: !s.feed }), feedBtn: iconBtn(s.feed),
+      prevPlayer: () => this.setState({ follow: (s.follow + players.length - 1) % players.length }),
+      nextPlayer: () => this.setState({ follow: (s.follow + 1) % players.length }),
+      subjectLabel: s.mode === 'free' ? 'FREE CAMERA · NEAREST' : s.mode === 'fp' ? 'FIRST PERSON' : 'FOLLOWING',
+      subjectName: who.me ? who.name + ' (you)' : who.name,
+      subjectKills: who.k + ' K',
+      subjectDot: 'width: 9px; height: 9px; border-radius: 50%; background: ' + col[who.st],
+      cameraHint: hints[s.mode],
+      aliveCount: players.filter((p) => p.st !== 'dead').length + ' alive',
+      keys: [
+        { what: 'Play / pause', key: 'Space' }, { what: 'Back / forward 5 s', key: '← →' },
+        { what: 'Previous / next bookmark', key: '[ ]' }, { what: 'Camera: free, follow, first person', key: '1 2 3' },
+        { what: 'Previous / next player', key: 'Q E' }, { what: 'Show / hide map', key: 'M' },
+        { what: 'Look around (free) / orbit', key: 'Right-drag' }, { what: 'Close the replay', key: 'Esc' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,356 @@
+--- a/lua/homigrad/sh_luabullets.lua
++++ b/lua/homigrad/sh_luabullets.lua
+@@ -1,3 +1,5 @@
++if SERVER then ZCLuaBulletPhase1Version="20260918.1" end
++
+ gs = {
+ 	random = include("minstd.lua") -- from https://github.com/Kefta/Lua-MINSTD
+ }
+@@ -500,18 +502,35 @@
+ 	["ValveBiped.Bip01_R_Hand"] = true,
+ }
+ 
+-function ENTITY:FireLuaBullets(tInfo)
+-    if (hook.Run("EntityFireBullets", self, tInfo) == false) then
+-		return
+-	end
+-	
+-    local owner = tInfo.Attacker and tInfo.Attacker:IsValid() and tInfo.Attacker or IsValid(self) and self:GetOwner() and self:GetOwner():IsValid() and self:GetOwner() or self
+-	local bIsPlayer = owner:IsPlayer()
+-	
+-	if (bIsPlayer and !tInfo.DisableLagComp) then
+-		owner:LagCompensation(true)
+-	end
+-	
++-- ZCity-owned Lua-bullet scopes only; external callers retain DisableLagComp.
++local activeLuaBulletOwner
++local function CaptureLuaBulletError(err)
++    return {value = err, traceback = debug.traceback("", 2)}
++end
++local retryWarningTime, retryWarningCount = -math.huge, 0
++local function ReportLuaBulletRetry(reason)
++    -- Diagnostic only: bounded output, no work moved to a later tick.
++    if not SERVER or retryWarningCount >= 10 or SysTime() - retryWarningTime < 10 then return end
++    retryWarningTime, retryWarningCount = SysTime(), retryWarningCount + 1
++    ErrorNoHalt("[ZCity bullets] Aborted invalid body retrace: " .. reason .. "\n")
++end
++local function LuaBulletRetryStart(hit, start, direction, endpoint)
++    if not isvector(hit) then return nil, "missing_hit_position" end
++    local proposed = hit + direction * 1
++    for i = 1, 3 do
++        if not (proposed[i] > -math.huge and proposed[i] < math.huge) then
++            return nil, "nonfinite_position"
++        end
++    end
++    local advance = (proposed - start):Dot(direction)
++    local remaining = (endpoint - proposed):Dot(direction)
++    if not (advance > 0 and advance < math.huge) then return nil, "nonadvancing" end
++    if not (remaining >= 0 and remaining < math.huge) then return nil, "past_endpoint" end
++    return proposed
++end
++
++local function FireLuaBulletsBody(self, tInfo, owner, bIsPlayer)
++	local volley = tInfo.__ZCVolley
+ 	local pWeapon = tInfo.Inflictor and tInfo.Inflictor:IsValid() and tInfo.Inflictor or IsValid(owner) and owner.GetActiveWeapon and owner:GetActiveWeapon()
+ 	local bWeaponValid = IsValid(pWeapon)
+ 	
+@@ -557,8 +576,11 @@
+ 	local sImpactEffect = tInfo.ImpactEffect or "Impact"
+ 	local sRagdollImpactEffect = tInfo.RagdollImpactEffect or "RagdollImpact"
+ 	
+-	-- Ammo
+-	local tAmmoData = game.GetAmmoData(iAmmoType) or tDefaultAmmoTable
++	-- Ammo. A shotgun calls this once per outer pellet, so resolve immutable
++	-- ammo metadata/convar-backed damage once for the whole weapon volley.
++	local ammoCache = volley and volley.ammo
++	local ammoEntry = ammoCache and ammoCache[iAmmoType]
++	local tAmmoData = ammoEntry and ammoEntry.data or game.GetAmmoData(iAmmoType) or tDefaultAmmoTable
+ 	local iAmmoFlags = tAmmoData.flags
+ 	local flAmmoForce = tAmmoData.force
+ 	local iAmmoDamageType = tAmmoData.dmgtype
+@@ -566,7 +588,7 @@
+ 	local iAmmoMaxSplash = tAmmoData.maxsplash
+ 	local iAmmoTracerType = tAmmoData.tracer
+ 	
+-	local iAmmoNPCDamage = tAmmoData.npcdmg
++	local iAmmoNPCDamage = ammoEntry and ammoEntry.npcDamage or tAmmoData.npcdmg
+ 	
+ 	if pWeapon then pWeapon.bullet = tInfo end
+ 
+@@ -574,11 +596,19 @@
+ 		iAmmoNPCDamage = GetConVar(iAmmoNPCDamage):GetFloat()
+ 	end
+ 	
+-	local iAmmoPlayerDamage = tAmmoData.plydmg
++	local iAmmoPlayerDamage = ammoEntry and ammoEntry.playerDamage or tAmmoData.plydmg
+ 	
+ 	if (isstring(iAmmoPlayerDamage)) then
+ 		iAmmoPlayerDamage = GetConVar(iAmmoPlayerDamage):GetFloat()
+ 	end
++
++	if ammoCache and not ammoEntry then
++		ammoCache[iAmmoType] = {
++			data = tAmmoData,
++			npcDamage = iAmmoNPCDamage,
++			playerDamage = iAmmoPlayerDamage
++		}
++	end
+ 	
+ 	if (bit.band(iAmmoFlags, AMMO_INTERPRET_PLRDAMAGE_AS_DAMAGE_TO_PLAYER) ~= 0) then
+ 		if (iPlayerDamage == 0) then
+@@ -592,19 +622,49 @@
+ 	
+ 	local iAmmoDamage = bIsPlayer and iAmmoPlayerDamage or iAmmoNPCDamage
+ 	
+-	-- Loop values
++	-- Loop values. Cache stable per-volley queries instead of repeating them
++	-- once for every pellet in the weapon layer.
+ 	local bDrop = bit.band(iAmmoFlags, AMMO_FORCE_DROP_IF_CARRIED) ~= 0
+-	local bDebugShoot = ai_debug_shoot_positions:GetBool()
++	local bDebugShoot = volley and volley.debugShoot
++	if bDebugShoot == nil then
++		bDebugShoot = ai_debug_shoot_positions:GetBool()
++		if volley then volley.debugShoot = bDebugShoot end
++	end
+ 	local bFirstShotInaccurate = bit.band(iFlags, FIRE_BULLETS_FIRST_SHOT_ACCURATE) == 0
+-	local flPhysPush = phys_pushscale:GetFloat()
+-	local bShowPenetration = sv_showpenetration:GetBool()
+-	local bStartedInWater = bit.band(util.PointContents(vSrc), MASK_WATER) ~= 0
+-	local bFirstTimePredicted = IsFirstTimePredicted()
++	local flPhysPush = volley and volley.physPush
++	if flPhysPush == nil then
++		flPhysPush = phys_pushscale:GetFloat()
++		if volley then volley.physPush = flPhysPush end
++	end
++	local bShowPenetration = volley and volley.showPenetration
++	if bShowPenetration == nil then
++		bShowPenetration = sv_showpenetration:GetBool()
++		if volley then volley.showPenetration = bShowPenetration end
++	end
++	local sameVolleySource = volley and volley.sourceX == vSrc.x and volley.sourceY == vSrc.y and volley.sourceZ == vSrc.z
++	local bStartedInWater
++	if sameVolleySource then
++		bStartedInWater = volley.startedInWater
++	else
++		bStartedInWater = bit.band(util.PointContents(vSrc), MASK_WATER) ~= 0
++		if volley and volley.sourceX == nil then
++			volley.sourceX, volley.sourceY, volley.sourceZ = vSrc.x, vSrc.y, vSrc.z
++			volley.startedInWater = bStartedInWater
++		end
++	end
++	local bFirstTimePredicted = volley and volley.firstTimePredicted
++	if bFirstTimePredicted == nil then
++		bFirstTimePredicted = IsFirstTimePredicted()
++		if volley then volley.firstTimePredicted = bFirstTimePredicted end
++	end
+ 	local flSpreadBias, flFlatness, bNegBias, vFireBulletMax, vFireBulletMin, vSpreadRight, vSpreadUp, tEnts, iEntsLen
+ 	
+ 	// Wrap it for network traffic so it's the same between client and server
+-    
+-	local iSeed = owner:GetMD5Seed() % 0x100 - 1
++	local iSeed = volley and volley.seed
++	if iSeed == nil then
++		iSeed = owner:GetMD5Seed() % 0x100 - 1
++		if volley then volley.seed = iSeed end
++	end
+ 	
+ 	-- Don't calculate stuff we won't end up using
+ 	if (bFirstShotInaccurate or iNum ~= 1) then
+@@ -647,7 +707,11 @@
+ 	do
+ 		//Adrian: visualize server/client player positions
+ 		//This is used to show where the lag compesator thinks the player should be at.
+-		local iHitNum = sv_showplayerhitboxes:GetInt()
++		local iHitNum = volley and volley.debugHitboxes
++		if iHitNum == nil then
++			iHitNum = sv_showplayerhitboxes:GetInt()
++			if volley then volley.debugHitboxes = iHitNum end
++		end
+ 		
+ 		if (iHitNum > 0) then
+ 			local pLagPlayer = Player(iHitNum)
+@@ -657,16 +721,43 @@
+ 			end
+ 		end
+ 		
+-		iHitNum = sv_showimpacts:GetInt()
++		iHitNum = volley and volley.debugImpacts
++		if iHitNum == nil then
++			iHitNum = sv_showimpacts:GetInt()
++			if volley then volley.debugImpacts = iHitNum end
++		end
+ 		bDoDebugHit = iHitNum == 1 or (CLIENT and iHitNum == 2) or (SERVER and iHitNum == 3)
+ 	end
+-	
+-    numbullets = numbullets + 1
++
++	local outerPelletIndex = tonumber(tInfo.__ZCPelletIndex)
++	local fallbackSeedOffset
++	if not outerPelletIndex then
++		numbullets = numbullets + 1
++		fallbackSeedOffset = numbullets
++	end
++
++	local lineTraceInput = volley and volley.lineTraceInput or {}
++	local hullTraceInput = volley and volley.hullTraceInput or {}
++	if volley then
++		volley.lineTraceInput = lineTraceInput
++		volley.hullTraceInput = hullTraceInput
++	end
++	lineTraceInput.mask, lineTraceInput.filter = iMask, Filter
++	hullTraceInput.mins, hullTraceInput.maxs = vFireBulletMin, vFireBulletMax
++	hullTraceInput.mask, hullTraceInput.filter = iMask, Filter
+ 
+ 	for iShot = 1, iNum do
+ 		local vShotDir
+-		iSeed = iSeed + numbullets // use new seed for next bullet
+-		gs.random:SetSeed(iSeed) // init random system with this seed
++		-- Weapon volleys carry an explicit outer pellet index: deterministic on
++		-- both realms and unique per pellet. Legacy external callers retain the
++		-- old global-counter seed progression.
++		local shotSeed
++		if outerPelletIndex then
++			shotSeed = iSeed + outerPelletIndex + iShot - 1
++		else
++			shotSeed = iSeed + fallbackSeedOffset * iShot
++		end
++		gs.random:SetSeed(shotSeed)
+ 		
+ 		// If we're firing multiple shots, and the first shot has to be ba on target, ignore spread
+ 		if (bFirstShotInaccurate or iShot ~= 1) then
+@@ -696,27 +787,18 @@
+ 		local vEnd = vSrc + vShotDir * flDistance
+ 		local vNewSrc = vSrc
+ 		local vFinalHit
++		local useHullTrace = bHullTrace and iShot % 2 == 0
++		lineTraceInput.endpos = vEnd
++		hullTraceInput.endpos = vEnd
+ 		
+ 		repeat
+-			local tr = bHullTrace and iShot % 2 == 0 and
+-				// Half of the shotgun pellets are hulls that make it easier to hit targets with the shotgun.
+-				util.TraceHull({
+-					start = vNewSrc,
+-					endpos = vEnd,
+-					mins = vFireBulletMin,
+-					maxs = vFireBulletMax,
+-					mask = iMask,
+-					filter = Filter
+-				})
+-			or
+-				util.TraceLine({
+-					start = vNewSrc,
+-					endpos = vEnd,
+-					mask = iMask,
+-					filter = Filter
+-				})
+-			
+-			while (IsValid(tr.Entity) and tr.Entity.organism) do
++			lineTraceInput.start = vNewSrc
++			hullTraceInput.start = vNewSrc
++			local tr = useHullTrace and util.TraceHull(hullTraceInput) or util.TraceLine(lineTraceInput)
++			
++			local retryStart = vNewSrc
++			local badRetry = (not istable(tr) or not isvector(tr.HitPos)) and "invalid_trace" or nil
++			while not badRetry and (IsValid(tr.Entity) and tr.Entity.organism) do
+ 				local ent = tr.Entity
+ 
+ 				--table.insert(Filter, ent)
+@@ -726,27 +808,21 @@
+ 				
+ 				if !(armsbones[bonename] and hg.RagdollOwner(tr.Entity) == pInflictor:GetOwner()) and !IsValid(tr.Entity.OldRagdoll) and (tr.PhysicsBone != 0 or !tr.StartSolid) and (!hg.amputeetable[bonename] or !ent.organism[hg.amputeetable[bonename].."amputated"]) then break end
+ 
+-				tr = bHullTrace and iShot % 2 == 0 and
+-					// Half of the shotgun pellets are hulls that make it easier to hit targets with the shotgun.
+-					util.TraceHull({
+-						start = tr.HitPos + vShotDir * 1,
+-						endpos = vEnd,
+-						mins = vFireBulletMin,
+-						maxs = vFireBulletMax,
+-						mask = iMask,
+-						filter = Filter
+-					})
+-				or
+-					util.TraceLine({
+-						start = tr.HitPos + vShotDir * 1,
+-						endpos = vEnd,
+-						mask = iMask,
+-						filter = Filter
+-					})
++				local nextStart, reason = LuaBulletRetryStart(tr.HitPos, retryStart, vShotDir, vEnd)
++				if not nextStart then badRetry = reason break end
++				retryStart = nextStart
++				lineTraceInput.start = nextStart
++				hullTraceInput.start = nextStart
++				tr = useHullTrace and util.TraceHull(hullTraceInput) or util.TraceLine(lineTraceInput)
++				if not istable(tr) or not isvector(tr.HitPos) then badRetry = "invalid_trace" end
+ 				--print(tr.FractionLeftSolid)
+ 				--print(tr.Entity, tr.HitGroup, hitgroup, tr.PhysicsBone, tr.StartSolid)
+ 			end
+ 
++			if badRetry then
++				ReportLuaBulletRetry(badRetry)
++				goto zc_next_lua_pellet
++			end
+ 			local data = {}
+ 			data.Trace = tr
+ 			data.AmmoType = tInfo.AmmoType
+@@ -757,7 +833,7 @@
+ 			data.TracerName = tInfo.TracerName
+ 			
+ 			if (hook.Run("PostEntityFireBullets", self, data) == false) then
+-				return
++				return false
+ 			end
+ 				
+ 			--[[if (SERVER) then
+@@ -858,11 +934,46 @@
+ 		if tInfo.TracerName and tInfo.TracerName ~= "nil" then
+ 			Tracer(bDebugShoot, vSrc, vFinalHit, bFirstTimePredicted, iTracerFreq, bWeaponValid and pWeapon, owner, iAmmoTracerType, iAmmoDamageType, sTracerName)
+ 		end
++		::zc_next_lua_pellet::
+ 	end
+ 	
+-	if (bIsPlayer and !tInfo.DisableLagComp) then
+-		owner:LagCompensation(false)
+-	end
++end
++
++function ENTITY:FireLuaBullets(tInfo)
++    if hook.Run("EntityFireBullets", self, tInfo) == false then return end
++    local owner = tInfo.Attacker and tInfo.Attacker:IsValid() and tInfo.Attacker or IsValid(self) and self:GetOwner() and self:GetOwner():IsValid() and self:GetOwner() or self
++    local bIsPlayer = owner:IsPlayer()
++    local volley = tInfo.__ZCVolley
++    local needsCompensation = bIsPlayer and not tInfo.DisableLagComp and not (volley and volley.lagCompensated)
++    if not needsCompensation then
++        FireLuaBulletsBody(self, tInfo, owner, bIsPlayer)
++        return
++    end
++    if CLIENT then
++        owner:LagCompensation(true)
++        local completed = FireLuaBulletsBody(self, tInfo, owner, bIsPlayer)
++        if completed ~= false then owner:LagCompensation(false) end
++        return
++    end
++    if activeLuaBulletOwner then
++        assert(activeLuaBulletOwner == owner,
++            "Cross-attacker nested Lua bullets require DisableLagComp; outer scope preserved")
++        FireLuaBulletsBody(self, tInfo, owner, bIsPlayer)
++        return
++    end
++    local closeCompensation = owner.LagCompensation
++    closeCompensation(owner, true)
++    activeLuaBulletOwner = owner
++    local ok, failure = xpcall(FireLuaBulletsBody, CaptureLuaBulletError,
++        self, tInfo, owner, bIsPlayer)
++    local closed, closeError = pcall(closeCompensation, owner, false)
++    activeLuaBulletOwner = nil
++    if not ok then
++        if not closed then ErrorNoHalt("[ZCity bullets] Cleanup also failed: " .. tostring(closeError) .. "\n") end
++        if isstring(failure.value) then error(failure.value .. "\n" .. failure.traceback, 0) end
++        error(failure.value, 0)
++    end
++    if not closed then error(closeError, 0) end
+ end
+ 
+ local tMaterialParameters = {

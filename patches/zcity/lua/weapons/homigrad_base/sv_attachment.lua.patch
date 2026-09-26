@@ -1,0 +1,10 @@
+--- a/lua/weapons/homigrad_base/sv_attachment.lua
++++ b/lua/weapons/homigrad_base/sv_attachment.lua
+@@ -225,7 +225,6 @@
+ local PLAYER = FindMetaTable("Player")
+ function SWEP:SyncAtts(ply)
+ 	self:SetNetVar("attachments",self.attachments)
+-	self:SendNetVar("attachments")
+ end
+ 
+ net.Receive("sync_atts", function(len, ply)

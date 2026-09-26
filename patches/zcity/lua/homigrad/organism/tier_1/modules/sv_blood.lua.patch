@@ -1,0 +1,93 @@
+--- a/lua/homigrad/organism/tier_1/modules/sv_blood.lua
++++ b/lua/homigrad/organism/tier_1/modules/sv_blood.lua
+@@ -1,3 +1,10 @@
++-- ZCJ3 medical observation taps v1 (server-only)
++local function _zcj_med(org,channel,before,after,kind,object)
++    local r=ZCJusticeV3Integration
++    if r and r.enabled and r.MedicalMutation then
++        r:Safe(r.MedicalMutation,org,channel,before,after,kind,object)
++    end
++end
+ local CurTime = CurTime
+ local time
+ local max, min, Round = math.max, math.min, math.Round
+@@ -68,7 +75,7 @@
+ 		
+ 		local bon = "ValveBiped.Bip01_Head1"
+ 		local bone = ent:LookupBone(bon)
+-		local mat = ent:GetBoneMatrix(bone)
++		local mat = bone and ent:GetBoneMatrix(bone) -- US1: a model without a head bone threw here
+ 	
+ 		if mat and mat:GetAngles():Right()[3] < 0.25 then
+ 			org.vomitInThroat = nil
+@@ -88,7 +95,7 @@
+ 	if org.isPly and not org.otrub and org.blood < 2900 then org.owner:Notify(math.random(2) == 1 and "I cant feel anything..." or (math.random(2) == 1 and "I think I'm gonna faint right now...") or "I dont feel so good...",60,"blood2",0) end
+ 
+ 	if org.internalBleed < 0.5 and org.bleed < 0.05 and org.pulse > 5 then
+-		org.blood = min(org.blood + mulTime * 5 * (adrenaline * 1.5 + 1) * (org.satiety / 100 + 1) * org.pulse / 70, 5000)
++		do local _zcj_before=org.blood; org.blood = min(org.blood + mulTime * 5 * (adrenaline * 1.5 + 1) * (org.satiety / 100 + 1) * org.pulse / 70, 5000); _zcj_med(org,"blood",_zcj_before,org.blood,"recovery",nil) end
+ 	end
+ 
+ 	if org.hemotransfusionshock > 0 then
+@@ -121,11 +128,12 @@
+ 			local rand = math.Rand(0, 2) * 2
+ 			//if wound[5] + beatsPerSecond * 2 < time then
+ 				wound[5] = time
+-				org.blood = max(org.blood - bleed, 1)
++				do local _zcj_before=org.blood; org.blood = max(org.blood - bleed, 1); _zcj_med(org,"blood",_zcj_before,org.blood,"wound",wound) end
+ 				
+ 				if (owner:IsPlayer() and owner:Alive()) or not owner:IsPlayer() then
+ 					hg.organism.BloodDroplet2(owner, org, wound, ent:GetVelocity() + VectorRand(-15, 15), false)
+ 					wound[1] = max(wound[1] - coagulate, 0)
++					if wound[6] and wound[1] < (wound[7] or 0.35) then wound[1] = wound[7] or 0.35 end -- PROVISIONAL(2026-09-23, retained-round weep floor ([7], set by AddRetainedWound), ratify-by: 2026-10-07)
+ 				end
+ 
+ 				if wound[1] == 0 then table.remove(org.wounds, i) owner:SetNetVar("wounds",org.wounds) end
+@@ -133,8 +141,13 @@
+ 		end
+ 	end
+ 
++	-- PROVISIONAL(2026-09-23, retained-round pain trickle ~1 pain/s per bullet; mulTime is real elapsed seconds per Org Think tick (organism/tier_0/sv_tier_0.lua:74), so a per-second rate is multiplied by mulTime directly as elsewhere in this module, ratify-by: 2026-10-07)
++	if istable(org.bullets) then
++		org.painadd = org.painadd + math.min(1.5, 0.3 * #org.bullets) * mulTime -- capped: sv_pain.lua only decays pain while inflow <= 2/s
++	end
++
+ 	if org.heart == 1 then
+-		org.blood = math.max(org.blood - mulTime * 100 * org.pulse / 70,0)
++		do local _zcj_before=org.blood; org.blood = math.max(org.blood - mulTime * 100 * org.pulse / 70,0); _zcj_med(org,"blood",_zcj_before,org.blood,"uncovered_heart",nil) end
+ 		bleedoutspeed = bleedoutspeed + mulTime * 100 * org.pulse / 70
+ 	end
+ 
+@@ -154,7 +167,7 @@
+ 		if wound[5] + next_arterypump * 2 < time then
+ 			local pos, ang = ent:GetBonePosition(ent:LookupBone(wound[4]))
+ 			wound[5] = time
+-			org.blood = max(org.blood - wound[1] * mulTime * 4.5 * math.max(org.pulse, 20) / 80, 1)
++			do local _zcj_before=org.blood; org.blood = max(org.blood - wound[1] * mulTime * 4.5 * math.max(org.pulse, 20) / 80, 1); _zcj_med(org,"blood",_zcj_before,org.blood,"wound",wound) end
+ 			if (owner:IsPlayer() and owner:Alive()) or not owner:IsPlayer() then
+ 				local dir = wound[6]
+ 				local len = dir:Length()
+@@ -180,7 +193,7 @@
+ 	coagulatespeed = coagulatespeed + mulTime
+ 	org.internalBleedHeal = math.Approach(org.internalBleedHeal, 0, mulTime / 2)
+ 	
+-	if bleed > 0 then org.blood = max(org.blood - bleed * mulTime * 10 * org.pulse / 70, 1) end
++	if bleed > 0 then do local _zcj_before=org.blood; org.blood = max(org.blood - bleed * mulTime * 10 * org.pulse / 70, 1); _zcj_med(org,"blood",_zcj_before,org.blood,"uncovered_internal",nil) end end
+ 	
+ 	if (org.internalBleed > 1 or org.pneumothorax > 0) and org.blood > 2000 and org.o2[1] > 0 then
+ 		org.wantToVomit = org.wantToVomit or 0
+@@ -229,12 +242,12 @@
+ 	if !hg.IsValidPlayer(owner) then return end
+ 	
+ 	local org = owner.organism
+-	org.blood = math.max(org.blood - 200, 0)
++	do local _zcj_before=org.blood; org.blood = math.max(org.blood - 200, 0); _zcj_med(org,"blood",_zcj_before,org.blood,"uncovered_vomit",nil) end
+ 	local ent = hg.GetCurrentCharacter(owner)
+ 
+ 	local bon = "ValveBiped.Bip01_Head1"
+ 	local bone = ent:LookupBone(bon)
+-	local mat = ent:GetBoneMatrix(bone)
++	local mat = bone and ent:GetBoneMatrix(bone) -- US1: a model without a head bone threw here
+ 
+ 	if not mat then return end
+ 

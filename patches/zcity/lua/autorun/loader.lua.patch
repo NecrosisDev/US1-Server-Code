@@ -1,0 +1,43 @@
+--- a/lua/autorun/loader.lua
++++ b/lua/autorun/loader.lua
+@@ -33,24 +33,36 @@
+ 	["_cl"] = "cl_",
+ }
+ 
++local function IncludeZCityFile(path)
++    if CLIENT and string.StartWith(path, "initpost/") then
++        local ok,err=xpcall(function()include(path)end,debug.traceback)
++        if not ok then
++            ErrorNoHalt("[ZCity UI] "..path..": "..tostring(err).."\n")
++            if ZCUIRecovery then ZCUIRecovery.errors[path]=tostring(err)end
++        end
++        return
++    end
++    return include(path)
++end
++
+ local function AddFile(File, dir)
+ 	local fileSide = string.lower(string.Left(File, 3))
+ 	local fileSide2 = string.lower(string.Right(string.sub(File, 1, -5), 3))
+ 	local side = sides[fileSide] or sides[fileSide2]
+ 	if SERVER and side == "sv_" then
+-		include(dir .. File)
++		IncludeZCityFile(dir .. File)
+ 	elseif side == "sh_" then
+ 		if SERVER then AddCSLuaFile(dir .. File) end
+-		include(dir .. File)
++		IncludeZCityFile(dir .. File)
+ 	elseif side == "cl_" then
+ 		if SERVER then
+ 			AddCSLuaFile(dir .. File)
+ 		else
+-			include(dir .. File)
++			IncludeZCityFile(dir .. File)
+ 		end
+ 	else
+ 		if SERVER then AddCSLuaFile(dir .. File) end
+-		include(dir .. File)
++		IncludeZCityFile(dir .. File)
+ 	end
+ end
+ 

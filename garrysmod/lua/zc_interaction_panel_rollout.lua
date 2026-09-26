@@ -1,1 +1,0 @@
--- Retired by owner correction: native Q radial remains independent.

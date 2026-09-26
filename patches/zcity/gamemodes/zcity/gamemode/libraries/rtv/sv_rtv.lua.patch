@@ -1,0 +1,16 @@
+--- a/gamemodes/zcity/gamemode/libraries/rtv/sv_rtv.lua
++++ b/gamemodes/zcity/gamemode/libraries/rtv/sv_rtv.lua
+@@ -32,8 +32,13 @@
+ end
+ 
+ local blacklist = {
++    ["gm_blighthouse_pr_night"] = true,
+     ["gm_construct"] = true, ["gm_flatgrass"] = true, ["gm_altarskforest"] = true, ["gm_renostruct_v2"] = true,
+     ["gm_renostruct_v2_night"] = true, ["gm_city_of_silence"] = true, ["ttt_hogwarts"] = true,
++    ["gm_fork_better"] = true, ["gm_gmarket"] = true,
++    ["zs_abandonedmall_2025_v5a"] = true,
++    ["zs_abandonedmall_2025_v6"] = true,
++    ["gm_c17_ivaylo"] = true, ["gm_c17_ivayloZ_csm"] = true,
+ }
+ 
+ local allowedPrefix = {

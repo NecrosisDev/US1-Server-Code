@@ -1,0 +1,30 @@
+--- a/gamemodes/zcity/gamemode/modes/defense/cl_defense.lua
++++ b/gamemodes/zcity/gamemode/modes/defense/cl_defense.lua
+@@ -6,9 +6,9 @@
+ local highlightNPCs = {}
+ 
+ 
+-net.Receive("npc_defense_start",function()
+-    surface.PlaySound("csgo_round.wav")
+-end)
++-- 2026-09-23: the "npc_defense_start" receiver lives in cl_defense_commander.lua (only one
++-- net.Receive per name survives; a later registration replaces this one). It plays
++-- csgo_round.wav there.
+ 
+ local teams = {
+ 	[1] = {
+@@ -239,8 +239,12 @@
+ 		end
+ 
+ 		function but:DoClick()
+-			if ply:IsBot() then chat.AddText(Color(255,0,0), "no, you can't") return end
+-			gui.OpenURL("https://steamcommunity.com/profiles/"..ply:SteamID64())
++			local id64 = ply:SteamID64()
++			if ply:IsBot() then
++				id64 = ply:GetNWString("zcSteamID64", "")
++				if id64 == "" then return end
++			end
++			gui.OpenURL("https://steamcommunity.com/profiles/"..id64)
+ 		end
+ 
+ 		DScrollPanel:AddItem(but)

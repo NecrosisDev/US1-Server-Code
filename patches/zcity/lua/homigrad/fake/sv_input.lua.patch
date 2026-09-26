@@ -1,0 +1,25 @@
+--- a/lua/homigrad/fake/sv_input.lua
++++ b/lua/homigrad/fake/sv_input.lua
+@@ -1,12 +1,14 @@
+ local cooldown = 0.5
+ 
+ concommand.Add("fake", function(ply)
++	if not IsValid(ply) or not ply:IsPlayer() then return end
+ 	if not ply:Alive() then return end
+ 	if ply.fakecd and ply.fakecd > CurTime() then return end
+ 	if ply:IsFlagSet( FL_FROZEN ) then return end
++	if ZCityInteractions and not ZCityInteractions.CanVoluntaryRagdoll(ply) then return end
+ 	--ply.fakecd = CurTime() + cooldown
+ 	if not IsValid(ply.FakeRagdoll) then
+-		hg.Fake(ply)
++		if ply.SuperCrusher then hg.FakeByPlayerRequest(ply) else hg.Fake(ply) end
+ 	else
+ 		hg.FakeUp(ply)
+ 	end
+@@ -68,4 +70,4 @@
+ 	else
+ 		hg.FakeUp(ply)
+ 	end
+-end)
+\ No newline at end of file
++end)

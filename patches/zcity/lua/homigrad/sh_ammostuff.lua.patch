@@ -1,0 +1,498 @@
+--- a/lua/homigrad/sh_ammostuff.lua
++++ b/lua/homigrad/sh_ammostuff.lua
+@@ -357,6 +357,7 @@
+ 			TracerSpeed = 25000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "fmj"},
+ 			Damage = 44,
+ 			Force = 44,
+ 			Penetration = 13,
+@@ -390,6 +391,7 @@
+ 			TracerSpeed = 25000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "fmj"},
+ 			Damage = 44,
+ 			Force = 44,
+ 			Penetration = 16,
+@@ -423,6 +425,7 @@
+ 			TracerSpeed = 25000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "ap"},
+ 			Damage = 44,
+ 			Force = 44,
+ 			Penetration = 15,
+@@ -456,6 +459,7 @@
+ 			TracerSpeed = 25000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "sp"},
+ 			Damage = 68,
+ 			Force = 45,
+ 			Penetration = 9.98,
+@@ -490,6 +494,7 @@
+ 			TracerSpeed = 25000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "fmj"},
+ 			Damage = 50,
+ 			Force = 50,
+ 			Penetration = 13,
+@@ -524,6 +529,7 @@
+ 			TracerSpeed = 25000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "ap"},
+ 			Damage = 58.8,
+ 			Force = 66,
+ 			Penetration = 17.8,
+@@ -558,6 +564,7 @@
+ 			TracerSpeed = 25000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "sp"},
+ 			Damage = 50,
+ 			Force = 50,
+ 			Penetration = 3,
+@@ -592,6 +599,7 @@
+ 			TracerSpeed = 25000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "fmj"},
+ 			Damage = 35,
+ 			Force = 35,
+ 			Penetration = 11,
+@@ -625,6 +633,7 @@
+ 			NoSpin = true,
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "shot"},
+ 			Damage = 16,
+ 			Force = 12,
+ 			Penetration = 8,
+@@ -661,6 +670,7 @@
+ 			NoSpin = true,
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "shot"},
+ 			Damage = 16,
+ 			Force = 8,
+ 			Penetration = 8,
+@@ -698,6 +708,7 @@
+ 			NoSpin = true,
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "blunt"},
+ 			Damage = 60,
+ 			Force = 150,
+ 			Penetration = 3,
+@@ -735,6 +746,7 @@
+ 			NoSpin = true,
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "slug"},
+ 			Damage = 120,
+ 			Force = 120,
+ 			Penetration = 15,
+@@ -773,6 +785,7 @@
+ 			
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "frangible"},
+ 			Damage = 200,
+ 			Force = 90,
+ 			Penetration = 8,
+@@ -810,6 +823,7 @@
+ 			NoSpin = true,
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "blunt"},
+ 			Damage = 16,
+ 			Force = 8,
+ 			Penetration = 8,
+@@ -848,6 +862,7 @@
+ 			NoSpin = true,
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "shot"},
+ 			Damage = 20,
+ 			Force = 6,
+ 			Penetration = 8,
+@@ -885,6 +900,7 @@
+ 			NoSpin = true,
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "shot"},
+ 			Damage = 20,
+ 			Force = 2,
+ 			Penetration = 8,
+@@ -922,6 +938,7 @@
+ 			NoSpin = true,
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "ap"},
+ 			Damage = 120,
+ 			Force = 100,
+ 			Penetration = 25,
+@@ -959,6 +976,7 @@
+ 			NoSpin = true,
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "shot"},
+ 			Damage = 16,
+ 			Force = 6,
+ 			Penetration = 8,
+@@ -997,6 +1015,7 @@
+ 			NoSpin = true,
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "blunt"},
+ 			Damage = 80,
+ 			Force = 100,
+ 			Penetration = 1,
+@@ -1034,6 +1053,7 @@
+ 			NoSpin = true,
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "shot"},
+ 			Damage = 12,
+ 			Force = 6,
+ 			Penetration = 6,
+@@ -1071,6 +1091,7 @@
+ 			NoSpin = true,
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "slug"},
+ 			Damage = 120,
+ 			Force = 120,
+ 			Penetration = 8,
+@@ -1108,6 +1129,7 @@
+ 			NoSpin = true,
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "flechette"},
+ 			Damage = 16,
+ 			Force = 6,
+ 			Penetration = 6,
+@@ -1144,6 +1166,7 @@
+ 			TracerSpeed = 15000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "fmj"},
+ 			Damage = 24,
+ 			Force = 24,
+ 			Penetration = 6,
+@@ -1177,6 +1200,7 @@
+ 			TracerSpeed = 15000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "fmj"},
+ 			Damage = 24,
+ 			Force = 24,
+ 			Penetration = 6,
+@@ -1210,6 +1234,7 @@
+ 			TracerSpeed = 15000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "fmj"},
+ 			Damage = 25,
+ 			Force = 25,
+ 			Penetration = 7,
+@@ -1243,6 +1268,7 @@
+ 			TracerSpeed = 15000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "jhp"},
+ 			Damage = 58.23,
+ 			Force = 27,
+ 			Penetration = 6.1,
+@@ -1276,6 +1302,7 @@
+ 			TracerSpeed = 15000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "fmj"},
+ 			Damage = 25,
+ 			Force = 25,
+ 			Penetration = 7,
+@@ -1309,6 +1336,7 @@
+ 			TracerSpeed = 15000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "sp"},
+ 			Damage = 45,
+ 			Force = 45,
+ 			Penetration = 4,
+@@ -1342,6 +1370,7 @@
+ 			TracerSpeed = 15000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "fmj"},
+ 			Damage = 30,
+ 			Force = 35,
+ 			Penetration = 6.5,
+@@ -1375,6 +1404,7 @@
+ 			TracerSpeed = 15000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "jhp"},
+ 			Damage = 50,
+ 			Force = 50,
+ 			Penetration = 5,
+@@ -1408,6 +1438,7 @@
+ 			TracerSpeed = 25000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "fmj"},
+ 			Damage = 35,
+ 			Force = 35,
+ 			Penetration = 9,
+@@ -1441,6 +1472,7 @@
+ 			TracerSpeed = 15000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "fmj"},
+ 			Damage = 25,
+ 			Force = 25,
+ 			Penetration = 7,
+@@ -1475,6 +1507,7 @@
+ 			NoSpin = true,
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "blunt"},
+ 			Damage = 30,
+ 			Force = 30,
+ 			Penetration = 1,
+@@ -1509,6 +1542,7 @@
+ 			NoSpin = true,
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "blunt"},
+ 			Damage = 8,
+ 			Force = 5,
+ 			Penetration = 4,
+@@ -1544,6 +1578,7 @@
+ 			NoSpin = true,
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "blunt"},
+ 			Damage = 8,
+ 			Force = 5,
+ 			Penetration = 4,
+@@ -1591,6 +1626,7 @@
+ 			NoSpin = true,
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "blunt"},
+ 			Damage = 35,
+ 			Force = 32,
+ 			Penetration = 1,
+@@ -1625,6 +1661,7 @@
+ 			NoSpin = true,
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "blunt"},
+ 			Damage = 15,
+ 			Force = 10,
+ 			Penetration = 2,
+@@ -1659,6 +1696,7 @@
+ 			TracerSpeed = 25000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "fmj"},
+ 			Damage = 32,
+ 			Force = 32,
+ 			Penetration = 10,
+@@ -1692,6 +1730,7 @@
+ 			TracerSpeed = 25000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "fmj"},
+ 			Damage = 32,
+ 			Force = 32,
+ 			Penetration = 10.5,
+@@ -1724,6 +1763,7 @@
+ 			TracerSpeed = 20000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "sp"},
+ 			Damage = 40,
+ 			Force = 40,
+ 			Penetration = 10,
+@@ -1757,6 +1797,7 @@
+ 			TracerSpeed = 20000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "sp"},
+ 			Damage = 40,
+ 			Force = 40,
+ 			Penetration = 10,
+@@ -1790,6 +1831,7 @@
+ 			TracerSpeed = 20000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "fmj"},
+ 			Damage = 27,
+ 			Force = 27,
+ 			Penetration = 7,
+@@ -1811,6 +1853,7 @@
+ 		minsplash = 5,
+ 		maxsplash = 5,
+ 		BulletSettings = {
++			Ballistics = {construction = "ap"},
+ 			Damage = 550,
+ 			Force = 100,
+ 			Penetration = 320,
+@@ -1843,6 +1886,7 @@
+ 			TracerSpeed = 15000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "ap"},
+ 			Damage = 250,
+ 			Force = 100,
+ 			Penetration = 320,
+@@ -1875,6 +1919,7 @@
+ 			TracerSpeed = 15000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "fmj"},
+ 			Damage = 42,
+ 			Force = 42,
+ 			Penetration = 15,
+@@ -1908,6 +1953,7 @@
+ 			TracerSpeed = 25000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "fmj"},
+ 			Damage = 40,
+ 			Force = 40,
+ 			Penetration = 11,
+@@ -1941,6 +1987,7 @@
+ 			TracerSpeed = 25000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "fmj"},
+ 			Damage = 81,
+ 			Force = 40,
+ 			Penetration = 10,
+@@ -1974,6 +2021,7 @@
+ 			TracerSpeed = 25000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "jhp"},
+ 			Damage = 101.5,
+ 			Force = 110,
+ 			Penetration = 9.6,
+@@ -2007,6 +2055,7 @@
+ 			TracerSpeed = 25000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "fmj"},
+ 			Damage = 65,
+ 			Force = 65,
+ 			Penetration = 18,
+@@ -2040,6 +2089,7 @@
+ 			TracerSpeed = 25000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "ap"},
+ 			Damage = 74.7,
+ 			Force = 69,
+ 			Penetration = 23.4,
+@@ -2073,6 +2123,7 @@
+ 			TracerSpeed = 25000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "fmj"},
+ 			Damage = 70,
+ 			Force = 70,
+ 			Penetration = 20,
+@@ -2105,6 +2156,7 @@
+ 			TracerSpeed = 25000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "fmj"},
+ 			Damage = 180,
+ 			Force = 60,
+ 			Penetration = 35,
+@@ -2138,6 +2190,7 @@
+ 			TracerSpeed = 10000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "fmj"},
+ 			Damage = 17,
+ 			Force = 20,
+ 			Penetration = 6.5,
+@@ -2181,6 +2234,7 @@
+ 			TracerSpeed = 45000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "ap"},
+ 			Damage = 150,
+ 			Force = 40,
+ 			Penetration = 60,
+@@ -2213,6 +2267,7 @@
+ 			TracerSpeed = 45000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "fmj"},
+ 			Damage = 255,
+ 			Force = 40,
+ 			Penetration = 9,
+@@ -2248,6 +2303,7 @@
+ 			MaxPathPoints = 5,
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "ap"},
+ 			Mass = 200,
+ 			Icon = matRfileAmmo,
+ 			Damage = 256.8,
+@@ -2286,6 +2342,7 @@
+ 			TracerColor = Color(15, 15, 15),
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "blunt"},
+ 			Mass = 40,
+ 			Icon = matRfileAmmo,
+ 			Damage = 35,
+@@ -2322,6 +2379,7 @@
+ 			MaxPathPoints = 5,
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "blunt"},
+ 			Mass = 200,
+ 			PhysPenetrationMul = 0.0,
+ 			-- Speed = 185,
+@@ -2362,6 +2420,7 @@
+ 			TracerSpeed = 25000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "fmj"},
+ 			Damage = 50,
+ 			Force = 50,
+ 			Penetration = 17,
+@@ -2397,6 +2456,7 @@
+ 			TracerSpeed = 25000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "fmj"},
+ 			Damage = 0,
+ 			Force = 50,
+ 			Penetration = 17,
+@@ -2457,6 +2517,7 @@
+ 			TracerSpeed = 6000
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "blunt"},
+ 			Damage = 100,
+ 			Force = 120,
+ 			Penetration = 1,
+@@ -2490,6 +2551,7 @@
+ 			NoSpin = true,
+ 		},
+ 		BulletSettings = {
++			Ballistics = {construction = "blunt"},
+ 			Damage = 5,
+ 			Force = 10,
+ 			Penetration = 0,

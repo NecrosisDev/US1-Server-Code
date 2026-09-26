@@ -1,0 +1,234 @@
+--- a/lua/homigrad/new_appearance/cl_init.lua
++++ b/lua/homigrad/new_appearance/cl_init.lua
+@@ -76,6 +76,7 @@
+ local hg_firstperson_death = ConVarExists("hg_firstperson_death") and GetConVar("hg_firstperson_death") or CreateClientConVar("hg_firstperson_death", "0", "first person death", true, false, 0, 1)
+ 
+ function RenderAccessories(ply, accessories, setup)
++	if ZCKillcamView and ZCKillcamView.IsolatingScene and ZCKillcamView.IsolatingScene() then return end
+ 
+ 	if not IsValid(ply) or not accessories then return end
+ 
+@@ -89,7 +90,7 @@
+ 	islply = ((ply:IsRagdoll() and hg.RagdollOwner(ply)) or ply) == (LocalPlayer():Alive() and LocalPlayer() or LocalPlayer():GetNWEntity("spect",LocalPlayer())) and GetViewEntity() == (LocalPlayer():Alive() and LocalPlayer() or LocalPlayer():GetNWEntity("spect",LocalPlayer()))
+ 	
+ 	local fountains = GetNetVar("fountains") or {}
+-	if ent == follow and hg_firstperson_death:GetBool() and !fountains[ent] then islply = true end
++	if ent == follow and hg_firstperson_death:GetBool() and !fountains[ent] then islply = true end if hg.camSelfieRender and islply then if IsValid(wep) and whitelist[wep:GetClass()] then return end islply = false end
+ 
+ 	if islply and IsValid(wep) and whitelist[wep:GetClass()] then
+ 		if not ent.modelAccess then return end
+@@ -133,6 +134,7 @@
+ 
+ local huy_addvec = Vector(0.4,0,0.4)
+ function DrawAccesories(ply, ent, accessories,accessData, islply, force, setup)
++	if ZCKillcamView and ZCKillcamView.IsolatingScene and ZCKillcamView.IsolatingScene() then return end
+ 	if not accessories then return end
+ 	if not accessData then return end
+ 
+@@ -244,7 +246,74 @@
+ local mat2 = Material("sprites/light_glow02_add_noz")
+ local mat3 = Material("effects/flashlight/soft")
+ 
++-- ==== flashlight performance manager ====
++-- Projected lights are the most expensive light primitive; uncapped and
++-- unculled they crater FPS when several lit players group up. Rules:
++-- beyond FL_MAXDIST no projection (glare sprite only), at most
++-- FL_MAXLIGHTS projections at once, 30Hz updates, throttled glare
++-- traces, and a sweep that kills orphaned lights (out-of-PVS players).
++local FL_MAXDIST = 1000
++local FL_MAXLIGHTS = 5
++local FL_UPDATE = 0.033
++local FL_TRACERATE = 0.1
++FL_REG = FL_REG or {}
++
++timer.Create("HG_FlashlightSweep", 1, 0, function()
++	for p, light in pairs(FL_REG) do
++		local stale = not IsValid(p) or not IsValid(light)
++			or not p:Alive()
++			or not p:GetNetVar("flashlight")
++			or (p.FlashlightTouch or 0) + 0.6 < CurTime()
++		if stale then
++			if IsValid(light) then light:Remove() end
++			FL_REG[p] = nil
++			if IsValid(p) then p.flashlight = nil end
++		end
++	end
++end)
++
++local function FL_Count()
++	local n = 0
++	for p, l in pairs(FL_REG) do
++		if IsValid(l) then n = n + 1 end
++	end
++	return n
++end
++
++-- fairness: every 0.75s the projection slots are re-dealt to the
++-- NEAREST lit players. Slow cadence keeps swaps from flickering.
++FL_CAND = FL_CAND or {}
++FL_ALLOW = nil
++
++timer.Create("HG_FlashlightRank", 0.75, 0, function()
++	local now = CurTime()
++	local list = {}
++	for p, info in pairs(FL_CAND) do
++		if IsValid(p) and info.t + 0.6 > now then
++			list[#list + 1] = { p = p, dist = info.dist }
++		else
++			FL_CAND[p] = nil
++		end
++	end
++	table.sort(list, function(a, b) return a.dist < b.dist end)
++
++	FL_ALLOW = {}
++	for i = 1, math.min(FL_MAXLIGHTS, #list) do
++		FL_ALLOW[list[i].p] = true
++	end
++
++	-- revoke lights from anyone outside the nearest set
++	for p, light in pairs(FL_REG) do
++		if not FL_ALLOW[p] then
++			if IsValid(light) then light:Remove() end
++			FL_REG[p] = nil
++			if IsValid(p) then p.flashlight = nil end
++		end
++	end
++end)
++
+ function DrawAppearance(ent, ply, setup)
++	if ZCKillcamView and ZCKillcamView.IsolatingScene and ZCKillcamView.IsolatingScene() then return end
+     local Access = ent:GetNetVar("Accessories") or ent.PredictedAccessories
+ 	
+ 	if IsValid(ent) and Access then
+@@ -260,6 +329,7 @@
+ 		if ply.flashlight then
+ 			ply.flashlight:Remove()
+ 			ply.flashlight = nil
++			FL_REG[ply] = nil
+ 		end
+ 		if ply.flmodel then
+ 			ply.flmodel:Remove()
+@@ -312,19 +382,41 @@
+ 
+ 		ply.flmodel:DrawModel()
+ 
+-		ply.flashlight = IsValid(ply.flashlight) and ply.flashlight or ProjectedTexture()
+-		if ply.flashlight and ply.flashlight:IsValid() and (ply.FlashlightUpdateTime or 0) < CurTime() then
+-			local flash = ply.flashlight
+-			ply.FlashlightUpdateTime = CurTime() + 0.01
+-			flash:SetTexture(mat3:GetTexture("$basetexture"))
+-			flash:SetFarZ(1500)
+-			flash:SetHorizontalFOV(60)
+-			flash:SetVerticalFOV(60)
+-			flash:SetConstantAttenuation(0.1)
+-			flash:SetLinearAttenuation(50)
+-			flash:SetPos(ply.flmodel:GetPos() + ply.flmodel:GetAngles():Forward() * (ply:GetVelocity():Length() / 10 + 15))
+-			flash:SetAngles(ply.flmodel:GetAngles())
+-			flash:Update()
++		-- distance cull + light cap + real throttle; static config once
++		local view = render.GetViewSetup(true)
++		local eyeDist = ply.flmodel:GetPos():Distance(view.origin)
++		ply.FlashlightTouch = CurTime()
++
++		if eyeDist <= FL_MAXDIST then
++			FL_CAND[ply] = { dist = eyeDist, t = CurTime() }
++
++			-- allowed: in the nearest-N set (or bootstrap before the
++			-- first ranking pass)
++			local allowed = FL_ALLOW and FL_ALLOW[ply] or (not FL_ALLOW and FL_Count() < FL_MAXLIGHTS)
++
++			if not IsValid(ply.flashlight) and allowed and FL_Count() < FL_MAXLIGHTS then
++				local flash = ProjectedTexture()
++				flash:SetTexture(mat3:GetTexture("$basetexture"))
++				flash:SetFarZ(1000)
++				flash:SetHorizontalFOV(60)
++				flash:SetVerticalFOV(60)
++				flash:SetConstantAttenuation(0.1)
++				flash:SetLinearAttenuation(50)
++				ply.flashlight = flash
++				FL_REG[ply] = flash
++			end
++
++			if IsValid(ply.flashlight) and (ply.FlashlightUpdateTime or 0) < CurTime() then
++				ply.FlashlightUpdateTime = CurTime() + FL_UPDATE
++				local flash = ply.flashlight
++				flash:SetPos(ply.flmodel:GetPos() + ply.flmodel:GetAngles():Forward() * (ply:GetVelocity():Length() / 10 + 15))
++				flash:SetAngles(ply.flmodel:GetAngles())
++				flash:Update()
++			end
++		elseif IsValid(ply.flashlight) then
++			ply.flashlight:Remove()
++			ply.flashlight = nil
++			FL_REG[ply] = nil
+ 		end
+ 
+ 		--[[ply.dlight = DynamicLight( ply:EntIndex() )
+@@ -341,18 +433,21 @@
+ 			ply.dlight = DynamicLight( ply:EntIndex() )
+ 		end--]]
+ 
+-		local view = render.GetViewSetup(true)
+ 		local deg = ply.flmodel:GetAngles():Forward():Dot(view.angles:Forward())
+ 		deg = math.ease.InBack(-deg + 0.05) * 2
+ 		deg = -deg
+-		local chekvisible = util.TraceLine({
+-			start = ply.flmodel:GetPos() + ply.flmodel:GetAngles():Forward() * 6,
+-			endpos = view.origin,
+-			filter = {ply, ent, ply.flmodel, LocalPlayer()},
+-			mask = MASK_VISIBLE
+-		})
++		if (ply.FLTraceTime or 0) < CurTime() then
++			ply.FLTraceTime = CurTime() + FL_TRACERATE
++			local chekvisible = util.TraceLine({
++				start = ply.flmodel:GetPos() + ply.flmodel:GetAngles():Forward() * 6,
++				endpos = view.origin,
++				filter = {ply, ent, ply.flmodel, LocalPlayer()},
++				mask = MASK_VISIBLE
++			})
++			ply.FLTraceHit = chekvisible.Hit
++		end
+ 
+-		if deg < 0 and not chekvisible.Hit then
++		if deg < 0 and not ply.FLTraceHit then
+ 			render.SetMaterial(mat2)
+ 			render.DrawSprite(ply.flmodel:GetPos() + ply.flmodel:GetAngles():Forward() * 5 + ply.flmodel:GetAngles():Right() * -0.5, 50 * math.min(deg, 0), 50 * math.min(deg, 0), color_white)
+ 		end
+@@ -360,11 +455,13 @@
+ 		if ply.flashlight and IsValid(ply.flashlight) then
+ 			ply.flashlight:Remove()
+ 			ply.flashlight = nil
++			FL_REG[ply] = nil
+ 		end
+ 	end
+ end
+ 
+ hook.Add("RenderScreenspaceEffects","AppearanceShitty",function()
++	if ZCKillcamView and ZCKillcamView.IsolatingScene and ZCKillcamView.IsolatingScene() then return end
+ 	if (not LocalPlayer():Alive()) or LocalPlayer():GetViewEntity() ~= LocalPlayer() then return end
+ 	local ply = LocalPlayer()
+ 	local acsses = ply:GetNetVar("Accessories", "none")
+@@ -389,6 +486,7 @@
+ end)
+ 
+ function CoolRenderAccessories(ply, accessories)
++	if ZCKillcamView and ZCKillcamView.IsolatingScene and ZCKillcamView.IsolatingScene() then return end
+ 
+ 	if not IsValid(ply) or not accessories then return end
+ 
+@@ -398,7 +496,7 @@
+ 
+ 	local ent = IsValid(ply.FakeRagdoll) and ply.FakeRagdoll or ply
+ 
+-	islply = ((ply:IsRagdoll() and hg.RagdollOwner(ply)) or ply) == (LocalPlayer():Alive() and LocalPlayer() or LocalPlayer():GetNWEntity("spect",LocalPlayer())) and GetViewEntity() == (LocalPlayer():Alive() and LocalPlayer() or LocalPlayer():GetNWEntity("spect",LocalPlayer()))
++	islply = ((ply:IsRagdoll() and hg.RagdollOwner(ply)) or ply) == (LocalPlayer():Alive() and LocalPlayer() or LocalPlayer():GetNWEntity("spect",LocalPlayer())) and GetViewEntity() == (LocalPlayer():Alive() and LocalPlayer() or LocalPlayer():GetNWEntity("spect",LocalPlayer())) if hg.camSelfieRender and islply then if IsValid(wep) and whitelist[wep:GetClass()] then return end islply = false end
+ 
+ 	if islply and IsValid(wep) and whitelist[wep:GetClass()] then
+ 		if not ent.modelAccess then return end
+@@ -441,6 +539,7 @@
+ end
+ 
+ function RenderAccessoriesCool(ent,ply)
++	if ZCKillcamView and ZCKillcamView.IsolatingScene and ZCKillcamView.IsolatingScene() then return end
+ 	if IsValid(ent) and ent:GetNetVar("Accessories") then
+ 		CoolRenderAccessories(ent, ent:GetNetVar("Accessories", "none"))
+ 	end

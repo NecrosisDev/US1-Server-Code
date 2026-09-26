@@ -1,0 +1,11 @@
+--- a/lua/homigrad/playerclass/classes/sh_combine.lua
++++ b/lua/homigrad/playerclass/classes/sh_combine.lua
+@@ -273,7 +273,7 @@
+     if CLIENT then return end
+ 
+ 	if eightbit and eightbit.EnableEffect and self.UserID then
+-		eightbit.EnableEffect(self:UserID(), eightbit.EFF_PROOT) --!! placeholder
++		eightbit.EnableEffect(self:UserID(), eightbit.EFF_MASKVOICE) -- 2026-09-24: mask/radio voice; was the PROOT placeholder
+ 	end
+ 
+     if IsValid(self.FakeRagdoll) then

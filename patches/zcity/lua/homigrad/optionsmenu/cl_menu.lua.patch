@@ -1,0 +1,10 @@
+--- a/lua/homigrad/optionsmenu/cl_menu.lua
++++ b/lua/homigrad/optionsmenu/cl_menu.lua
+@@ -109,5 +109,6 @@
+ options_old = {}
+ 
+ concommand.Add("hg_options",function()
++    if ZCGoobApps and ZCGoobApps.Launch("settings") then return end
+     CreateOptionsMenu()
+ end)
+\ No newline at end of file

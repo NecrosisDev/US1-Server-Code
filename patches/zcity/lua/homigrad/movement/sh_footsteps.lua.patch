@@ -1,0 +1,28 @@
+--- a/lua/homigrad/movement/sh_footsteps.lua
++++ b/lua/homigrad/movement/sh_footsteps.lua
+@@ -7,6 +7,16 @@
+ 	local EmitSound, SoundDuration, hg, ViewPunch, CurTime, math = EmitSound, SoundDuration, hg, ViewPunch, CurTime, math
+ 	local math_max = math.max
+ 
++	local durationCache = {}
++	local function cachedDuration(snd)
++		local dur = durationCache[snd]
++		if dur == nil then
++			dur = SoundDuration(snd) or 0
++			durationCache[snd] = dur
++		end
++		return dur
++	end
++
+ 	hook.Add("PlayerStepSoundTime", "hguhuy", function(ply, type, walking)
+ 		return 1
+ 	end)
+@@ -63,7 +73,7 @@
+ 				else
+ 					snd = "zcitysnd/"..sound -- missing footsteps fix
+ 				end
+-				if SoundDuration(snd) <= 0 or ply.PlayerClassName == "Gordon" then
++				if cachedDuration(snd) <= 0 or ply.PlayerClassName == "Gordon" then
+ 					snd = sound
+ 				end
+ 				EmitSound(snd, pos, ply:EntIndex(), CHAN_AUTO, volume, 75, nil, changePitch(math.random(95,105)) )

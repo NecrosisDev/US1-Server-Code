@@ -1,0 +1,52 @@
+--- a/lua/homigrad/organism/tier_1/modules/cl_berserk.lua
++++ b/lua/homigrad/organism/tier_1/modules/cl_berserk.lua
+@@ -128,13 +128,16 @@
+ 		intensity = (intensity - math.Round(intensity)) % 1
+ 		--intensity = math.sqrt(math.sqrt(intensity))
+ 		intensity = math.Clamp((intensity * 0.25 + 0.75), 0, 1)
+-		intensity = math.ease.InExpo(intensity) * berserkClamped * 2--math.abs(math.cos(1 - (intensity * 2))) * berserkClamped
++		intensity = math.ease.InExpo(intensity) * berserkClamped * 1--math.abs(math.cos(1 - (intensity * 2))) * berserkClamped
+ 
+-		tab2[ "$pp_colour_mulr" ] = (1.5 * math.min(1, berserk * 4)) + (intensity / 5)
+-		tab2[ "$pp_colour_addr" ] = (0.1 * math.min(1, berserk * 4)) + intensity / 64
++		local mayhemScale = lply:GetNWBool("MayhemBerserk", false) and 0.5 or 1
++		intensity = intensity * mayhemScale
++
++		tab2[ "$pp_colour_mulr" ] = ((0.75 * math.min(1, berserk * 4)) * mayhemScale) + (intensity / 5)
++		tab2[ "$pp_colour_addr" ] = ((0.05 * math.min(1, berserk * 4)) * mayhemScale) + intensity / 64
+ 		-- tab[ "$pp_colour_contrast" ] = 1 + intensity / 8
+ 
+-		tab2[ "$pp_colour_colour" ] = 1 - math.Clamp(intensity, 0, 0.9)
++		tab2[ "$pp_colour_colour" ] = 1 - math.Clamp(intensity, 0, 0.45)
+ 		tab2[ "$pp_colour_mulg" ] = 0
+ 		tab2[ "$pp_colour_mulb" ] = 0
+ 
+@@ -148,7 +151,9 @@
+ 	end
+ 
+ 	if IsValid(hg.berserkStation) then
+-		hg.berserkStation:SetVolume(math.min(1, (organism.otrub and 0) or berserkClamped))
++		local vol = math.min(1, (organism.otrub and 0) or berserkClamped)
++		if lply:GetNWBool("MayhemBerserk", false) then vol = vol * 0.25 end
++		hg.berserkStation:SetVolume(vol)
+ 	end
+ end)
+ 
+@@ -173,14 +178,15 @@
+ 
+ hook.Add("Post Post Processing", "berserkEffect", function()
+ 	if hg.underberserk2 and hg.berserkClamped then
++		local mayhemScale = IsValid(lply) and lply:GetNWBool("MayhemBerserk", false) and 0.5 or 1
+ 		render.UpdateScreenEffectTexture()
+ 		render.UpdateFullScreenDepthTexture()
+ 		
+ 		grainMat:SetFloat("$c0_x", CurTime()) -- time
+ 		grainMat:SetFloat("$c0_y", 0.5) -- gate
+ 		grainMat:SetFloat("$c0_z", 2) -- Pixelize
+-		grainMat:SetFloat("$c1_x", 0.2 * hg.berserkClamped) -- lerp
+-		grainMat:SetFloat("$c1_y", 1.5) -- vignette intensity
++		grainMat:SetFloat("$c1_x", 0.1 * hg.berserkClamped * mayhemScale) -- lerp
++		grainMat:SetFloat("$c1_y", 0.75 * mayhemScale) -- vignette intensity
+ 		grainMat:SetFloat("$c1_z", 0.2) -- BlurIntensity
+ 		grainMat:SetFloat("$c2_x", 6) -- r
+ 		grainMat:SetFloat("$c2_y", 0) -- g
