@@ -601,6 +601,11 @@ function R.Start(rs)
     if #idx.chunks == 0 or #idx.actors == 0 then
         return R.Fail(rs, "Nothing to replay", "This round's recording has no players or no footage in it.", false)
     end
+    -- Owner 2026-09-26 (choice A): the round is drawn inside the LIVE world, so a tape from another map would put its
+    -- players inside the wrong level. Block it with the reason; a head without a map (older tapes) plays as before.
+    if idx.head and isstring(idx.head.map) and idx.head.map ~= "" and idx.head.map ~= game.GetMap() then
+        return R.Fail(rs, "Recorded on " .. idx.head.map, "Round replays play inside the map they were recorded on. Watch it when " .. idx.head.map .. " is on.", false)
+    end
     local L0 = V.Life.State()
     if L0 then MsgN("[Replay] a killcam took the screen while the round loaded.") return R.Close("busy") end
     for k, c in ipairs(idx.chunks) do rs.chunks[k] = {seq = c.seq, t0 = c.t0, t1 = c.t1} end
@@ -1640,7 +1645,7 @@ function R.FillList()
     lv:Clear()
     for _, t in ipairs(R.listRows or {}) do
         local len = tonumber(t.len)
-        local row = lv:AddLine(t.id, t.t and os.date("%d %b %H:%M", tonumber(t.t)) or "?", tostring(t.map or "?"),
+        local row = lv:AddLine(t.id, t.t and os.date("%d %b %H:%M", tonumber(t.t)) or "?", tostring(t.map or "?") .. ((t.map and t.map ~= game.GetMap()) and " (other map)" or ""),
             tostring(t.mode or "?"), len and R.Clock(len * 100) or "?", tostring(t.players or "?"))
         if row then row.zcRid = t.id end
     end
