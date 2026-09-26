@@ -25,7 +25,7 @@ if not K or not T or not P then return end
 
 local RE = A.RoundEnd or {}
 A.RoundEnd = RE
-RE.Version = "20260926.roundend11+modevote6"
+RE.Version = "20260926.roundend12+modevote6"
 -- Autorefresh reinstalls this file while the old panel lives on with the old painters (LESSONS.md): drop it so the next
 -- phase entry rebuilds it from this file's code (ensurePanel).
 if IsValid(RE.Panel) then RE.Panel:Remove() end
@@ -60,6 +60,8 @@ RE.Dock = nil -- the chat dock rect inside the panel, published through P.ChatDo
 RE.PrevoteAskedAt = nil
 RE.ModeVote = freshModeVote()
 RE.MapVote = freshMapVote()
+-- a re-included file must hand back a cursor the previous load turned on: nothing else would ever turn it off
+if RE.CursorOn then gui.EnableScreenClicker(false) end
 RE.CursorOn = false
 RE.Wraps = RE.Wraps or {}
 -- modevote6: a re-included file must not keep the previous load's wrappers (installWrap sees its own old wrapper in the
@@ -126,7 +128,10 @@ local function onRoundState(state, prev)
         RE.RoundMeta = {mode = mode, length = length}
         resetRoundState()
     elseif state == 1 then
-        -- Players can move again: whatever was up leaves now.
+        -- Players can move again: whatever was up leaves now. A resolved ballot (extend won: the server's reset sent
+        -- cancel, which keeps the result for the intermission) ends here too, or final() stays true all round and hides
+        -- the compact mode-vote card.
+        if not RE.MapVote.active then RE.MapVote = freshMapVote() end
         closePanel()
     elseif state ~= 3 and not voting() then
         -- Owner, 2026-09-24: the panel used to linger through the preparation state with nothing to show. It now
@@ -323,13 +328,13 @@ local function takeCopsRoundEnd()
 end
 
 installWraps = function()
-    installWrap("zc_modevote_start", takeModeStart)
     local modeTaken = function() return RE.ModeVote.active end
+    installWrap("zc_modevote_start", takeModeStart, modeTaken)
     installWrap("zc_modevote_tally", takeModeTally, modeTaken)
     installWrap("zc_modevote_end", takeModeEnd, modeTaken)
     installWrap("zc_modevote_extend", takeModeExtend, modeTaken)
-    installWrap("SolidMapVote.start", takeMapStart)
     local mapTaken = function() return RE.MapVote.active end
+    installWrap("SolidMapVote.start", takeMapStart, mapTaken)
     installWrap("SolidMapVote.cancel", takeMapCancel, mapTaken)
     installWrap("SolidMapVote.deadline", takeMapDeadline, mapTaken)
     installWrap("SolidMapVote.end", takeMapEnd, mapTaken)
@@ -1004,6 +1009,8 @@ local function paintRoster(panel, x, y, w, h, useMap)
     local mx, my = panel:CursorPos()
     local ry = ty - RE.RosterScroll
     local me = LocalPlayer()
+    -- pcall: an error inside the rows must never leave the scissor on (it would clip everything drawn after it)
+    local ok, err = pcall(function()
     for i = first, #rows do
         if ry + rowH > ty and ry < ty + listH then
             local r = rows[i]
@@ -1031,7 +1038,9 @@ local function paintRoster(panel, x, y, w, h, useMap)
         end
         ry = ry + rowH
     end
+    end)
     if clip then render.SetScissorRect(0, 0, 0, 0, false) end
+    if not ok then ErrorNoHalt("[GoobOS roundend] roster: " .. tostring(err) .. "\n") end
     if maxScroll > 0 then
         local thumbH = math.max(u(20), listH * listH / (count * rowH))
         local thumbY = ty + (listH - thumbH) * (RE.RosterScroll / maxScroll)
@@ -1217,9 +1226,14 @@ local function paintPrevote(panel, x, y, w, h)
     local q = string.lower(tostring(RE.PrevoteQuery or ""):match("^%s*(.-)%s*$"))
     if q ~= "" then
         local n = 0
+        -- the lowercased "name\nlabel" per map is cached per pool: this runs every frame while a query is typed
+        local lc = RE.PrevoteLower
+        if not lc or lc.pool ~= pool then lc = {pool = pool, keys = {}} RE.PrevoteLower = lc end
         for _, map in ipairs(istable(pool) and pool or {}) do
             if ty + rowH > bottom then break end
-            if string.lower(map) ~= current and (string.find(string.lower(map), q, 1, true) or string.find(string.lower(prevoteLabel(map)), q, 1, true)) then
+            local key = lc.keys[map]
+            if not key then key = string.lower(map) .. "\n" .. string.lower(prevoteLabel(map)) lc.keys[map] = key end
+            if string.lower(map) ~= current and string.find(key, q, 1, true) then
                 n = n + 1
                 row(map, counts[map], false)
             end
@@ -1471,6 +1485,10 @@ function RE.Side()
     return IsValid(me) and me:Alive() and me:Team() ~= TEAM_SPECTATOR
 end
 local function aliveVoteKeys() return GetGlobalBool("zc_postround_alive_vote", false) end
+-- ballot_alive_20260926: the MAP ballot is the one vote a living player has no other way to cast (the addon's own menu
+-- is blocked while this panel holds the vote, and the side card has no cursor), so its number keys are always taken
+-- while it is open. zc_postround_alive_vote still governs the mode vote.
+local function aliveMapKeys() return aliveVoteKeys() or (RE.MapVote.active and RE.MapVote.result == nil) end
 -- postround2_20260925 (owner 2026-09-25: living players vote with the number keys, zc_postround_alive_vote 1): the
 -- open map ballot as numbered choices, in ballot order (ballotChoices: maps, then extend, then random), wrapped over at
 -- most three rows; the last row is trimmed to the card if a long ballot still overflows.
@@ -1499,13 +1517,13 @@ local function paintSide(panel, w, h)
     local ih = math.floor(iw * 9 / 16)
     local hasVote = RE.ModeVote.active or final()
     local keysOk = aliveVoteKeys() or not RE.Side()
-    local ballot = hasVote and not RE.ModeVote.active and keysOk and RE.MapVote.active and not RE.MapVote.result and sideBallotRows(iw) or nil
+    local ballot = hasVote and not RE.ModeVote.active and (keysOk or aliveMapKeys()) and RE.MapVote.active and not RE.MapVote.result and sideBallotRows(iw) or nil
     K.Card(x, y, cw, u(52) + ih + (hasVote and (u(54) + (ballot and (#ballot - 1) * u(16) or 0)) or pad), SIDE_FILL, SIDE_EDGE)
+    paintInset(panel, x + pad, y + u(52), iw, ih) -- before the title: see paintPanel's header note
     local title = winnerLabel()
     title = title and string.upper(title) or "ROUND OVER"
     text(fit(title, 16, 800, iw), 16, 800, x + pad, y + u(10), T.text)
     text(final() and "MAP REEL" or "HIGHLIGHT OF THE ROUND", 9, 700, x + pad, y + u(34), T.muted)
-    paintInset(panel, x + pad, y + u(52), iw, ih)
     if not hasVote then return end
     local fy = y + u(52) + ih + u(10)
     if RE.ModeVote.active then
@@ -1539,7 +1557,6 @@ local function paintPanel(panel, w, h)
     local pad = u(40)
     local innerX, innerW = pad, w - pad * 2 - P.RightGutter()
     local headerH = u(88)
-    paintHeader(panel, innerX, u(28), innerW, headerH)
     local bodyY = u(28) + headerH + u(14)
     local bodyH = h - bodyY - u(24)
     local gap = u(28)
@@ -1568,6 +1585,9 @@ local function paintPanel(panel, w, h)
         paintPrevote(panel, rightX, bodyY + modeH + u(16), rightW, prevoteH)
         paintRoster(panel, rightX, bodyY + modeH + prevoteH + u(32), rightW, bodyH - modeH - prevoteH - u(32), false)
     end
+    -- inset_bloom_20260926: the header is painted LAST. The inset is a render.RenderView in the middle of this paint and
+    -- anything full-frame it triggers lands on what is already drawn; the title must not be under it.
+    paintHeader(panel, innerX, u(28), innerW, headerH)
 end
 
 -- === Think: visibility, geometry, cursor rule, Space=Skip ====================================
@@ -1714,6 +1734,10 @@ local function enterPanel()
 end
 openForVote = function()
     if RE.Phase == "panel" or not P.Enabled() then return end
+    -- The ballot beat the 0.5 s poll to the 1 -> 3 edge: the poll is about to show the winner card, and advanceWinner hands
+    -- over to the panel with the ballot in it. Opening now would flash the panel and then snap back to the card.
+    local state = roundState()
+    if state == 3 and lastRoundState == 1 then return end
     -- Only the intermission may be covered by the full panel; a mid-round vote shows as the compact card until then.
     if not intermission() then return end
     -- Owner 2026-09-24: the final intermission's ballot arrives AT round end, while the winner card is up. The card
@@ -1859,7 +1883,7 @@ end)
 
 P.SetKeys("roundend.map", function(n)
     if not RE.MapVote.active or RE.MapVote.result or not live() then return false end
-    if RE.Side() and not aliveVoteKeys() then return false end -- postround_20260925: a living player's keys stay theirs
+    if RE.Side() and not aliveMapKeys() then return false end -- ballot_alive_20260926: see aliveMapKeys
     local choice = ballotChoices()[n]
     if not choice then return false end
     castMap(choice)
