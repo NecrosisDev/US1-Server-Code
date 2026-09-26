@@ -13,7 +13,7 @@ CreateConVar("zc_goob_icons_tester", "76561198011536179", {FCVAR_ARCHIVE, FCVAR_
 CreateConVar("zc_goobos_panels", "0", {FCVAR_ARCHIVE, FCVAR_REPLICATED}, "GoobOS death and round-end panels (0 = current behaviour)")
 if SERVER then AddCSLuaFile("zc_goobos/feed_rules.lua") end
 include("zc_goobos/feed_rules.lua")
-local files = {"apps.lua", "kit.lua", "notify.lua", "media.lua", "panels.lua", "deathpanel.lua", "roundend.lua", "donate.lua", "preview.lua", "phone_preferences.lua", "shop.lua", "wardrobe.lua", "progress.lua", "settings.lua", "voice.lua", "camera.lua", "camera_ui.lua", "arcade.lua", "arcade_social.lua", "feed.lua", "feed_ui.lua", "messages.lua", "replays.lua"}
+local files = {"apps.lua", "kit.lua", "notify.lua", "media.lua", "share.lua", "panels.lua", "deathbody.lua", "deathpanel.lua", "roundend.lua", "donate.lua", "preview.lua", "phone_preferences.lua", "shop.lua", "wardrobe.lua", "progress.lua", "settings.lua", "voice.lua", "camera.lua", "camera_ui.lua", "arcade.lua", "arcade_social.lua", "feed.lua", "feed_ui.lua", "messages.lua", "replays.lua", "staff.lua"}
 for _, name in ipairs(files) do
     local path = "zc_goobos/" .. name
     if SERVER then AddCSLuaFile(path) else include(path) end
@@ -28,6 +28,7 @@ if SERVER then
     include("zc_goobos/sv_arcade_social.lua")
     include("zc_goobos/sv_feed_store.lua")
     include("zc_goobos/sv_feed.lua")
+    include("zc_goobos/sv_staff.lua")
 end
 if CLIENT and ZCGoobApps and hg and IsValid(hg.chat) and hg.chat.GoobAppsVersion == ZCGoobApps.Version then
     ZCGoobApps.BuildHome(hg.chat, hg.chat.phoneHome)
