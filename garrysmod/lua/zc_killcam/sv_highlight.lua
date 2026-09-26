@@ -89,10 +89,15 @@ local function unprovokedAt(a, b, t)
     if not (wa and wb and K.KillIntent and K.Intent and K.Intent.Judge) then return true end
     return (K.KillIntent(wa.uid, wb.uid) or K.Intent.Judge(wa.uid, wb.uid, t)) == "unprovoked"
 end
+local function ambushedAt(a, b, t)
+    local wa, wb = K.Identity(a), K.Identity(b)
+    return wa ~= nil and wb ~= nil and K.Ambushed ~= nil and K.Ambushed(wa.uid, wb.uid, t)
+end
 
 function H.Score(t0, t1)
     local by, taken, lastGroup, lastClear, seen, people = {}, {}, {}, {}, {}, 0
     local function unprovoked(a, b) return unprovokedAt(a, b, t1) end
+    local function ambushed(a, b) return ambushedAt(a, b, t1) end
     -- Only traitor modes have "innocent" and "traitor" at all; everywhere else every frag would read as friendly
     -- fire (K.TraitorRound, sv_clips.lua). Read once for the whole window, not per event.
     local traitorRound = K.TraitorRound and K.TraitorRound() or false
@@ -112,6 +117,9 @@ function H.Score(t0, t1)
                 -- "ivi" alone. "ivt" is the hero play and "tvt" is the game working; only innocent-on-innocent is the offence.
                 m = K.InstanceTag(true, isTraitor(a), isTraitor(b)) == "ivi" and RDM or 1
                 if m < 1 and not unprovoked(a, b) then m = 1 end
+                -- Whatever the victim turned out to be: knocking down somebody idle and going through their pockets
+                -- is not a play to put on every screen or pay for (sv_intent.lua, owner 2026-09-26).
+                if ambushed(a, b) then m = RDM end
             end
             row[b] = m
         end
@@ -461,7 +469,7 @@ local function isMelee(wep)
 end
 -- The killing blow's weapon for every death in [t0, t1]; the newest melee one wins (funniest is "most recent",
 -- there being no better ordering available). Mirrors H.Score's own (t0, t1) window shape.
--- An unprovoked teamkill is never the funny moment (2026-09-26): with nothing clearing the floor, the fallback used to
+-- An unprovoked teamkill (or an ambush on an idle player) is never the funny moment (2026-09-26): with nothing clearing the floor, the fallback used to
 -- pick ANY melee kill, so an innocent axing an innocent was shown to the whole server as the round's comic relief.
 function H.Funny(t0, t1)
     local lastWep, pick = {}, nil
@@ -470,8 +478,8 @@ function H.Funny(t0, t1)
         if kind == EV_HIT and wep and wep > 0 then lastWep[b] = wep end
         if kind == EV_DEATH and a and a > 0 then
             local w = lastWep[b]
-            local wrong = traitorRound and K.Identity(a) and K.Identity(b) and K.InstanceTag(true, isTraitor(a), isTraitor(b)) == "ivi"
-                and unprovokedAt(a, b, t)
+            local wrong = traitorRound and K.Identity(a) and K.Identity(b) and ((K.InstanceTag(true, isTraitor(a), isTraitor(b)) == "ivi"
+                and unprovokedAt(a, b, t)) or ambushedAt(a, b, t))
             if isMelee(w) and not wrong and (not pick or t > pick.t) then pick = {t = t, star = a, victim = b, wep = w} end
         end
     end)

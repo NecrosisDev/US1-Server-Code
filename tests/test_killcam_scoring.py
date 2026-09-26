@@ -41,9 +41,25 @@ function hook.Run(ev, ...)
     for _, fn in pairs(hooks[ev] or {}) do local r = fn(...) if r ~= nil then return r end end
 end
 concommand = {Add = function(name, fn) _G["CMD_" .. name] = fn end}
-timer = {Create = function() end, Simple = function() end, Remove = function() end}
+TIMERS = {}
+timer = {Create = function(name, _, _, fn) TIMERS[name] = fn end, Simple = function() end, Remove = function() end}
+MASK_SHOT = 1174421507
+local grace = 0
+function GetGlobalFloat(_, d) return grace end
+function SetGrace(t) grace = t end
+function math.AngleDifference(a, b) local d = (a - b + 180) % 360 - 180 return d end
+local V = {}
+V.__index = V
+function Vector(x, y, z) return setmetatable({x = x or 0, y = y or 0, z = z or 0}, V) end
+V.__sub = function(a, b) return Vector(a.x - b.x, a.y - b.y, a.z - b.z) end
+V.__div = function(a, n) return Vector(a.x / n, a.y / n, a.z / n) end
+function V:Length() return math.sqrt(self.x * self.x + self.y * self.y + self.z * self.z) end
+function V:Dot(b) return self.x * b.x + self.y * b.y + self.z * b.z end
+function V:Distance(b) return (self - b):Length() end
+WALL = false
 weapons = {GetStored = function() return {Category = "Melee"} end}
-util = {AddNetworkString = function() end, TableToJSON = function() return "{}" end, JSONToTable = function() return {} end}
+util = {AddNetworkString = function() end, TableToJSON = function() return "{}" end, JSONToTable = function() return {} end,
+    TraceLine = function(t) return {Hit = WALL, Entity = nil} end}
 net = {Receive = function() end}
 file = {Read = function() end, Write = function() end, CreateDir = function() end, Exists = function() return false end, Find = function() return {} end}
 game = {GetMap = function() return "test_map" end}
@@ -59,7 +75,16 @@ function IsValid(x) return type(x) == "table" and x.valid ~= false end
 LOG = {}
 local players = {}
 local function mkPlayer(uid, sid, traitor, bot)
-    local p = {valid = true, uid = uid, sid = sid, isTraitor = traitor, bot = bot, alive = true, chat = {}}
+    local p = {valid = true, uid = uid, sid = sid, isTraitor = traitor, bot = bot, alive = true, chat = {},
+        pos = Vector(uid * 100, 0, 0), aim = Vector(1, 0, 0), ang = {p = 0, y = 0}, vel = 0}
+    function p:EyePos() return self.pos end
+    function p:WorldSpaceCenter() return self.pos end
+    function p:GetPos() return self.pos end
+    function p:GetAimVector() return self.aim end
+    function p:EyeAngles() return self.ang end
+    function p:GetVelocity() return Vector(self.vel, 0, 0) end
+    function p:GetActiveWeapon() return self.wep end
+    function p:GetClass() return "player" end
     function p:UserID() return self.uid end
     function p:SteamID64() return self.sid end
     function p:IsBot() return self.bot == true end
@@ -116,6 +141,12 @@ function Kill(t, a, v)
     return tag
 end
 function Include(path) return dofile(LUA_ROOT .. "/" .. path) end
+GUN = {valid = true, ishgweapon = true, Primary = {Ammo = "9x19"}}
+function Tick(t) SetNow(t) TIMERS["ZCKillcam.IntentTick"]() end
+-- Point `a` straight at `v` (they sit on the x axis, 100 units per UserID).
+function AimAt(a, v) local d = v.pos - a.pos a.aim = d / d:Length() a.wep = GUN end
+function Box() local b = {valid = true, pos = Vector(0, 0, 0)} function b:GetClass() return "prop_physics" end
+    function b:GetPos() return self.pos end function b:IsPlayer() return false end return b end
 '''
 
 
@@ -135,6 +166,7 @@ class KillcamScoringTests(unittest.TestCase):
         got = self.run_lua('''
             local a, b, c, d = MakePlayer(1, "s1"), MakePlayer(2, "s2"), MakePlayer(3, "s3"), MakePlayer(4, "s4")
             hook.Run("ZB_PreRoundStart")
+            hook.Run("ZB_StartRound")
             -- b shoots a first, a shoots back and wins: self-defence
             Hit(10, b, a) Hit(11, a, b) Kill(12, a, b)
             -- c attacks d, a steps in and drops c: stopping an attacker
@@ -154,6 +186,125 @@ class KillcamScoringTests(unittest.TestCase):
             return K.KillIntent(1, 2)
         ''')
         self.assertEqual(got, 'unprovoked')
+
+    # ------------------------------------------------------------------ baiting, ambushes, loot
+    def test_holding_a_gun_on_someone_counts_as_starting_it(self):
+        got = self.run_lua('''
+            local baiter, target = MakePlayer(1, "s1"), MakePlayer(2, "s2")
+            local fired, conduct = nil, {}
+            hook.Add("ZCKillcam_Conduct", "t", function(kind, off) conduct[#conduct + 1] = kind .. ":" .. off.uid end)
+            hook.Run("ZB_PreRoundStart") hook.Run("ZB_StartRound")
+            AimAt(baiter, target)
+            for t = 10, 14, 0.25 do Tick(t) end          -- 4 s steady aim
+            Hit(14.5, target, baiter)                     -- the bait works: target fires first
+            Hit(15, baiter, target) Kill(15.5, baiter, target)
+            return K.KillIntent(1, 2), conduct[1]
+        ''')
+        self.assertEqual(tuple(got), ('unprovoked', 'bait:1'))
+
+    def test_shooting_someone_who_held_a_gun_on_you_is_not_starting_it(self):
+        got = self.run_lua('''
+            local aimer, target = MakePlayer(1, "s1"), MakePlayer(2, "s2")
+            hook.Run("ZB_PreRoundStart") hook.Run("ZB_StartRound")
+            AimAt(aimer, target)
+            for t = 10, 14, 0.25 do Tick(t) end
+            Hit(14.5, target, aimer) Kill(15, target, aimer)
+            return K.KillIntent(2, 1)
+        ''')
+        self.assertEqual(got, 'threatened')
+
+    def test_a_glance_or_aim_through_a_wall_or_during_grace_is_not_a_threat(self):
+        got = self.run_lua('''
+            local a, b = MakePlayer(1, "s1"), MakePlayer(2, "s2")
+            local function trial(setup, from, to)
+                hook.Run("ZB_PreRoundStart") hook.Run("ZB_StartRound")
+                setup()
+                for t = from, to, 0.25 do Tick(t) end
+                Hit(to + 0.5, b, a) Kill(to + 1, b, a)
+                return K.KillIntent(2, 1)
+            end
+            local glance = trial(function() AimAt(a, b) end, 10, 11.5)
+            local wall = trial(function() AimAt(a, b) WALL = true end, 20, 25)
+            WALL = false
+            local graced = trial(function() AimAt(a, b) SetGrace(1000) end, 30, 35)
+            SetGrace(0)
+            return glance, wall, graced
+        ''')
+        self.assertEqual(tuple(got), ('unprovoked',) * 3)
+
+    def test_aiming_at_an_attacker_is_stopping_them_not_threatening(self):
+        got = self.run_lua('''
+            local hero, rdm, victim = MakePlayer(1, "s1"), MakePlayer(2, "s2"), MakePlayer(3, "s3")
+            hook.Run("ZB_PreRoundStart") hook.Run("ZB_StartRound")
+            Hit(10, rdm, victim)
+            AimAt(hero, rdm)
+            for t = 10, 14, 0.25 do Tick(t) Hit(t, rdm, victim) end
+            Hit(14.5, rdm, hero) Kill(15, rdm, hero)     -- the RDMer turns and kills the player covering them
+            return K.KillIntent(2, 1)
+        ''')
+        self.assertEqual(got, 'unprovoked')
+
+    def test_kicking_an_idle_player_is_an_ambush_and_its_traitor_kill_earns_nothing(self):
+        self.load_highlight()
+        got = self.run_lua('''
+            local kicker, afk = MakePlayer(1, "s1"), MakePlayer(2, "s2", true)
+            local conduct = {}
+            hook.Add("ZCKillcam_Conduct", "t", function(kind, off, vic, d) conduct[#conduct + 1] = kind .. (d and d.traitor and "+T" or "") end)
+            hook.Run("ZB_PreRoundStart") ClearEvents()
+            SetNow(0) hook.Run("ZB_StartRound")
+            Tick(5) Tick(12)                              -- the traitor gives no input for 12 s
+            Hit(20, kicker, afk)                          -- kicked to the ground
+            SetNow(22) hook.Run("ZB_InventoryOpened", kicker, afk)
+            Hit(24, kicker, afk) Kill(25, kicker, afk)
+            local _, _, s = K.Highlight.Score(19, 26)
+            return table.concat(conduct, ","), s.pay, s.lawful
+        ''')
+        self.assertEqual(tuple(got), ('ambush+T,search+T', 0, 0))
+
+    def test_hitting_an_active_player_is_not_an_ambush(self):
+        got = self.run_lua('''
+            local a, b = MakePlayer(1, "s1"), MakePlayer(2, "s2")
+            local n = 0
+            hook.Add("ZCKillcam_Conduct", "t", function() n = n + 1 end)
+            hook.Run("ZB_PreRoundStart") SetNow(0) hook.Run("ZB_StartRound")
+            Tick(5)
+            b.ang = {p = 0, y = 45} Tick(15)              -- looking around counts as input
+            Hit(20, a, b)
+            b.vel = 200 Tick(40) Tick(48)                 -- so does moving
+            Hit(50, a, b)
+            return n
+        ''')
+        self.assertEqual(got, 0)
+
+    def test_breaking_a_box_someone_is_looting(self):
+        got = self.run_lua('''
+            local looter, thief, other = MakePlayer(1, "s1"), MakePlayer(2, "s2"), MakePlayer(3, "s3")
+            local conduct = {}
+            hook.Add("ZCKillcam_Conduct", "t", function(kind, off) conduct[#conduct + 1] = kind .. ":" .. off.uid end)
+            hook.Run("ZB_PreRoundStart") hook.Run("ZB_StartRound")
+            local box, far = Box(), Box()
+            looter.pos = Vector(50, 0, 0)
+            SetNow(10) hook.Run("ZB_InventoryOpened", looter, box)
+            SetNow(15) hook.Run("PropBreak", thief, box)                 -- under the looter: counts
+            SetNow(20) hook.Run("ZB_InventoryOpened", looter, far) far.pos = Vector(5000, 0, 0)
+            SetNow(21) hook.Run("PropBreak", other, far)                  -- looter walked away: does not
+            local own = Box()
+            SetNow(30) hook.Run("ZB_InventoryOpened", looter, own)
+            SetNow(31) hook.Run("PropBreak", looter, own)                 -- breaking your own box: does not
+            return table.concat(conduct, ",")
+        ''')
+        self.assertEqual(got, 'loot:2')
+
+    def test_traitors_are_not_charged_with_conduct(self):
+        got = self.run_lua('''
+            local traitor, afk = MakePlayer(1, "s1", true), MakePlayer(2, "s2")
+            local n = 0
+            hook.Add("ZCKillcam_Conduct", "t", function() n = n + 1 end)
+            hook.Run("ZB_PreRoundStart") SetNow(0) hook.Run("ZB_StartRound")
+            Tick(12) Hit(20, traitor, afk)
+            return n
+        ''')
+        self.assertEqual(got, 0)
 
     # ------------------------------------------------------------------ karma ledger
     def load_karma(self):
@@ -202,6 +353,22 @@ class KillcamScoringTests(unittest.TestCase):
         self.assertEqual(told, 1, 'staff should be told once on crossing, not every round')
         self.assertLess(low, 0.2)
         self.assertFalse(flagged)
+
+    def test_conduct_is_recorded_for_staff_and_weighs_half_a_teamkill(self):
+        self.load_karma()
+        got = self.run_lua('''
+            local kicker, afk = MakePlayer(1, "s1"), MakePlayer(2, "s2", true)
+            hook.Run("ZB_PreRoundStart") SetNow(0) hook.Run("ZB_StartRound")
+            Tick(12) Hit(20, kicker, afk)
+            SetNow(22) hook.Run("ZB_InventoryOpened", kicker, afk)
+            Kill(25, kicker, afk)
+            hook.Run("ZC_RoundStars_RecordForgive", afk, kicker)   -- forgiveness clears kills, not conduct
+            hook.Run("ZB_EndRound")
+            local e = K.Karma.ledger["s1"]
+            local inc = e.i[#e.i]
+            return e.xa, e.g, inc.k, inc.s, inc.tr, K.KarmaRate("s1"), e.b
+        ''')
+        self.assertEqual(tuple(got), (1, 0, 'ambush', True, True, 0.5, 0))
 
     # ------------------------------------------------------------------ highlight score
     def load_highlight(self):

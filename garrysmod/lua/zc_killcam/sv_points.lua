@@ -13,7 +13,8 @@
 -- RDMer, and they do exactly as much good pointed at an economy -- a faucet fed by raw kills pays best for the
 -- kill-on-sight play the owner wants less of. Nothing here re-derives any of that; it reads `s.pay`, worked out by
 -- the same function with the same weights as the `s.worth` the reel is picked by. The one difference: an UNPROVOKED
--- teamkill pays nothing here, where the reel still gives it a tenth (2026-09-26). Self-defence and stopping an
+-- teamkill pays nothing here, where the reel still gives it a tenth (2026-09-26), and so does a kill that began by
+-- knocking down an idle player, whoever they turned out to be. Self-defence, being threatened first and stopping an
 -- attacker pay in full (sv_intent.lua), so shooting back is never the expensive choice.
 --
 -- THIS FILE PAYS NOBODY UNTIL IT IS SWITCHED ON. Default is 1: it does the whole calculation and writes the line

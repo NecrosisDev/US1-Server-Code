@@ -21,6 +21,11 @@
 --   * RECENT, NOT LIFETIME: the rate is over a rolling window of rounds (zc_killcam_karma_halflife), so a player who
 --     had a bad week and cleaned up drops off the list, and a regular with a thousand clean rounds cannot hide a
 --     fresh spree behind them. Lifetime counters are kept alongside for context.
+--   * CONDUCT (owner, same day): starting trouble without a kill - knocking down an idle player (and searching
+--     them), baiting somebody into firing by holding a gun on them, breaking a box somebody else is looting. These
+--     come from sv_intent.lua's ZCKillcam_Conduct hook. Each counts toward the rate at zc_killcam_karma_conduct of a
+--     bad kill (default half): enough that a player who does it every round shows up, not so much that one
+--     scuffle over a crate puts anyone on the list. A traitor killed after being ambushed idle is not a good act.
 --
 -- THIS FILE NEVER PUNISHES ANYBODY. It keeps a ledger and computes a rate; it does not kick, ban, gag, slay, or
 -- change anyone's game in any way. That is deliberate and it is not an oversight: thresholds for an automated
@@ -46,6 +51,8 @@ local FLOOR = CreateConVar("zc_killcam_karma_rate", "0.5", FCVAR_ARCHIVE, "Bad a
 local HALF = CreateConVar("zc_killcam_karma_halflife", "20", FCVAR_ARCHIVE, "Rounds after which a bad act counts half toward the rate (0 = never fades, lifetime rate)")
 -- How long after an incident a forgiveness from its victim still clears it. Guilt cases close well inside this.
 local FORGIVE_WINDOW = 3600
+-- PROVISIONAL(2026-09-26, half a bad kill per conduct incident; ratify-by: 2026-10-26)
+local CONDUCT = CreateConVar("zc_killcam_karma_conduct", "0.5", FCVAR_ARCHIVE, "How much one conduct incident (ambush, bait, loot break) counts toward the rate, as a fraction of an unprovoked kill (0 = shown only)")
 
 -- The ledger is rewritten WHOLE every round end, and file.Write costs 2-23 ms on Physgun. Without pruning it grows
 -- with every player who ever joined, forever, and that write turns into a hitch at the end of every round on a busy
@@ -74,7 +81,8 @@ local stats = K_.stats
 -- One row per SteamID64: {n = display name, r = rounds taken part in, b = bad acts, g = good acts, t = last seen,
 -- d = contested kills (self-defence / stopping an attacker), fg = bad acts forgiven by their victim,
 -- rr / rb = rounds and bad acts with the older ones fading (the RATE is rb / rr), pb = bad acts this round, not yet
--- folded into rb, f = was over the floor at the last round end (so staff are told once, on crossing)}.
+-- folded into rb, f = was over the floor at the last round end (so staff are told once, on crossing),
+-- x = conduct incidents (xa ambush, xb bait, xl loot), rx / px = the same fading / pending pair as rb / pb}.
 -- Short keys because this is written to disk every round and grows with the player base, not with the round.
 local function row(sid, name)
     local e = ledger[sid]
@@ -169,7 +177,8 @@ function K.KarmaRate(sid)
     if not e then return nil end
     if e.r < MIN_ROUNDS:GetInt() then return nil, e end
     local rr, rb = e.rr or e.r, (e.rb or e.b) + (e.pb or 0)
-    return math.max(rb, 0) / math.max(rr, 1), e
+    local rx = (e.rx or 0) + (e.px or 0)
+    return math.max(rb + rx * CONDUCT:GetFloat(), 0) / math.max(rr, 1), e
 end
 
 function K.KarmaFlagged(sid)
@@ -189,8 +198,10 @@ hook.Add("ZCKillcam_Death", "ZCKillcam.Karma", function(victim, killer, tag)
     if IsValid(victim) and not victim:IsBot() then participation.players[victim:SteamID64()] = K.DisplayName(victim) end
     local e = row(killer.id, killer.name)
     -- Without the intent layer every ivi is counted, which is how this file behaved before it existed.
-    local why = tag == "ivi" and (K.JudgeDeath and K.JudgeDeath(victim, killer, tag) or "unprovoked") or nil
-    if why == "defense" or why == "stopped" then
+    local why, ambush
+    if K.JudgeDeath then why, ambush = K.JudgeDeath(victim, killer, tag) end
+    if tag == "ivi" then why = why or "unprovoked" end
+    if why == "defense" or why == "stopped" or why == "threatened" then
         -- Kept, so staff can still see a player whose every teamkill is somehow "self-defence", but never rated.
         e.d = (e.d or 0) + 1
         stats.contested = (stats.contested or 0) + 1
@@ -212,10 +223,51 @@ hook.Add("ZCKillcam_Death", "ZCKillcam.Karma", function(victim, killer, tag)
         list[#list + 1] = {t = os.time(), v = IsValid(victim) and K.DisplayName(victim) or "?", m = game.GetMap(),
             vs = IsValid(victim) and not victim:IsBot() and victim:SteamID64() or nil}
         while #list > INCIDENTS do table.remove(list, 1) end
+    elseif ambush then
+        -- The traitor was found by knocking them down while idle: the kill stands, the credit does not. The ambush
+        -- itself was already recorded as conduct when it happened.
+        stats.ambushKills = (stats.ambushKills or 0) + 1
     else
         e.g = e.g + 1
         stats.good = stats.good + 1
     end
+    dirty = true
+end)
+
+-- Conduct incidents from sv_intent.lua. Already filtered there to traitor rounds and non-traitor offenders.
+-- "search" is not a new incident: it marks the ambush it followed, so staff see "knocked down idle, then searched".
+local CONDUCT_KEY = {ambush = "xa", bait = "xb", loot = "xl"}
+hook.Add("ZCKillcam_Conduct", "ZCKillcam.Karma", function(kind, offender, victim, detail)
+    if mode:GetInt() <= 0 or not zb or zb.ROUND_STATE ~= 1 or participation.closed then return end
+    if not IsValid(offender) or offender:IsBot() then return end
+    local sid = offender:SteamID64()
+    if not sid then return end
+    local vs = IsValid(victim) and not victim:IsBot() and victim:SteamID64() or nil
+    local e = row(sid, K.DisplayName(offender))
+    participation.players[sid] = e.n
+    local list = e.i
+    if not list then list = {} e.i = list end
+    if kind == "search" then
+        for i = #list, 1, -1 do
+            local inc = list[i]
+            if inc.k == "ambush" and inc.vs == vs and not inc.s then
+                inc.s = true
+                inc.tr = inc.tr or (detail and detail.traitor) or nil
+                dirty = true
+                return
+            end
+        end
+        return
+    end
+    local key = CONDUCT_KEY[kind]
+    if not key then return end
+    e.x = (e.x or 0) + 1
+    e[key] = (e[key] or 0) + 1
+    e.px = (e.px or 0) + 1
+    stats.conduct = (stats.conduct or 0) + 1
+    list[#list + 1] = {t = os.time(), v = IsValid(victim) and K.DisplayName(victim) or "?", m = game.GetMap(), vs = vs, k = kind,
+        tr = detail and detail.traitor or nil}
+    while #list > INCIDENTS do table.remove(list, 1) end
     dirty = true
 end)
 
@@ -236,6 +288,10 @@ hook.Add("ZB_EndRound", "ZCKillcam.Karma", function()
             e.rr = e.rr * d + 1
             e.rb = math.max(e.rb * d + (e.pb or 0), 0)
             e.pb = nil
+            if e.rx or e.px then
+                e.rx = math.max((e.rx or 0) * d + (e.px or 0), 0)
+                e.px = nil
+            end
             dirty = true
             -- Told ONCE, when the rate crosses the floor - not every round the player stays over it. A staff chat
             -- that repeats the same name every round gets tuned out, and then it is not a moderation tool either.
@@ -244,8 +300,8 @@ hook.Add("ZB_EndRound", "ZCKillcam.Karma", function()
                 local rate = K.KarmaRate(sid)
                 for _, staff in ipairs(player.GetAll()) do
                     if K.IsOperator and K.IsOperator(staff) then
-                        staff:ChatPrint(string.format("[Killcam] %s: %.2f unprovoked innocent-on-innocent kills/round recently (%d rounds played). Review context: zc_killcam_karma %s",
-                            e.n or sid, rate, e.r, sid))
+                        staff:ChatPrint(string.format("[Killcam] %s: %.2f bad acts/round recently (unprovoked teamkills, plus ambushes/baits/loot breaks at %.1f each; %d rounds played). Review context: zc_killcam_karma %s",
+                            e.n or sid, rate, CONDUCT:GetFloat(), e.r, sid))
                     end
                 end
             end
@@ -266,7 +322,7 @@ hook.Add("ZC_RoundStars_RecordForgive", "ZCKillcam.Karma", function(victim, kill
     local cutoff = os.time() - FORGIVE_WINDOW
     for i = #e.i, 1, -1 do
         local inc = e.i[i]
-        if inc.vs == vs and not inc.w and not inc.f and (inc.t or 0) >= cutoff then
+        if inc.vs == vs and not inc.w and not inc.k and not inc.f and (inc.t or 0) >= cutoff then
             inc.f = true
             e.b = math.max(e.b - 1, 0)
             e.fg = (e.fg or 0) + 1
@@ -290,8 +346,8 @@ concommand.Add("zc_killcam_karma", function(p, _, args)
             local rate = K.KarmaRate(sid)
             if rate and rate >= FLOOR:GetFloat() then
                 n = n + 1
-                say(string.format("%-24s %.2f unprovoked/round recently  (%d unprovoked, %d contested, %d forgiven, %d traitors killed, %d rounds)  %s",
-                    e.n or "?", rate, e.b, e.d or 0, e.fg or 0, e.g, e.r, sid))
+                say(string.format("%-24s %.2f bad/round recently  (%d unprovoked, %d conduct, %d contested, %d forgiven, %d traitors killed, %d rounds)  %s",
+                    e.n or "?", rate, e.b, e.x or 0, e.d or 0, e.fg or 0, e.g, e.r, sid))
             end
         end
         return say(n == 0 and "nobody is above the floor (zc_killcam_karma_rate). Give a name or SteamID64 for one record." or (n .. " above the floor"))
@@ -304,14 +360,18 @@ concommand.Add("zc_killcam_karma", function(p, _, args)
             local rate, entry = K.KarmaRate(sid)
             local karma = liveKarma(sid)
             say(string.format("%s (%s)  karma %s", e.n or "?", sid, karma and string.format("%.0f", karma) or "(offline - karma not readable)"))
-            say(string.format("  killcam evidence: %d unprovoked innocent-on-innocent, %d contested (self-defence / stopping an attacker), %d forgiven by the victim, %d traitors killed, %d rounds",
+            say(string.format("  killcam evidence: %d unprovoked innocent-on-innocent, %d contested (self-defence / threatened first / stopping an attacker), %d forgiven by the victim, %d traitors killed, %d rounds",
                 e.b, e.d or 0, e.fg or 0, e.g, e.r))
-            say("  recent rate: " .. (rate and string.format("%.2f unprovoked/round%s", rate, rate >= FLOOR:GetFloat() and " ** review context **" or "")
+            say(string.format("  conduct: %d ambushes on idle players, %d baits (held a gun on someone until they fired), %d loot boxes broken under someone else",
+                e.xa or 0, e.xb or 0, e.xl or 0))
+            say("  recent rate: " .. (rate and string.format("%.2f bad/round%s", rate, rate >= FLOOR:GetFloat() and " ** review context **" or "")
                     or string.format("too few rounds to judge (needs %d, has %d)", MIN_ROUNDS:GetInt(), entry and entry.r or 0)))
-            local mark = {defense = " [self-defence: victim struck first]", stopped = " [stopped the victim attacking someone]"}
+            local mark = {defense = " [self-defence: victim struck first]", threatened = " [victim held a gun on them first]",
+                stopped = " [stopped the victim attacking someone]"}
+            local verb = {ambush = "knocked down idle player", bait = "baited (held a gun on)", loot = "broke the box being looted by"}
             for _, inc in ipairs(e.i or {}) do
-                say(string.format("    %s  killed %s on %s%s%s", os.date("%Y-%m-%d %H:%M", inc.t), inc.v or "?", inc.m or "?",
-                    mark[inc.w] or "", inc.f and " [forgiven]" or ""))
+                say(string.format("    %s  %s %s on %s%s%s%s%s", os.date("%Y-%m-%d %H:%M", inc.t), verb[inc.k] or "killed", inc.v or "?", inc.m or "?",
+                    mark[inc.w] or "", inc.s and " [then searched them]" or "", inc.tr and " [victim was a traitor]" or "", inc.f and " [forgiven]" or ""))
             end
         end
     end
