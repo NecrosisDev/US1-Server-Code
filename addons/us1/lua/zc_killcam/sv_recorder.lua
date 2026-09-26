@@ -82,6 +82,9 @@ local ebody, eballistic = {}, {} -- optional wound endpoints; never mixed across
 -- the shooter saw them (lag compensation, homigrad_base sh_bullet.lua), the samples say where they were: the replay
 -- draws the samples, so a world-space landing point can float off the body by the rewind. The client re-places it.
 local eanchor = {}
+-- UI cohesion U1 (2026-09-26): the organ rows each hit's round crossed, in entry order, for the death panel's body view
+-- ({bone, key, name, label, class, dep}; dep = share of the round's energy left there, V2 only). nil for merged hits.
+local eorgans = {}
 local HIT_BONES = {"ValveBiped.Bip01_Head1", "ValveBiped.Bip01_Spine2", "ValveBiped.Bip01_Spine", "ValveBiped.Bip01_L_UpperArm",
     "ValveBiped.Bip01_R_UpperArm", "ValveBiped.Bip01_L_Thigh", "ValveBiped.Bip01_R_Thigh"} -- the client keeps the same list (V.HitBones)
 local HIT_BONE = {[0] = 2, 1, 2, 3, 4, 5, 6, 7, [10] = 3} -- HITGROUP_* (generic/gear included) -> HIT_BONES key
@@ -351,6 +354,7 @@ local function push(kind, a, b, dmg, hitgroup, wep, los, uid)
     epx[ehead], epy[ehead], epz[ehead], eyaw[ehead], epitch[ehead] = 0, 0, 0, 0, 0
     eswing[ehead] = nil
     epenetration[ehead] = nil
+    eorgans[ehead] = nil
     eballistics[ehead] = nil
     ebody[ehead], eballistic[ehead] = nil, nil
     return ehead
@@ -1167,35 +1171,86 @@ local function takeImpact(v, victim, a, attacker, info)
 end
 -- END IMPACT TELEMETRY
 
+-- The organ rows a round crossed (`boxes` = the walk's hitBoxs set, indices into the SAME tick's ShootMatrixTick boxes
+-- sv_input walked). Entry order and energy share come from the V2 result when there is one (trace.v2.hits); a v1
+-- walk only knows the set, listed by box index. Fenced by the caller: a surprise here costs the list, never the hit.
+local ORGAN_LIMIT = 12
+local function organList(ent, boxes, data)
+    local org = hg and hg.organism
+    if not istable(boxes) or next(boxes) == nil or not istable(org) or not isfunction(org.GetHitBoxOrgans)
+        or not isfunction(org.ShootMatrixTick) then return nil end
+    local body = isfunction(hg.GetCurrentCharacter) and hg.GetCurrentCharacter(ent) or ent
+    if not IsValid(body) then return nil end
+    local organs = org.GetHitBoxOrgans(body:GetModel(), body)
+    if not istable(organs) then return nil end
+    local boxs = org.ShootMatrixTick(body, organs)
+    if not istable(boxs) then return nil end
+    local trace = istable(data) and data.trace_result
+    local raw = istable(trace) and trace.v2
+    local order, dep = {}, {}
+    if istable(raw) and istable(raw.hits) then
+        for _, h in ipairs(raw.hits) do
+            local i = istable(h) and h.box
+            if isnumber(i) and boxes[i] and not h.frag then
+                if dep[i] == nil then order[#order + 1] = i dep[i] = 0 end
+                dep[i] = dep[i] + (tonumber(h.dep) or 0)
+            end
+        end
+    end
+    local rest = {}
+    for i in pairs(boxes) do if isnumber(i) and dep[i] == nil then rest[#rest + 1] = i end end
+    table.sort(rest)
+    for _, i in ipairs(rest) do order[#order + 1] = i end
+    local V2 = org.BallisticsV2
+    local out = {}
+    for _, i in ipairs(order) do
+        local box = boxs[i]
+        local rows = istable(box) and box[6] ~= nil and organs[box[6]]
+        local row = istable(rows) and rows[box[7]]
+        if istable(row) and isstring(row[1]) and isstring(box[6]) and isnumber(box[7]) then
+            local label = isfunction(org.OrganLabel) and org.OrganLabel(row) or row[1]
+            local class = istable(V2) and isfunction(V2.Classify) and V2.Classify(row) or nil
+            out[#out + 1] = {bone = box[6], key = box[7], name = row[1], label = tostring(label), class = class,
+                dep = raw and dep[i] and math.Round(math.Clamp(dep[i], 0, 1), 3) or nil}
+            if #out >= ORGAN_LIMIT then break end
+        end
+    end
+    return #out > 0 and out or nil
+end
 hook.Add("PreHomigradDamageBulletBleedAdd", "ZCKillcam.BodyTrace", function(p, _, info, _, _, boxes, entry, data)
     if not enabled:GetBool() then return end
+    local hurt = p
     p = bodyVictim(p)
     local v = p and slotOf(p)
     if not v then return end
     pendingBody[v] = nil
     if not info or not info.IsDamageType or not info:IsDamageType(DMG_BULLET)
         or info:IsDamageType(DMG_BUCKSHOT) then return end
+    local fine, organs = pcall(organList, hurt, boxes, data)
+    if not fine then organs = nil end
     local penetration = istable(boxes) and next(boxes) ~= nil and K.CopyPenetration(entry,data)
     if penetration then
         local a,b = penetration.points[1],penetration.points[#penetration.points]
         pendingBody[v] = {info=info,at=CurTime(),uid=p:UserID(),life=lifeSerial[v] or 0,
-            points={a[1],a[2],a[3],b[1],b[2],b[3]},penetration=penetration}
+            points={a[1],a[2],a[3],b[1],b[2],b[3]},penetration=penetration,organs=organs}
         return
     end
     local out = istable(data) and data.output_hole
-    if not istable(boxes) or next(boxes) == nil or not istable(entry) or #entry ~= 1
-        or not istable(out) or #out ~= 1 or not finitePoint(entry[1]) or not finitePoint(out[1]) then return end
-    local a, b = entry[1], out[1]
-    local span = a:Distance(b)
-    if span < 1 or span > 100 then return end
+    local a, b = istable(entry) and #entry == 1 and entry[1], istable(out) and #out == 1 and out[1]
+    local span = finitePoint(a) and finitePoint(b) and a:Distance(b) or 0
+    if not istable(boxes) or next(boxes) == nil or span < 1 or span > 100 then
+        -- no usable corridor: still keep what the round crossed
+        if organs then pendingBody[v] = {info = info, at = CurTime(), uid = p:UserID(), life = lifeSerial[v] or 0, organs = organs} end
+        return
+    end
     pendingBody[v] = {info = info, at = CurTime(), uid = p:UserID(), life = lifeSerial[v] or 0,
-        points = {a.x, a.y, a.z, b.x, b.y, b.z}}
+        points = {a.x, a.y, a.z, b.x, b.y, b.z}, organs = organs}
 end)
 local function takeBody(v, p, info)
     local data = pendingBody[v]
     pendingBody[v] = nil
     if data and data.info == info and data.at == CurTime() and data.uid == p:UserID()
-        and data.life == (lifeSerial[v] or 0) then return data.points, data.penetration end
+        and data.life == (lifeSerial[v] or 0) then return data.points, data.penetration, data.organs end
 end
 
 -- Pellets and rapid hits on the same pair merge into the previous hit event.
@@ -1223,7 +1278,7 @@ hook.Add("HomigradDamage", "ZCKillcam.Hit", function(ply, dmgInfo, hitgroup, ent
     local a, v = slotOf(attacker), slotOf(victim)
     if not a or not v then return end
     local facts = takeImpact(v, victim, a, attacker, dmgInfo)
-    local corridor, penetration = takeBody(v, victim, dmgInfo)
+    local corridor, penetration, organs = takeBody(v, victim, dmgInfo)
     claim(victim, v)
     claim(attacker, a).traitor = attacker.isTraitor == true
     local amount = tonumber(harm) or 0
@@ -1232,6 +1287,7 @@ hook.Add("HomigradDamage", "ZCKillcam.Hit", function(ply, dmgInfo, hitgroup, ent
         and victimUID[ehead] == victim:UserID() and victimLife[ehead] == (lifeSerial[v] or 0)
         and now - et[ehead] < 0.05 then
         epenetration[ehead] = nil
+        eorgans[ehead] = nil
         eballistics[ehead] = nil
         ebody[ehead], eballistic[ehead] = nil, 0 -- merged pellets/hits have no single reliable corridor
         ed[ehead] = ed[ehead] + amount
@@ -1251,6 +1307,7 @@ hook.Add("HomigradDamage", "ZCKillcam.Hit", function(ply, dmgInfo, hitgroup, ent
     eballistics[i] = facts
     ebody[i] = corridor
     epenetration[i] = penetration
+    eorgans[i] = organs
     eballistic[i] = dmgInfo.IsDamageType and dmgInfo:IsDamageType(DMG_BULLET)
         and not dmgInfo:IsDamageType(DMG_BUCKSHOT) and 1 or 0
     local at = dmgInfo.GetDamagePosition and dmgInfo:GetDamagePosition() -- where the bullet landed; the engine leaves it at the origin when it does not know
@@ -1354,7 +1411,7 @@ function K.EachEvent(t0, t1, fn)
     local count = math.min(ecount, EVENTS)
     for k = count - 1, 0, -1 do
         local i = (ehead - k - 1) % EVENTS + 1
-        if et[i] >= t0 and et[i] <= t1 then fn(et[i], ek[i], ea[i], eb[i], ed[i], eg[i], ew[i], el[i] == 1, eu[i], epx[i], epy[i], epz[i], eyaw[i], epitch[i], ebody[i], eballistic[i], eballistics[i], epenetration[i], eswing[i], eanchor[i]) end
+        if et[i] >= t0 and et[i] <= t1 then fn(et[i], ek[i], ea[i], eb[i], ed[i], eg[i], ew[i], el[i] == 1, eu[i], epx[i], epy[i], epz[i], eyaw[i], epitch[i], ebody[i], eballistic[i], eballistics[i], epenetration[i], eswing[i], eanchor[i], eorgans[i]) end
     end
 end
 

@@ -539,7 +539,7 @@ function K.Cut(death, origin, parties, mode, tag, from, to, radius, breathe)
         for i = math.max(#sounds - 383, 1), #sounds do clip.sounds[#clip.sounds + 1] = sounds[i] end
     end
     local weapons = {}
-    K.EachEvent(t0, t1, function(t, kind, a, b, dmg, hitgroup, wep, los, _, px, py, pz, eyaw, epitch, body, ballistic, facts, penetration, swing, anchor)
+    K.EachEvent(t0, t1, function(t, kind, a, b, dmg, hitgroup, wep, los, _, px, py, pz, eyaw, epitch, body, ballistic, facts, penetration, swing, anchor, organs)
         if index[a] or index[b] then
             local e = {round((t - death) * 100), kind, index[a] or 0, index[b] or 0, round(dmg * 10) / 10, hitgroup, wep, los and 1 or 0}
             -- [9..11] the bullet's source (shot) or landing point (hit) in tenths from the origin, [12] [13] its yaw and pitch in hundredths
@@ -586,6 +586,13 @@ function K.Cut(death, origin, parties, mode, tag, from, to, radius, breathe)
                         v2.events[#v2.events + 1] = row
                     end
                     e.penetration.v2 = v2
+                end
+            end
+            if istable(organs) then -- UI cohesion U1: the organ rows the round crossed (sv_recorder.lua organList)
+                e.organs = {}
+                for k = 1, math.min(#organs, 12) do
+                    local o = organs[k]
+                    e.organs[k] = {bone = o.bone, key = o.key, name = o.name, label = string.sub(tostring(o.label or o.name), 1, 40), class = o.class, dep = o.dep}
                 end
             end
             e.ballistic = ballistic -- nil in older recordings; 0 explicitly excludes melee/merged/shotgun hits
