@@ -1,0 +1,11 @@
+--- a/gamemodes/zcity/gamemode/modes/sfd/sv_sfd.lua
++++ b/gamemodes/zcity/gamemode/modes/sfd/sv_sfd.lua
+@@ -9,7 +9,7 @@
+ 
+ MODE.GuiltDisabled = true
+ MODE.ForBigMaps = false
+-MODE.Chance = 0.04
++MODE.Chance = 0
+ 
+ local radius = nil
+ local mapsize = 7500

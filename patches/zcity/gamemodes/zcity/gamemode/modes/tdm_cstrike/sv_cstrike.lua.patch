@@ -1,0 +1,10 @@
+--- a/gamemodes/zcity/gamemode/modes/tdm_cstrike/sv_cstrike.lua
++++ b/gamemodes/zcity/gamemode/modes/tdm_cstrike/sv_cstrike.lua
+@@ -257,6 +257,7 @@
+ 
+     local winnerprt = (winner == 1 and "Counter-Terrorists") or (winner == 0 and "Terrorists") or "Nobody"
+     
++	if ZCGoobArcade and ZCGoobArcade.NativeOutcome then ZCGoobArcade.NativeOutcome(self, winner) end
+     PrintMessage(HUD_PRINTTALK, winnerprt.." have won the round.")
+ 
+ 	for k,ply in player.Iterator() do

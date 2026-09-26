@@ -1,0 +1,85 @@
+--- a/lua/homigrad/cl_utility.lua
++++ b/lua/homigrad/cl_utility.lua
+@@ -693,8 +693,26 @@
+ 
+ 		local cachedLerp = Lerp
+ 
++		-- Lip-sync (2026-09-25 perf pass): flex ids are looked up once per entity+model and the SteamID key once per
++		-- player, instead of twelve GetFlexIDByName string lookups, a fresh table and two SteamID strings per player
++		-- per frame. A flex the model lacks is stored as false and skipped (the old loop passed nil through).
++		local mouthFlexNames = {"jaw_drop", "left_part", "right_part", "left_mouth_drop", "right_mouth_drop", "lower_lip"}
++		local blinkFlexNames = {"blink", "wrinkler", "half_closed"}
++		local function flexIds(ent)
++			local ids = ent.hgFlexIds
++			local model = ent:GetModel()
++			if ids and ids.model == model then return ids end
++			ids = {model = model, blink = {}}
++			for k = 1, #mouthFlexNames do ids[k] = ent:GetFlexIDByName(mouthFlexNames[k]) or false end
++			for k = 1, #blinkFlexNames do ids.blink[k] = ent:GetFlexIDByName(blinkFlexNames[k]) or false end
++			ent.hgFlexIds = ids
++			return ids
++		end
+ 		local function mouthmove(ply)
+-			ply:SetVoiceVolumeScale(!hg.muteall and (!hg.mutespect or ply:Alive()) and (hg.playerInfo[ply:SteamID()] and hg.playerInfo[ply:SteamID()][2] or 1) or 0)
++			local sid = ply.hgVoiceSID
++			if not sid then sid = ply:SteamID() ply.hgVoiceSID = sid end
++			local info = hg.playerInfo[sid]
++			ply:SetVoiceVolumeScale(!hg.muteall and (!hg.mutespect or ply:Alive()) and (info and info[2] or 1) or 0)
+ 
+ 			if not ply:Alive() then return end
+ 			
+@@ -710,20 +728,13 @@
+ 
+ 			if lply:GetPos():DistToSqr(ent:GetPos()) > 1500 * 1500 then return end
+ 			
+-			local flexes = {
+-				[1] = ent:GetFlexIDByName( "jaw_drop" ),
+-				[2] = ent:GetFlexIDByName( "left_part" ),
+-				[3] = ent:GetFlexIDByName( "right_part" ),
+-				[4] = ent:GetFlexIDByName( "left_mouth_drop" ),
+-				[5] = ent:GetFlexIDByName( "right_mouth_drop" ),
+-				[6] = ent:GetFlexIDByName( "lower_lip" )
+-			}
++			local flexes = flexIds(ent)
+ 
+ 			local weight = (ply:IsSpeaking() and math.Clamp( ply:VoiceVolume() * 5, 0, 2 )) or 0
+ 
+-			for k = 1, #flexes do
+-				v = flexes[ k ]
+-				ent:SetFlexWeight( v, weight )
++			for k = 1, #mouthFlexNames do
++				local id = flexes[ k ]
++				if id then ent:SetFlexWeight( id, weight ) end
+ 			end
+ 
+ 			local org = ent.organism
+@@ -749,16 +760,10 @@
+ 				ent.Blinking = 1
+ 			end
+ 			
+-			if ent:GetFlexIDByName("blink") then
+-				ent:SetFlexWeight(ent:GetFlexIDByName("blink"), ent.Blinking or 0)
+-			end
+-
+-			if ent:GetFlexIDByName("wrinkler") then
+-				ent:SetFlexWeight(ent:GetFlexIDByName("wrinkler"), ent.Blinking or 0)
+-			end
+-
+-			if ent:GetFlexIDByName("half_closed") then
+-				ent:SetFlexWeight(ent:GetFlexIDByName("half_closed"), ent.Blinking or 0)
++			local blink = flexes.blink
++			for k = 1, #blinkFlexNames do
++				local id = blink[k]
++				if id then ent:SetFlexWeight(id, ent.Blinking or 0) end
+ 			end
+ 		end
+ 
+@@ -896,7 +901,7 @@
+ 
+ --\\ CL Utils setting adjustments
+ 	if CLIENT then
+-		RunConsoleCommand("mp_decals", "4096")  -- "4194304" - if you set this value you will get crashed :3
++		-- mp_decals is engine-blocked here; preserve the configured value.
+ 		
+ 		hook.Add("Think","RemoveMe_001",function()
+ 			hook.Remove("PostPlayerDraw","BA2_GasmaskDraw")

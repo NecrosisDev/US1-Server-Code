@@ -1,0 +1,80 @@
+--- a/lua/homigrad/sh_utility.lua
++++ b/lua/homigrad/sh_utility.lua
+@@ -1,4 +1,12 @@
+ local Angle, Vector, AngleRand, VectorRand, math, hook, util, game = Angle, Vector, AngleRand, VectorRand, math, hook, util, game
++-- 2026-09-24: one place decides a class's voice effect (Combine/Metrocop = mask voice, furry = proot). Combine used PROOT as a placeholder.
++function hg.ClassVoiceEffect(ply)
++	if not eightbit or not IsValid(ply) then return 0 end
++	local c = ply.PlayerClassName
++	if c == "furry" then return eightbit.EFF_PROOT or 0 end
++	if c == "Combine" or c == "Metrocop" then return eightbit.EFF_MASKVOICE or 0 end
++	return eightbit.EFF_NONE or 0
++end
+ 
+ local ENTITY = FindMetaTable("Entity")
+ local PLAYER = FindMetaTable("Player")
+@@ -484,7 +492,7 @@
+ 		local override = (CLIENT and hg.override[ply]) or (SERVER and OverrideSpawn)
+ 
+ 		if eightbit and eightbit.EnableEffect and ply.UserID then
+-			eightbit.EnableEffect(ply:UserID(), ply.PlayerClassName == "furry" and eightbit.EFF_PROOT or 0)
++			eightbit.EnableEffect(ply:UserID(), hg.ClassVoiceEffect(ply))
+ 		end
+ 
+ 		if not override then
+@@ -502,7 +510,7 @@
+ 			end
+ 
+ 			if SERVER then
+-				timer.Simple(0, function() ActivateNoCollision(ply, 5) end)
++				timer.Simple(0, function() if IsValid(ply) and ply:Alive() then ActivateNoCollision(ply, 5) end end)
+ 			end
+ 
+ 			if SERVER then
+@@ -673,9 +681,10 @@
+ 		curlean = curlean or 0
+ 		unmodified_angle = unmodified_angle or 0
+ 		local time = SysTime() - 0.01
+-		hook.Add("HUDPaint", "leanin", function()
++		-- Think, not HUDPaint: the value feeds the view, so it is updated before the frame renders and while the HUD is hidden.
++		hook.Add("Think", "leanin", function()
+ 			local ply = LocalPlayer()
+-			local angles = ply:EyeAngles()
++			if not IsValid(ply) then return end
+ 
+ 			local dtime = SysTime() - time
+ 			time = SysTime()
+@@ -996,7 +1005,7 @@
+ 		ply.CurrentActivity = act
+ 
+ 		timer.Create("TauntHG" .. ply:EntIndex(), length - 0.3, 1, function()
+-			if not ply:GetNWBool("IsTaunting", false) then return end
++			if not IsValid(ply) or not ply:GetNWBool("IsTaunting", false) then return end
+ 
+ 			stop_taunt(ply)
+ 
+@@ -1459,10 +1468,12 @@
+ 	hook.Add("WeaponEquip","pickupHuy",function(wep,ply)
+ 		--if not wep.init then return end
+ 		timer.Simple(0,function()
++			if not IsValid(ply) or not IsValid(wep) or wep:GetOwner() ~= ply then return end
+ 			if wep.DontEquipInstantly then wep.DontEquipInstantly = nil return end
+ 			if not ply.noSound and IsValid(wep) then
+ 				local oldwep = ply:GetActiveWeapon()
+ 				timer.Simple(0,function()
++					if not IsValid(ply) or not IsValid(wep) or wep:GetOwner() ~= ply then return end
+ 					hook.Run("PlayerSwitchWeapon",ply,oldwep,wep)
+ 					ply:SelectWeapon(wep:GetClass())
+ 					ply:SetActiveWeapon(wep)
+@@ -1717,9 +1728,9 @@
+ 	if SERVER then -- SERVER SIDE
+ 		vPos = vPos or Vector(0,0,0)
+ 		nRadius = nRadius or (nAmplitude * 100)
+-		local tEnts = ents.FindInSphere(vPos, nRadius * nRadius)
++		local tEnts = crfFilter and {} or ents.FindInSphere(vPos, nRadius)
+ 		--PrintTable(tEnts)
+-		local crf = RecipientFilter()
++		local crf = crfFilter or RecipientFilter()
+ 		--print(#tEnts)
+ 		for i = 1, #tEnts do
+ 			local eEnt = tEnts[i]

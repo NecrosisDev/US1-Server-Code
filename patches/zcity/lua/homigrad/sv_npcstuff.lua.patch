@@ -1,0 +1,33 @@
+--- a/lua/homigrad/sv_npcstuff.lua
++++ b/lua/homigrad/sv_npcstuff.lua
+@@ -356,11 +356,27 @@
+ 
+ --\\ Fall damage for NPCs
+ 	local vecforce = Vector(5000, 5000, -30000)
++
++	-- Track only relevant NPCs instead of scanning every entity per Think
++	local fallTrackedNPCs = {}
++
++	hook.Add("OnEntityCreated", "NPCFallTrack_Add", function(ent)
++		timer.Simple(0, function()
++			if IsValid(ent) and ent:IsNPC() and lootNPCs[ent:GetClass()] then
++				fallTrackedNPCs[ent] = true
++			end
++		end)
++	end)
++
++	hook.Add("EntityRemoved", "NPCFallTrack_Remove", function(ent)
++		fallTrackedNPCs[ent] = nil
++	end)
++
+ 	hook.Add("Think", "NPCFallDamageTracker", function()
++		if next(fallTrackedNPCs) == nil then return end -- no NPCs = near-zero cost
+ 		if hg_noorganismnpcs:GetBool() then return end
+-		for _, npc in ipairs(ents.GetAll()) do
+-			if not IsValid(npc) then continue end
+-			if not npc:IsNPC() or not lootNPCs[npc:GetClass()] then continue end
++		for npc in pairs(fallTrackedNPCs) do
++			if not IsValid(npc) then fallTrackedNPCs[npc] = nil continue end
+ 
+ 			local zPos = npc:GetPos().z
+ 			if npc:IsOnGround() then

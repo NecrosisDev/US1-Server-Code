@@ -1,0 +1,10 @@
+--- a/lua/ulx/cl_lib.lua
++++ b/lua/ulx/cl_lib.lua
+@@ -103,6 +103,7 @@
+ 	LocalPlayer():AddPlayerOption( title, timeout, callback, optionsDraw )
+ 
+ 	curVote = { title=title, options=options, endtime=CurTime()+timeout }
++	hook.Run( "ZC_ULXVoteStarted", title, timeout, options )
+ 	
+ end )
+ 

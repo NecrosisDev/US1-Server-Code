@@ -1,0 +1,23 @@
+--- a/gamemodes/zcity/gamemode/modes/homicide_fear/core/sh_fear.lua
++++ b/gamemodes/zcity/gamemode/modes/homicide_fear/core/sh_fear.lua
+@@ -5,9 +5,20 @@
+ 
+ MODE.PrintName = "Homicide2"
+ MODE.name = "fear"
++
++MODE.Chance = 0.03
+ MODE.Events = MODE.Events or {}
+ MODE.StartedEvents = MODE.StartedEvents or {}
+ 
++MODE.GuiltDisabled = true
++
++-- the dark keeps no ledger: no guilt, no karma loss, for anything
++-- that happens during fear. Crossfire, mercy kills, mob justice -
++-- the round is chaos by design.
++function MODE.GuiltCheck(Attacker, Victim, add, harm, amt)
++	return 0, false
++end
++
+ function MODE:CreateTimer(name, delay, repetitions, func)
+ 	self.saved.Timers = self.saved.Timers or {}
+ 

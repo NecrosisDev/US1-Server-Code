@@ -1,0 +1,433 @@
+--- a/lua/homigrad/fake/sv_control.lua
++++ b/lua/homigrad/fake/sv_control.lua
+@@ -1,6 +1,9 @@
+ 
+ local vecZero = Vector(0, 0, 0)
+ local angZero = Angle(0, 0, 0)
++-- perf round 2 item 9: the two dislocation ManipulateBoneAngles call sites below always pass
++-- this exact literal; share one Angle instead of allocating a fresh one at each call.
++local angDislocate45 = Angle(0, -45, 0)
+ local shadowparams = {}
+ 
+ --[[
+@@ -68,6 +71,7 @@
+ function hg.ShadowControl(ragdoll, physNumber, ss, ang, maxang, maxangdamp, pos, maxspeed, maxspeeddamp)
+ 	physNumber = realPhysNum(ragdoll, physNumber) or 0
+ 	local phys = ragdoll:GetPhysicsObjectNum(physNumber)
++	if not IsValid(phys) then return end
+ 
+ 	shadowparams.secondstoarrive = ss
+ 	shadowparams.angle = ang
+@@ -136,9 +140,41 @@
+ 
+ local player_GetHumans = player.GetHumans
+ 
++-- reusable shadow-control params for the main bone loop (mirrors the
++-- shadowparams pattern hg.ShadowControl already uses - all fields are
++-- overwritten every use)
++local boneShadowParams = {}
++
++-- The two ground probes below are pure queries (util.TraceLine has no side effects) and each costs ~1.3 KB of garbage
++-- (input tables, vectors, the ~23-field result table). They are built exactly as before, but only when the result is read.
++local function fakeGroundHit(ply, ragdoll)
++	local tr = {}
++	tr.start = ply:GetPos()
++	tr.endpos = ply:GetPos() - vector_up * 10
++	tr.filter = {ply,ragdoll}
++	return util.TraceLine(tr).Hit
++end
++
++local function fakeSpineOnGround(spine, ply, ragdoll)
++	return util.TraceLine({
++			start = spine:GetPos(),
++			endpos = spine:GetPos() - vector_up * 58,
++			filter = {ply, ragdoll},
++			mask = MASK_SOLID,
++		}).Hit
++end
++
++-- scratch input table for the hand / choke traces. Only ever handed to util.TraceLine, which reads it and keeps no
++-- reference; cleared per ragdoll so it behaves exactly like the fresh `{}` it replaces (mask must not leak across ragdolls).
++local fakeTr = {}
++
+ hook.Add("Think", "Fake", function()
+ 	hg.humans_cached = player_GetHumans()
+ 
++	-- perf round 2 item 4: nothing to control this tick if no ragdoll is under fake control -
++	-- skip the full player.Iterator() pass instead of continuing past every player individually.
++	if not next(hg.ragdollFake or {}) then return end
++
+ 	//for ply, ragdoll in pairs(hg.ragdollFake) do
+ 	for i, ply in player.Iterator() do
+ 		local ragdoll = hg.ragdollFake[ply]//ply.FakeRagdoll
+@@ -147,7 +183,10 @@
+ 			continue
+ 		end
+ 
+-		local torso = ragdoll:LookupBone("ValveBiped.Bip01_Spine2")
++		if ragdoll.hgSpine2B == nil then
++			ragdoll.hgSpine2B = ragdoll:LookupBone("ValveBiped.Bip01_Spine2") or false
++		end
++		local torso = ragdoll.hgSpine2B or nil
+ 		if torso then
+ 			local torsopos, ang = ragdoll:GetBonePosition(torso)
+ 
+@@ -169,16 +208,18 @@
+ 		ragdoll.dtime = (SysTime() - (ragdoll.lastCallTime or SysTime())) * game.GetTimeScale()
+ 		ragdoll.lastCallTime = SysTime()
+ 
+-		local vellen = ragdoll:GetPhysicsObject():GetVelocity():Length()
++		local rootPhys = ragdoll:GetPhysicsObject()
++		if not IsValid(rootPhys) then continue end
++		local vellen = rootPhys:GetVelocity():Length()
+ 
+ 		local org = ply.organism
+ 		local wep = ply:GetActiveWeapon()
+ 
+-		local tr = {}
+-		tr.start = ply:GetPos()
+-		tr.endpos = ply:GetPos() - vector_up * 10
+-		tr.filter = {ply,ragdoll}
+-		local tracehuy = util.TraceLine(tr)
++		local tr = fakeTr
++		tr.start = nil
++		tr.endpos = nil
++		tr.filter = nil
++		tr.mask = nil
+ 		
+ 		local power = org.pain and ((org.pain > 50 or org.blood < 2900 or org.o2[1] < 5) and 0.3) or ((org.pain > 20 or org.blood < 4200 or org.o2[1] < 10) and 0.5) or 1
+ 		power = power * org.consciousness
+@@ -191,25 +232,30 @@
+ 			hg.SetFreemove(ply, false)
+ 		end
+ 
+-		if (org.lightstun < CurTime()) and (tracehuy.Hit or ply.FakeRagdoll ~= ragdoll) and org.spine1 < hg.organism.fake_spine1 and org.canmove and ((ply.lastFake and (ply.lastFake) > CurTime()) or ply.FakeRagdoll ~= ragdoll) and !ply.jumpedfake then
++		if (org.lightstun < CurTime()) and (ply.FakeRagdoll ~= ragdoll or (org.canmove and (ply.lastFake and (ply.lastFake) > CurTime()) and !ply.jumpedfake and fakeGroundHit(ply, ragdoll))) and org.spine1 < hg.organism.fake_spine1 and org.canmove and ((ply.lastFake and (ply.lastFake) > CurTime()) or ply.FakeRagdoll ~= ragdoll) and !ply.jumpedfake then
+ 			local power = 1
+ 			inmove = true
+ 			
+ 			local ragbonecount = ragdoll:GetPhysicsObjectCount()
++			ragdoll.hgP2B = ragdoll.hgP2B or {}
++			local p2b = ragdoll.hgP2B
+ 			for i = 0, ragbonecount - 1 do
+-				local bone = ragdoll:TranslatePhysBoneToBone(i)
++				local bone = p2b[i]
++				if bone == nil then
++					bone = ragdoll:TranslatePhysBoneToBone(i)
++					p2b[i] = bone
++				end
+ 				local bonepos, boneang = ply:GetBonePosition(bone)
+ 				if bonepos and boneang then
+ 					local physobj = ragdoll:GetPhysicsObjectNum(i)
+-					local mass = physobj:GetMass() / 5
+-					
+-					local name = ragdoll:GetBoneName(bone)
+-
+ 					if IsValid(physobj) then
+-						local bone_impulse = ply.HitBones and ply.HitBones[bonename] or CurTime()
+-						local amt_impulse = (2 - math.Clamp(bone_impulse - CurTime(),0,2)) / 2
+-						
+-						local p = {}
++						local mass = physobj:GetMass() / 5
++						-- (original read ply.HitBones[bonename] with an undefined
++						-- variable, so amt_impulse always resolved to 1 - kept
++						-- identical without the wasted GetBoneName call)
++						local amt_impulse = 1
++
++						local p = boneShadowParams
+ 						p.secondstoarrive = 0.01
+ 						p.pos = bonepos
+ 						p.angle = boneang
+@@ -221,7 +267,7 @@
+ 
+ 						physobj:Wake()
+ 						
+-						if hg.RagdollCombatInUse(ply) and ply:KeyDown(IN_JUMP) then
++						if ragdollcombat and ply:KeyDown(IN_JUMP) then
+ 							if !ply.jumpedfake then
+ 								ply.jumpedfake = true
+ 
+@@ -237,7 +283,11 @@
+ 
+ 			if ply.FakeRagdoll ~= ragdoll then continue end
+ 		elseif ply:Alive() then			
+-			local pos = ragdoll:GetBoneMatrix(ragdoll:LookupBone("ValveBiped.Bip01_Head1")):GetTranslation()		
++			if ragdoll.hgHead1B == nil then
++				ragdoll.hgHead1B = ragdoll:LookupBone("ValveBiped.Bip01_Head1") or false
++			end
++			local headMatrix = ragdoll:GetBoneMatrix(ragdoll.hgHead1B or 0)
++			local pos = headMatrix and headMatrix:GetTranslation()
+ 			
+ 			if !ply:KeyDown(IN_JUMP) then
+ 				ply.jumpedfake = nil
+@@ -249,30 +299,32 @@
+ 
+ 			if ply:InVehicle() then
+ 				ply:SetPos(vector_origin)
+-			else
++			elseif pos then
+ 				ply:SetPos(pos)
+ 				--ply:SetVelocity(vector_origin)
+ 			end
+ 		end
+ 
+ 		local angles = ply:EyeAngles()
+-		local att = ragdoll:GetAttachment(ragdoll:LookupAttachment("eyes"))
+-		--ragdoll:SetFlexWeight(9, 0)
+-		local vecpos = angles:Forward() * 10000
+-		local dist = (angles:Forward() * 10000):Distance(vecpos)
+-		local distmod = math.Clamp(1 - (dist / 20000), 0.35, 1)
+-		local lookat = LerpVector(distmod, att.Ang:Forward() * 10000, vecpos)
+-		local LocalPos, LocalAng = WorldToLocal(lookat, angles, att.Pos, att.Ang)
+-		LocalAng[1] = math.Clamp(LocalAng[1], -30, 30)
+-		LocalAng[2] = math.Clamp(LocalAng[2], -30, 30)
+-		
+-		if ragdoll.organism and not ragdoll.organism.otrub then
+-			ragdoll.LastAng = LocalAng
+-		else
+-			LocalAng = ragdoll.LastAng or LocalAng
++		if ragdoll.hgEyesAtt == nil then
++			ragdoll.hgEyesAtt = ragdoll:LookupAttachment("eyes") or false
+ 		end
++		local att = ragdoll:GetAttachment(ragdoll.hgEyesAtt or 0)
++		-- A cosmetic eye target must not interrupt physical control for this or later players.
++		if att then
++			local lookat = angles:Forward() * 10000
++			local LocalPos, LocalAng = WorldToLocal(lookat, angles, att.Pos, att.Ang)
++			LocalAng[1] = math.Clamp(LocalAng[1], -30, 30)
++			LocalAng[2] = math.Clamp(LocalAng[2], -30, 30)
+ 
+-		ragdoll:SetEyeTarget(LocalAng:Forward() * 10000)
++			if ragdoll.organism and not ragdoll.organism.otrub then
++				ragdoll.LastAng = LocalAng
++			else
++				LocalAng = ragdoll.LastAng or LocalAng
++			end
++
++			ragdoll:SetEyeTarget(LocalAng:Forward() * 10000)
++		end
+ 
+ 		local model = ragdoll:GetModel()
+ 		ang:Set(angles)
+@@ -312,6 +364,7 @@
+ 		spine = ragdoll:GetPhysicsObjectNum(realPhysNum(ragdoll,1))
+ 		rhand = ragdoll:GetPhysicsObjectNum(realPhysNum(ragdoll,7))
+ 		lhand = ragdoll:GetPhysicsObjectNum(realPhysNum(ragdoll,5))
++		if not IsValid(spine) or not IsValid(rhand) or not IsValid(lhand) then continue end
+ 		ang = spine:GetAngles()
+ 
+ 		local angles2 = -(-angles)
+@@ -385,12 +438,10 @@
+ 				end
+ 			end
+ 
+-			local on_ground = util.TraceLine({
+-					start = spine:GetPos(),
+-					endpos = spine:GetPos() - vector_up * 58,
+-					filter = {ply, ragdoll},
+-					mask = MASK_SOLID,
+-				}).Hit
++			local on_ground
++			if IsValid(ragdoll.ConsRH) or IsValid(ragdoll.ConsLH) then
++				on_ground = fakeSpineOnGround(spine, ply, ragdoll)
++			end
+ 			
+ 			if forward then
+ 				if IsValid(ragdoll.ConsRH) then
+@@ -411,6 +462,7 @@
+ 					end
+ 
+ 					if hg_fake_stamina:GetBool() then
++						if on_ground == nil then on_ground = fakeSpineOnGround(spine, ply, ragdoll) end
+ 						org.stamina.subadd = org.stamina.subadd + 0.05 * (ragdoll.staminaRightModifyer or 0.5) * (on_ground and 0.25 or 1)
+ 					end
+ 				end
+@@ -433,6 +485,7 @@
+ 					end
+ 
+ 					if hg_fake_stamina:GetBool() then
++						if on_ground == nil then on_ground = fakeSpineOnGround(spine, ply, ragdoll) end
+ 						org.stamina.subadd = org.stamina.subadd + 0.05 * (ragdoll.staminaLeftModifyer or 0.5) * (on_ground and 0.25 or 1)
+ 					end
+ 				end
+@@ -522,14 +575,14 @@
+ 
+ 					if IsValid(ragdoll.ConsRH) and not IsValid(ragdoll.ConsRH.choking) then
+ 						rhand:SetPos(head:GetPos())
+-						ragdoll.cooldownLH = nil
++						ragdoll.cooldownRH = nil
+ 						ragdoll.ConsRH:Remove()
+ 						ragdoll.ConsRH = nil
+ 					end
+ 	
+ 					if IsValid(ragdoll.ConsLH) and not IsValid(ragdoll.ConsLH.choking) then
+ 						lhand:SetPos(head:GetPos())
+-						ragdoll.cooldownRH = nil
++						ragdoll.cooldownLH = nil
+ 						ragdoll.ConsLH:Remove()
+ 						ragdoll.ConsLH = nil
+ 					end
+@@ -548,6 +601,7 @@
+ 			if ply:KeyDown(IN_SPEED) and org.canmove and !org.larmamputated and (!ply.HandsStun or ply.HandsStun < CurTime()) then
+ 				if IsValid(ragdoll.ConsLH) then
+ 					if hg_fake_stamina:GetBool() then
++						if on_ground == nil then on_ground = fakeSpineOnGround(spine, ply, ragdoll) end
+ 						org.stamina.subadd = org.stamina.subadd + 0.06 * (ragdoll.staminaLeftModifyer or 0.5) * ( IsValid(ragdoll.ConsRH) and 0.35 or 1.25) * (on_ground and 0.25 or 1)
+ 					end
+ 					
+@@ -583,10 +637,12 @@
+ 					--//
+ 
+ 					local trace
++					local handPos, handAngles = phys:GetPos(), phys:GetAngles()
++					local handRight, handUp = handAngles:Right(), handAngles:Up()
+ 					for i = 1,3 do
+ 						if trace and trace.Hit and not trace.HitSky then continue end
+-						tr.start = phys:GetPos()
+-						tr.endpos = phys:GetPos() + phys:GetAngles():Right() * 6 + phys:GetAngles():Up() * (i - 2) * 3
++						tr.start = handPos
++						tr.endpos = handPos + handRight * 6 + handUp * (i - 2) * 3
+ 						tr.filter = ragdoll
+ 						tr.mask = MASK_SOLID
+ 						trace = util_TraceLine(tr)
+@@ -605,10 +661,14 @@
+ 							ragdoll.cooldownLH = time + 0.5
+ 							ragdoll.ConsLH = cons
+ 
+-							cons:CallOnRemove("fingersback", function()
++							cons:CallOnRemove("fingersback", function(removed)
++								if not IsValid(ragdoll) then return end
++								-- A previous weld may be removed after this hand acquired a new grip.
++								if IsValid(ragdoll.ConsLH) and ragdoll.ConsLH ~= removed then return end
++								if ragdoll.ConsLH == removed then ragdoll.ConsLH = nil end
+ 								for i = 1, 4 do
+-									if not ragdoll:LookupBone("ValveBiped.Bip01_L_Finger" .. tostring(i) .. "1") then continue end
+-									ragdoll:ManipulateBoneAngles(ragdoll:LookupBone("ValveBiped.Bip01_L_Finger" .. tostring(i) .. "1"), Angle(0, 0, 0))
++									local bone = ragdoll:LookupBone("ValveBiped.Bip01_L_Finger" .. tostring(i) .. "1")
++									if bone then ragdoll:ManipulateBoneAngles(bone, angle_zero) end
+ 								end
+ 							end)
+ 
+@@ -617,8 +677,8 @@
+ 							ragdoll:EmitSound("physics/body/body_medium_impact_soft" .. math.random(1, 7) .. ".wav", 50, math.random(95, 105))
+ 							
+ 							for i = 1, 4 do
+-								if not ragdoll:LookupBone("ValveBiped.Bip01_L_Finger" .. tostring(i) .. "1") then continue end
+-								ragdoll:ManipulateBoneAngles(ragdoll:LookupBone("ValveBiped.Bip01_L_Finger" .. tostring(i) .. "1"), Angle(0, -45, 0))
++								local bone = ragdoll:LookupBone("ValveBiped.Bip01_L_Finger" .. tostring(i) .. "1")
++								if bone then ragdoll:ManipulateBoneAngles(bone, angDislocate45) end
+ 							end
+ 						end
+ 					end
+@@ -628,8 +688,8 @@
+ 					ragdoll.ConsLH:Remove()
+ 					ragdoll.ConsLH = nil
+ 					for i = 1, 4 do
+-						if not ragdoll:LookupBone("ValveBiped.Bip01_L_Finger" .. tostring(i) .. "1") then continue end
+-						ragdoll:ManipulateBoneAngles(ragdoll:LookupBone("ValveBiped.Bip01_L_Finger" .. tostring(i) .. "1"), Angle(0, 0, 0))
++						local bone = ragdoll:LookupBone("ValveBiped.Bip01_L_Finger" .. tostring(i) .. "1")
++						if bone then ragdoll:ManipulateBoneAngles(bone, angle_zero) end
+ 					end
+ 				end
+ 			end
+@@ -637,6 +697,7 @@
+ 			if ply:KeyDown(IN_WALK) and org.canmove and !(ishgweapon(wep) or wep.ismelee2) and !org.rarmamputated and (!ply.HandsStun or ply.HandsStun < CurTime()) then
+ 				if IsValid(ragdoll.ConsRH) then
+ 					if hg_fake_stamina:GetBool() then
++						if on_ground == nil then on_ground = fakeSpineOnGround(spine, ply, ragdoll) end
+ 						org.stamina.subadd = org.stamina.subadd + 0.06 * (ragdoll.staminaRightModifyer or 1) * ( IsValid(ragdoll.ConsLH) and 0.35 or 1.25) * (on_ground and 0.25 or 1)
+ 					end
+ 					
+@@ -672,16 +733,18 @@
+ 					--//
+ 
+ 					local trace
++					local handPos, handAngles = phys:GetPos(), phys:GetAngles()
++					local handRight, handUp = handAngles:Right(), handAngles:Up()
+ 					for i = 1,3 do
+ 						if trace and trace.Hit and not trace.HitSky then continue end
+-						tr.start = phys:GetPos()
+-						tr.endpos = phys:GetPos() + phys:GetAngles():Right() * 6 + phys:GetAngles():Up() * (i - 2) * 3
++						tr.start = handPos
++						tr.endpos = handPos + handRight * 6 + handUp * (i - 2) * 3
+ 						tr.filter = ragdoll
+ 						trace = util_TraceLine(tr)
+ 					end
+ 					
+ 					if IsValid(choking) or (trace.Hit and not trace.HitSky) then
+-						ent = trace.Entity
++						ent = IsValid(choking) and choking or trace.Entity
+ 						ragdoll.staminaRightModifyer = 1.5 - trace.HitNormal.z
+ 						
+ 						if IsValid(choking) and chokinghead then
+@@ -693,10 +756,14 @@
+ 							ragdoll.cooldownRH = time + 0.5
+ 							ragdoll.ConsRH = cons
+ 
+-							cons:CallOnRemove("fingersback", function()
++							cons:CallOnRemove("fingersback", function(removed)
++								if not IsValid(ragdoll) then return end
++								-- A previous weld may be removed after this hand acquired a new grip.
++								if IsValid(ragdoll.ConsRH) and ragdoll.ConsRH ~= removed then return end
++								if ragdoll.ConsRH == removed then ragdoll.ConsRH = nil end
+ 								for i = 1, 4 do
+-									if not ragdoll:LookupBone("ValveBiped.Bip01_L_Finger" .. tostring(i) .. "1") then continue end
+-									ragdoll:ManipulateBoneAngles(ragdoll:LookupBone("ValveBiped.Bip01_L_Finger" .. tostring(i) .. "1"), Angle(0, 0, 0))
++									local bone = ragdoll:LookupBone("ValveBiped.Bip01_R_Finger" .. tostring(i) .. "1")
++									if bone then ragdoll:ManipulateBoneAngles(bone, angle_zero) end
+ 								end
+ 							end)
+ 
+@@ -705,8 +772,8 @@
+ 							ragdoll:EmitSound("physics/body/body_medium_impact_soft" .. math.random(1, 7) .. ".wav", 55, math.random(95, 105))
+ 							
+ 							for i = 1, 4 do
+-								if not ragdoll:LookupBone("ValveBiped.Bip01_R_Finger" .. tostring(i) .. "1") then continue end
+-								ragdoll:ManipulateBoneAngles(ragdoll:LookupBone("ValveBiped.Bip01_R_Finger" .. tostring(i) .. "1"), Angle(0, -45, 0))
++								local bone = ragdoll:LookupBone("ValveBiped.Bip01_R_Finger" .. tostring(i) .. "1")
++								if bone then ragdoll:ManipulateBoneAngles(bone, angDislocate45) end
+ 							end
+ 						end
+ 					end
+@@ -716,8 +783,8 @@
+ 					ragdoll.ConsRH:Remove()
+ 					ragdoll.ConsRH = nil
+ 					for i = 1, 4 do
+-						if not ragdoll:LookupBone("ValveBiped.Bip01_R_Finger" .. tostring(i) .. "1") then continue end
+-						ragdoll:ManipulateBoneAngles(ragdoll:LookupBone("ValveBiped.Bip01_R_Finger" .. tostring(i) .. "1"), Angle(0, 0, 0))
++						local bone = ragdoll:LookupBone("ValveBiped.Bip01_R_Finger" .. tostring(i) .. "1")
++						if bone then ragdoll:ManipulateBoneAngles(bone, angle_zero) end
+ 					end
+ 				end
+ 			end
+@@ -736,6 +803,8 @@
+ 			--rhand:SetPos(head:GetPos())
+ 			local org = choking1.organism
+ 			if org then
++				local audit=ZCJusticeV3Integration
++				if audit and audit.enabled and audit.MedicalUnknownChokeInput then audit:Safe(audit.MedicalUnknownChokeInput,org) end
+ 				org.choking = true
+ 				if zb then
+ 					local dmgInfo = DamageInfo()
+@@ -933,7 +1002,8 @@
+ 		ragdoll.ConsLH:Remove()
+ 		ragdoll.ConsLH = nil
+ 		for i = 1, 4 do
+-			ragdoll:ManipulateBoneAngles(ragdoll:LookupBone("ValveBiped.Bip01_L_Finger" .. tostring(i) .. "1"), Angle(0, 0, 0))
++			local bone = ragdoll:LookupBone("ValveBiped.Bip01_L_Finger" .. tostring(i) .. "1")
++			if bone then ragdoll:ManipulateBoneAngles(bone, angle_zero) end
+ 		end
+ 	end
+ 
+@@ -941,7 +1011,8 @@
+ 		ragdoll.ConsRH:Remove()
+ 		ragdoll.ConsRH = nil
+ 		for i = 1, 4 do
+-			ragdoll:ManipulateBoneAngles(ragdoll:LookupBone("ValveBiped.Bip01_R_Finger" .. tostring(i) .. "1"), Angle(0, 0, 0))
++			local bone = ragdoll:LookupBone("ValveBiped.Bip01_R_Finger" .. tostring(i) .. "1")
++			if bone then ragdoll:ManipulateBoneAngles(bone, angle_zero) end
+ 		end
+ 	end
+-end)
+\ No newline at end of file
++end)

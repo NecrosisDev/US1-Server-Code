@@ -1,0 +1,46 @@
+--- a/lua/homigrad/new_appearance/sh_shared.lua
++++ b/lua/homigrad/new_appearance/sh_shared.lua
+@@ -382,6 +382,10 @@
+ 	}
+ 
+ 	PLUGIN:CreateItem(pointShopID, string.NiceName(strName), psModel or "models/zcity/gloves/degloves.mdl", psBodygroups, 0, Vector(0, 0, 0), fCost, bDonateOnly, psSubmats or {})
++	-- 2026-09-26: handed out to everyone (owner decision); stamped here at creation so it can never
++	-- race sh_accessories.lua's equivalent "Think" hook for the accessory half of the catalog.
++	hg.PointShop.FreeItems = hg.PointShop.FreeItems or {}
++	hg.PointShop.FreeItems[pointShopID] = true
+ end
+ 
+ local function AddBodygroupsFunc()
+@@ -463,6 +467,23 @@
+ 	return randomAppearance
+ end
+ 
++-- Root cause of "Save always fails after Shuffle": AppAddModel's submatSlots (main/pants/boots/
++-- hands) is 4 keys wide, but the AClothes validator below used to cap at a stale 3, rejecting any
++-- draft that had actually filled the hands slot too. Derived from the same PlayerModels catalog so
++-- a future model with a different slot count can never drift from what this validator accepts.
++local function MaxClothesSlots()
++	local maxSlots = 0
++	for sex = 1, 2 do
++		for _, data in pairs(PlayerModels[sex] or {}) do
++			local count = table.Count(data.submatSlots or {})
++			if count > maxSlots then maxSlots = count end
++		end
++	end
++	return maxSlots
++end
++
++local CLOTHES_SLOT_CAP = MaxClothesSlots()
++
+ -- Validator
+ hg.Appearance.ValidateFunctions = {
+ 	AModel = function(str)
+@@ -472,7 +493,7 @@
+ 	end,
+ 	AClothes = function(tbl)
+ 		if not istable(tbl) then return false end
+-		if table.Count(tbl) > 3 then return false end
++		if table.Count(tbl) > CLOTHES_SLOT_CAP then return false end
+ 		--for k, v in ipairs(tbl) do
+ 		--    if !hg.Appearance.Clothes[1][v] and !hg.Appearance.Clothes[2][v] then return false end
+ 		--end

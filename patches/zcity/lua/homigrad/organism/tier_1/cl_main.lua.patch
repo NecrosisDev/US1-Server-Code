@@ -1,0 +1,39 @@
+--- a/lua/homigrad/organism/tier_1/cl_main.lua
++++ b/lua/homigrad/organism/tier_1/cl_main.lua
+@@ -353,10 +353,16 @@
+ local old = false
+ local tinnitusSoundFactor
+ local hg_gopro = ConVarExists("hg_gopro") and GetConVar("hg_gopro") or CreateClientConVar("hg_gopro", "0", true, false, "Toggle GoPro-like first-person camera view", 0, 1)
++-- The spectator's view mode as the CAMERA uses it (cl_init.lua HG_CalcView reads the same NWInt). The global `viewmode`
++-- only changes when a spectate key is pressed, while the server also sets the mode on death and spawn (sv_tier_0.lua
++-- PostPlayerDeath -> 3), so the global disagrees with what is on screen. 1 first person, 2 third person, 3 free roam.
++local function specMode()
++	return lply:GetNWInt("viewmode", viewmode or 1)
++end
+ hook.Add("Post Post Pre Post Processing", "organism-effects", function()
+ 	local spect = IsValid(lply:GetNWEntity("spect")) and lply:GetNWEntity("spect")
+-	local organism = lply:Alive() and lply.organism or (viewmode == 1 and IsValid(spect) and spect.organism) or {}
+-	local new_organism = lply:Alive() and lply.new_organism or (viewmode == 1 and IsValid(spect) and spect.new_organism) or {}
++	local organism = lply:Alive() and lply.organism or (specMode() == 1 and IsValid(spect) and spect.organism) or {}
++	local new_organism = lply:Alive() and lply.new_organism or (specMode() == 1 and IsValid(spect) and spect.new_organism) or {}
+ 
+ 	//hg.DrawAffliction(0, 0, 100, 100, 1, "pale")
+ 
+@@ -379,7 +385,16 @@
+ 
+ 	local org = organism
+ 	
+-	if not org.brain then return end
++	if not org.brain then
++		-- Dead with nobody's body to feel (third person, free roam, or first person before the target's data arrives):
++		-- dying leaves "soundfade 100 99999" + DSP 17 behind, and the only line that lifted them is below this return,
++		-- so spectators stayed deaf until they cycled to first person. Same death fade window as below.
++		if not lply:Alive() and not ((fakeTimer and fakeTimer - 2 > CurTime()) and GetConVar("hg_deathfadeout"):GetBool() and zb.ROUND_STATE == 1) then
++			lply:SetDSP(hg_gopro:GetBool() and 55 or 0)
++			plyCommand(lply, "soundfade 0 25")
++		end
++		return
++	end
+ 	
+ 	local adrenaline = org.adrenaline or 0
+ 	local pulse = org.pulse or 70

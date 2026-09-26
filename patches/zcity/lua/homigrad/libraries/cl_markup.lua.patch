@@ -1,0 +1,77 @@
+--- a/lua/homigrad/libraries/cl_markup.lua
++++ b/lua/homigrad/libraries/cl_markup.lua
+@@ -283,6 +283,7 @@
+ 	local thisMaxY = 0
+ 	local new_block_list = {}
+ 	local ymaxes = {}
++	local imgLine = {}
+ 	local texOffset = 0
+ 
+ 	local lineHeight = 0
+@@ -304,7 +305,7 @@
+ 				if (ch == "\n") then
+ 					if (thisY == 0) then
+ 						thisY = lineHeight + texOffset;
+-						thisMaxY = lineHeight + texOffset;
++						thisMaxY = math.max(lineHeight + texOffset, thisMaxY, imgLine[yOffset] or 0);
+ 					else
+ 						lineHeight = thisY + texOffset
+ 					end
+@@ -461,13 +462,34 @@
+ 			end
+ 			xSize = 0
+ 		elseif (block.texture) then
++			-- An image that would cross maxwidth starts a new line, as text does (one already first on its line stays).
++			-- Its line is recorded so the pass below centres it there: it used to be centred on line 0 whatever line
++			-- it landed on, so an emoji after a wrap drew over the first line.
++			if (maxwidth and xOffset > 0 and xOffset + block.w >= maxwidth) then
++				yOffset = yOffset + (thisMaxY > 0 and thisMaxY or (ymaxes[yOffset] or block.h))
++				xOffset = 0
++				xSize = 0
++				thisMaxY = 0
++			end
++			imgLine[yOffset] = math.max(imgLine[yOffset] or 0, block.h)
++			if (yOffset > 0) then
++				-- Past line 0 an image counts like a taller glyph: its line is as tall as the image, text on it shares the
++				-- bottom, and the next line starts below it. Line 0 keeps its text-only height, so a row whose images
++				-- are all on its first line lays out exactly as before.
++				if (block.h > thisMaxY) then thisMaxY = block.h; ymaxes[yOffset] = block.h end
++			elseif (thisMaxY == 0) then
++				-- line 0 with no text on it yet (this used to throw): as tall as its tallest image. Text on the line
++				-- overwrites this exactly as before.
++				ymaxes[yOffset] = math.max(ymaxes[yOffset] or 0, block.h)
++			end
++
+ 			local newBlock = table.Copy(block)
+ 				newBlock.colour = block.colour or {r = 255, g = 255, b = 255, a = 255}
+ 				newBlock.thisX = block.w
+ 				newBlock.thisY = block.h
+ 				newBlock.offset = {
+ 					x = xOffset,
+-					y = 0
++					y = yOffset
+ 				}
+ 
+ 			table.insert(new_block_list, newBlock)
+@@ -480,13 +502,18 @@
+ 	for i = 1, #new_block_list do
+ 		local block = new_block_list[i]
+ 		block.height = ymaxes[block.offset.y]
++		local bottom = block.height and block.offset.y + block.height
+ 
+ 		if (block.texture) then
+-			block.offset.y = ymaxes[0] * 0.5 - block.h * 0.5
++			-- Centred on its own line: offset.y is still that line's top here, and block.height its height.
++			local top = block.offset.y
++			block.offset.y = top + (block.height or block.h) * 0.5 - block.h * 0.5
++			-- Line 0 keeps the old sum; past it the row must hold the image's whole line.
++			bottom = block.height and (top > 0 and top + block.height or block.offset.y + block.height)
+ 		end
+ 
+-		if (block.height and block.offset.y + block.height > totalHeight) then
+-			totalHeight = block.offset.y + block.height
++		if (bottom and bottom > totalHeight) then
++			totalHeight = bottom
+ 		end
+ 	end
+ 

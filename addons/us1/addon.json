@@ -1,0 +1,6 @@
+{
+	"title": "US1 Server Code",
+	"type": "servercontent",
+	"tags": ["fun", "roleplay"],
+	"ignore": ["*.md", "*.patch"]
+}

@@ -1,0 +1,141 @@
+--- a/lua/weapons/homigrad_base/sh_worldmodel.lua
++++ b/lua/weapons/homigrad_base/sh_worldmodel.lua
+@@ -1,3 +1,5 @@
++ZCityHostageOwnerCapabilities = ZCityHostageOwnerCapabilities or {}
++ZCityHostageOwnerCapabilities["weapons/homigrad_base/sh_worldmodel.lua"] = "20260920.5"
+ AddCSLuaFile()
+ local IsValid = IsValid
+ --
+@@ -297,6 +299,7 @@
+ SWEP.GetDebug = false
+ 
+ local function DrawWorldModel(self, force)
++	if ZCKillcamView and ZCKillcamView.IsolatingScene and ZCKillcamView.IsolatingScene() then return end
+ 	if RENDERING_SCOPE == self then return end
+ 	if not IsValid(self) or not self.WorldModel_Transform then return end
+ 	local owner = self:GetOwner()
+@@ -559,40 +562,41 @@
+ end)
+ 
+ function SWEP:WorldModel_Transform(bNoApply, bNoAdditional, model)
+-	local model, owner = model or self.worldModel, self:GetOwner()
+-	if not IsValid(model) then self.worldModel = self:CreateWorldModel() model = self.worldModel end
+-	
+-	if IsValid(owner) and (owner:IsNPC() or owner:IsPlayer()) then
+-		local ent = IsValid(owner.FakeRagdoll) and owner.FakeRagdoll or owner
+-		local inuse = self:InUse()
+-		
+-		local dtime = SysTime() - (self.last_transform or SysTime())
+-		self.last_transform = SysTime()
+-
+-		local should = hg.ShouldTPIK(owner) and not (ent ~= owner and not (inuse))
+-		if not should and not IsValid(owner.FakeRagdoll) then
+-			if IsValid(model) then
+-				-- local ownAngs = owner:EyeAngles()
+-				-- model:SetRenderAngles(ownAngs)
+-				-- model:SetRenderOrigin(owner:EyePos() + ownAngs:Forward() * 15 + owner:GetUp() * -10)
+-
+-				model:SetModel(self.WorldModel)
+-				model:AddEffects(EF_BONEMERGE)
+-				model:SetParent(owner)
+-				model:Remove()
+-				model = nil
+-			end
++    local model, owner = model or self.worldModel, self:GetOwner()
++    local controlled = IsValid(owner) and (owner:IsNPC() or owner:IsPlayer())
++    local ent, inuse, should
++    if controlled then
++        ent = IsValid(owner.FakeRagdoll) and owner.FakeRagdoll or owner
++        inuse = self:InUse()
++        should = hg.ShouldTPIK(owner) and not (ent ~= owner and not inuse)
++        if not should and not IsValid(owner.FakeRagdoll) then
++            self.last_transform = SysTime()
++            if IsValid(model) then
++                model:SetModel(self.WorldModel)
++                model:AddEffects(EF_BONEMERGE)
++                model:SetParent(owner)
++                model:Remove()
++            end
++            return
++        end
++    end
++    if not IsValid(model) then self.worldModel = self:CreateWorldModel(); model = self.worldModel end
++    if not IsValid(model) then return end
++    if controlled then
++        local dtime = SysTime() - (self.last_transform or SysTime())
++        self.last_transform = SysTime()
++        -- Visible weapon and live-ragdoll transforms retain the original cadence.
+ 
+-			return
+-		end
+-		
+-		-- if not should then ent:SetupBones() end
+ 		
+ 		local RHand = ent:LookupBone("ValveBiped.Bip01_R_Hand")
+ 		
+ 		if not RHand then return end
+ 
+-		local matrixR = ent:GetBoneMatrix(RHand) or ent:GetBoneMatrix(ent:LookupBone("ValveBiped.Bip01_R_Forearm"))
++		local matrixR = ent:GetBoneMatrix(RHand)
++        if not matrixR then
++            local forearm = ent:LookupBone("ValveBiped.Bip01_R_Forearm")
++            if forearm ~= nil then matrixR = ent:GetBoneMatrix(forearm) end
++        end
+ 		
+ 		if not matrixR then 
+ 			//matrixR = Matrix()
+@@ -613,7 +617,9 @@
+ 		ang = ang * lerp
+ 		local _,ang = LocalToWorld(vecZero,ang,vecZero,aimvec)
+ 		ang[3] = matrixRAngRot[3]
+-		local desiredAng = ((ent~=owner)) and ang or aimvec
++		local zch = ZCityHostage and ZCityHostage.Gameplay
++		local zchPose = zch and zch.OwnsPose(owner) and zch.Role(owner) == "captor"
++		local desiredAng = (zchPose or (ent~=owner)) and ang or aimvec
+ 		desiredAng[3] = desiredAng[3] + (owner:EyeAngles()[3])
+ 		desiredAng:RotateAroundAxis(desiredAng:Forward(), ent:IsNPC() and 0 or 180)
+ 		local desiredPos = matrixR:GetTranslation()
+@@ -621,7 +627,7 @@
+ 		--local oldPos = -(-desiredPos)
+ 		--local oldAng = -(-desiredAng)
+ 				
+-		if !owner:IsNPC() then//should then
++		if !owner:IsNPC() and not zchPose then//should then
+ 			local desiredPos1, desiredAng1 = self:PosAngChanges(owner, desiredPos, desiredAng, bNoAdditional, nil, dtime)
+ 			
+ 			desiredPos = LerpVector(self.lerped_positioning or 0, desiredPos, desiredPos1)
+@@ -637,6 +643,7 @@
+ 
+ 		local newPos, newAng = LocalToWorld(self.WorldPos, self.WorldAng + (self.WorldAng2 or angle_zero), desiredPos, desiredAng)
+ 		newAng:RotateAroundAxis(newAng:Forward(), 180)
++        if zchPose then newPos, newAng = zch.AdjustWeapon(owner, self, newPos, newAng) end
+ 		
+ 		if self:ShouldUseFakeModel() then
+ 			newPos, newAng = LocalToWorld(self.FakePos, self.FakeAng, newPos, newAng)
+@@ -705,7 +712,9 @@
+ 		local pos = self.holsteredPos
+ 		local ang = self.holsteredAng
+ 
+-		local matrix = ent:GetBoneMatrix(ent:LookupBone(bone))
++		local boneIndex = ent:LookupBone(bone)
++        if boneIndex == nil then return end
++        local matrix = ent:GetBoneMatrix(boneIndex)
+ 		if not matrix then return end
+ 		local localPos, localAng = pos, ang
+ 		
+@@ -842,6 +851,7 @@
+ 
+ --hook.Add("PostDrawPlayerRagdoll", "huyCock", function(ent,owner)
+ function hg.RenderWeapons(ent, owner)
++	if ZCKillcamView and ZCKillcamView.IsolatingScene and ZCKillcamView.IsolatingScene() then return end
+ 	local wep = owner.GetActiveWeapon and owner:GetActiveWeapon()
+ 	
+ 	if IsValid(wep) and wep.ishgweapon then
+@@ -878,6 +888,7 @@
+ local string_find = string.find
+ 
+ hook.Add("PostDrawTranslucentRenderables", "huyCock333", function()
++	if ZCKillcamView and ZCKillcamView.IsolatingScene and ZCKillcamView.IsolatingScene() then return end
+ 	hg.weapons = hg.weapons or {}
+ 	for i=1, #hg.weapons do
+ 		self = hg.weapons[i]

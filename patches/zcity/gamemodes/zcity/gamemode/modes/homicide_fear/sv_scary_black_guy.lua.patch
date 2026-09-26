@@ -1,0 +1,39 @@
+--- a/gamemodes/zcity/gamemode/modes/homicide_fear/sv_scary_black_guy.lua
++++ b/gamemodes/zcity/gamemode/modes/homicide_fear/sv_scary_black_guy.lua
+@@ -46,6 +46,24 @@
+         ply:SendLua("Entity("..EndIndex.."):EmitSound(\"cry1.wav\")") -- 
+     end)
+     self.Started = CurTime()
++
++    -- watchdog: the figure cleans itself up no matter what happens to
++    -- the event framework, the victim, or the round
++    local ent = self.Ent
++    local victim = ply
++    local born = CurTime()
++    timer.Create("SBG_Watch_" .. EndIndex, 2, 0, function()
++        if not IsValid(ent) then
++            timer.Remove("SBG_Watch_" .. EndIndex)
++            return
++        end
++        if not IsValid(victim) or not victim:Alive()
++            or victim:GetNetVar("disappearance")
++            or born + 65 < CurTime() then
++            ent:Remove()
++            timer.Remove("SBG_Watch_" .. EndIndex)
++        end
++    end)
+ end
+ --126 idle
+ --13 attack
+@@ -57,7 +75,10 @@
+     if self.Started + 60 < CurTime() then self:StopScare() return end
+     --self.Ent:SetAngles((ply:EyePos() - self.Ent:GetPos()):Angle())
+     local pos = self.Ent:GetPos() + vector_up * 32
+-    if IsLookingAt(ply, pos, 0.75) and hg.isVisible(pos,ply:EyePos(),{self.Ent, ply},MASK_VISIBLE) then
++    if self.ScareSoundSend then
++        -- attack already triggered: it finishes whether they watch or not
++        self:Run(ply)
++    elseif IsLookingAt(ply, pos, 0.75) and hg.isVisible(pos,ply:EyePos(),{self.Ent, ply},MASK_VISIBLE) then
+         self.LookinTime = self.LookinTime or CurTime() + 1
+         if self.LookinTime < CurTime() then
+             self:Run(ply)

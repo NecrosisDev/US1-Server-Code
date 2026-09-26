@@ -1,0 +1,10 @@
+--- a/lua/homigrad/new_appearance/derma/cl_appearance_editor.lua
++++ b/lua/homigrad/new_appearance/derma/cl_appearance_editor.lua
+@@ -1080,6 +1080,7 @@
+ vgui.Register( "HG_AppearanceMenu", PANEL, "ZFrame")
+ 
+ concommand.Add("hg_appearance_menu",function()
++    if ZCGoobApps and ZCGoobApps.Launch("wardrobe") then return end
+     print('use esc menu')
+ end)
+ 

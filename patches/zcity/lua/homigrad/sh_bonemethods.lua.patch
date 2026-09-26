@@ -1,0 +1,89 @@
+--- a/lua/homigrad/sh_bonemethods.lua
++++ b/lua/homigrad/sh_bonemethods.lua
+@@ -36,7 +36,7 @@
+ 	--if self:GetManipulateBonePosition(bone):IsEqualTol(pos, 0.01) then return end
+ 
+ 	timer.Simple(0, function()
+-		self:ManipulateBonePosition(bone, pos)
++		if IsValid(self) and isnumber(bone) and isvector(pos) then self:ManipulateBonePosition(bone, pos) end
+ 	end)
+ end
+ 
+@@ -44,7 +44,7 @@
+ 	--if self:GetManipulateBoneAngles(bone):IsEqualTol(ang, 0.01) then return end
+ 
+ 	timer.Simple(0, function()
+-		self:ManipulateBoneAngles(bone, ang)
++		if IsValid(self) and isnumber(bone) and isangle(ang) then self:ManipulateBoneAngles(bone, ang) end
+ 	end)
+ end
+ 
+@@ -61,7 +61,7 @@
+ 	ply.manipulate = {}
+ 	ply.matrixes = {}
+ 	
+-	for bone = 0, ply:GetBoneCount() do
++	for bone = 0, ply:GetBoneCount() - 1 do
+ 		ply:ManipulateBonePosition(bone, vecZero, true)
+ 		ply:ManipulateBoneAngles(bone, angZero, true)
+ 		ply:ManipulateBoneScale(bone, vecFull, true)
+@@ -71,8 +71,9 @@
+ end
+ 
+ local function createLayer(ply, layer, lookup_name)
+-	boneName = hg.bone.matrixManual_Name[lookup_name]
+-	boneID = isnumber(lookup_name) and lookup_name or ply:LookupBone(boneName)
++	if not IsValid(ply) then return end
++	local boneName = hg.bone.matrixManual_Name[lookup_name]
++	local boneID = isnumber(lookup_name) and lookup_name or ply:LookupBone(boneName or lookup_name)
+ 	
+ 	if not boneID then return end
+ 
+@@ -81,7 +82,13 @@
+ 	ply.manipulated[boneID].Pos = ply.manipulated[boneID].Pos or Vector(0, 0, 0)
+ 	ply.manipulated[boneID].Ang = ply.manipulated[boneID].Ang or Angle(0, 0, 0)
+ 	ply.manipulated[boneID].layers = ply.manipulated[boneID].layers or {}
+-	ply.manipulated[boneID].layers[layer] = ply.manipulated[boneID].layers[layer] or {Pos = Vector(0, 0, 0), Ang = Angle(0, 0, 0)}
++	local state = ply.manipulated[boneID]
++	if not isvector(state.Pos) then state.Pos = Vector(0, 0, 0) end
++	if not isangle(state.Ang) then state.Ang = Angle(0, 0, 0) end
++	state.layers[layer] = state.layers[layer] or {}
++	local cached = state.layers[layer]
++	if not isvector(cached.Pos) then cached.Pos = Vector(0, 0, 0) end
++	if not isangle(cached.Ang) then cached.Ang = Angle(0, 0, 0) end
+ end
+ 
+ hook.Add("Player Getup", "homigrad-bones", function(ply) reset(ply) end)
+@@ -389,9 +396,10 @@
+ end)
+ 
+ function hg.bone.Set(ply, lookup_name, vec, ang, layer, lerp, dtime2)
++	if not IsValid(ply) or not isvector(vec) or not isangle(ang) then return end
+ 	local dtime = dtime2 or dtime
+-	boneName = hg.bone.matrixManual_Name[lookup_name]
+-	boneID = isnumber(lookup_name) and lookup_name or ply:LookupBone(boneName ~= nil and boneName or lookup_name)
++	local boneName = hg.bone.matrixManual_Name[lookup_name]
++	local boneID = isnumber(lookup_name) and lookup_name or ply:LookupBone(boneName ~= nil and boneName or lookup_name)
+ 
+ 	if not boneID then return end
+ 	
+@@ -421,6 +429,7 @@
+ end
+ --PrintTable(Player(3).manipulated)
+ function hg.bone.SetRaw(ply, boneID, vec, ang)
++	if not IsValid(ply) or not isnumber(boneID) or not isvector(vec) or not isangle(ang) then return end
+ 	ply.manipulated = ply.manipulated or {}
+ 	ply.manipulated[boneID] = ply.manipulated[boneID] or {}
+ 
+@@ -432,8 +441,9 @@
+ end
+ 
+ function hg.bone.Get(ply, lookup_name)
+-	boneName = hg.bone.matrixManual_Name[lookup_name]
+-	boneID = isnumber(lookup_name) and lookup_name or ply:LookupBone(boneName)
++	if not IsValid(ply) or not ply.manipulated then return end
++	local boneName = hg.bone.matrixManual_Name[lookup_name]
++	local boneID = isnumber(lookup_name) and lookup_name or ply:LookupBone(boneName or lookup_name)
+ 
+ 	if not boneID or not ply.manipulated[boneID] then return end
+ 

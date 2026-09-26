@@ -1,0 +1,13 @@
+--- a/lua/weapons/weapon_tranquilizer.lua
++++ b/lua/weapons/weapon_tranquilizer.lua
+@@ -141,7 +141,9 @@
+ 	if not self:GetOwner():IsNPC() and (primary.NextFire or 0) > CurTime() then return false end
+ 
+ 	primary.Next = CurTime() + primary.Wait
+-	primary.RealAutomatic = primary.RealAutomatic or weapons_Get(self:GetClass()).Primary.Automatic
++	if primary.RealAutomatic == nil then
++		primary.RealAutomatic = weapons_Get(self:GetClass()).Primary.Automatic
++	end
+ 	primary.Automatic = primary.RealAutomatic
+ 	self:PrimaryShoot()
+ 	self:PrimaryShootPost()

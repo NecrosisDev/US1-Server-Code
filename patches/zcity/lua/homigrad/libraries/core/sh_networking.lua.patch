@@ -1,0 +1,171 @@
+--- a/lua/homigrad/libraries/core/sh_networking.lua
++++ b/lua/homigrad/libraries/core/sh_networking.lua
+@@ -95,6 +95,12 @@
+ 	
+ 	
+     local entityMeta = FindMetaTable("Entity")
++    -- Keep the existing scalar optimizer across shared-library auto-refresh.
++    local priorScalarSetter = ZCNETOPT and entityMeta.SetNetVar
++    if priorScalarSetter then
++        local info = debug.getinfo(priorScalarSetter, "S")
++        if not info or not info.source:find("sv_zc_netopt.lua", 1, true) then priorScalarSetter = nil end
++    end
+     local playerMeta = FindMetaTable("Player")
+ 
+     zb.net = zb.net or {}
+@@ -146,6 +152,7 @@
+     end
+ 	
+     function playerMeta:SyncVars()
++        if ZCWoundQueue then ZCWoundQueue.BeforeSync() end
+     	for k, v in pairs(zb.net.globals) do
+     		net.Start("zbGlobalVarSet")
+     			net.WriteString(k)
+@@ -219,20 +226,121 @@
+ 		self:SendNetVar(key, receiver)
+ 	end
+ 
+-    function entityMeta:SendNetVar(key, receiver)
+-    	net.Start("zbNetVarSet")
+-    	net.WriteUInt(self:EntIndex(), 16)
+-    	net.WriteString(key)
+-    	net.WriteType(zb.net.list[self] and zb.net.list[self][key])
++    -- ZC_WOUND_QUEUE_BEGIN: server-only state publication; wire format unchanged.
++    if ZCWoundQueue and ZCWoundQueue.Flush then ZCWoundQueue.Flush() end
++    local woundQueueEnabled = CreateConVar("zc_wound_net_queue", "1", FCVAR_ARCHIVE,
++        "Coalesce wound broadcasts within a tick and omit repeated empty lists", 0, 1)
++    local function weakEntities() return setmetatable({}, {__mode = "k"}) end
++    local pendingWounds, emptyWounds = weakEntities(), weakEntities()
++    local woundKeys = {wounds = true, arterialwounds = true}
++    local woundStats = {requested = 0, queued = 0, coalesced = 0, emptySkipped = 0,
++        sent = 0, bytes = 0, fallback = 0, invalidDiscarded = 0}
++    ZCWoundQueue = {Version = "20260919.2", Stats = woundStats}
++
++    -- Freeze the requested payload, including mutable Vector/Angle values.
++    -- Unknown shapes retain the original immediate send path.
++    local function copyWounds(value)
++        if not istable(value) or getmetatable(value) then return nil end
++        local copy = {}
++        for index, wound in pairs(value) do
++            if not isnumber(index) or not istable(wound) or getmetatable(wound) then return nil end
++            local row = {}
++            for field, v in pairs(wound) do
++                if not isnumber(field) then return nil end
++                if isvector(v) then row[field] = Vector(v.x, v.y, v.z)
++                elseif isangle(v) then row[field] = Angle(v.p, v.y, v.r)
++                elseif isnumber(v) or isstring(v) or isbool(v) then row[field] = v
++                else return nil end
++            end
++            copy[index] = row
++        end
++        return copy
++    end
+ 
+-    	if (receiver == nil) then
+-    		net.Broadcast()
+-    	else
+-    		net.Send(receiver)
+-    	end
++    local function sendNetVarNow(entity, key, receiver, value)
++        net.Start("zbNetVarSet")
++        net.WriteUInt(entity:EntIndex(), 16)
++        net.WriteString(key)
++        net.WriteType(value)
++        local bytes = woundKeys[key] and net.BytesWritten() or 0
++        if receiver == nil then net.Broadcast() else net.Send(receiver) end
++        if woundKeys[key] then
++            woundStats.sent = woundStats.sent + 1
++            woundStats.bytes = woundStats.bytes + bytes
++            emptyWounds[entity] = emptyWounds[entity] or {}
++            -- A targeted update can differ from the last broadcast.
++            emptyWounds[entity][key] = receiver == nil and istable(value) and next(value) == nil or nil
++        end
++    end
++
++    local function sendQueuedWound(entity, key, value)
++        if not IsValid(entity) or not zb.net.list[entity] then
++            woundStats.invalidDiscarded = woundStats.invalidDiscarded + 1
++            return
++        end
++        if woundQueueEnabled:GetBool() and next(value) == nil and emptyWounds[entity] and emptyWounds[entity][key] then
++            woundStats.emptySkipped = woundStats.emptySkipped + 1
++            return
++        end
++        sendNetVarNow(entity, key, nil, value)
++    end
++
++    local function flushWound(entity, key)
++        local entries = pendingWounds[entity]
++        if not entries or entries[key] == nil then return end
++        local value = entries[key]
++        entries[key] = nil
++        if next(entries) == nil then pendingWounds[entity] = nil end
++        sendQueuedWound(entity, key, value)
++    end
++
++    function ZCWoundQueue.Flush()
++        local work = pendingWounds
++        pendingWounds = weakEntities()
++        for entity, entries in pairs(work) do
++            for key, value in pairs(entries) do sendQueuedWound(entity, key, value) end
++        end
++    end
++
++    function ZCWoundQueue.BeforeSync()
++        -- Preserve send ordering: broadcast old pending data before the full
++        -- targeted snapshot. Invalidate empty-cache assumptions after a resync.
++        ZCWoundQueue.Flush()
++        emptyWounds = weakEntities()
++    end
++
++    function ZCWoundQueue.Forget(entity)
++        pendingWounds[entity], emptyWounds[entity] = nil, nil
+     end
+ 
++    hook.Add("Tick", "ZC_WoundNetFlush", ZCWoundQueue.Flush)
++
++    function entityMeta:SendNetVar(key, receiver)
++        local value = zb.net.list[self] and zb.net.list[self][key]
++        if woundKeys[key] then
++            woundStats.requested = woundStats.requested + 1
++            if receiver == nil and woundQueueEnabled:GetBool() then
++                local snapshot = copyWounds(value)
++                if snapshot then
++                    local entries = pendingWounds[self]
++                    if not entries then entries = {}; pendingWounds[self] = entries end
++                    if entries[key] ~= nil then woundStats.coalesced = woundStats.coalesced + 1 end
++                    entries[key] = snapshot
++                    woundStats.queued = woundStats.queued + 1
++                    return
++                end
++                woundStats.fallback = woundStats.fallback + 1
++            end
++            -- Targeted sends, disabling the queue and unsupported payloads
++            -- remain immediate and cannot be overwritten by an older queue.
++            flushWound(self, key)
++        end
++        sendNetVarNow(self, key, receiver, value)
++    end
++    -- ZC_WOUND_QUEUE_END
++
+     function entityMeta:ClearNetVars(receiver)
++        if ZCWoundQueue then ZCWoundQueue.Forget(self) end
+     	zb.net.list[self] = nil
+     	zb.net.locals[self] = nil
+ 
+@@ -253,4 +361,14 @@
+ 	hook.Add("PlayerDisconnected","ZB_clear_net",function(ply)
+ 		ply:ClearNetVars()
+ 	end)
++    -- The equipment budget owns an outer SendNetVar wrapper. Its installer
++    -- deliberately refuses drift; rebind it to this freshly defined sender.
++    -- Existing jobs read entitySender.original at execution and remain queued.
++    if ZCTickBudget and ZCTickBudget.Install then
++        ZCTickBudget.entitySender = nil
++        assert(ZCTickBudget.Install(), "ZCity equipment budget could not bind SendNetVar")
++        ZCTickBudget.networkDrift = false
++    end
++    if priorScalarSetter then entityMeta.SetNetVar = priorScalarSetter end
++
+ end
+\ No newline at end of file

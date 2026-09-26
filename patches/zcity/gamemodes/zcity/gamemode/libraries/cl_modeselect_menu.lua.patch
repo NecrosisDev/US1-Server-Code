@@ -1,0 +1,29 @@
+--- a/gamemodes/zcity/gamemode/libraries/cl_modeselect_menu.lua
++++ b/gamemodes/zcity/gamemode/libraries/cl_modeselect_menu.lua
+@@ -302,7 +302,7 @@
+         }
+         
+         for i, mode in SortedPairsByMemberValue(zb.availableModes,"canlaunch",true) do
+-            if !LocalPlayer():IsSuperAdmin() and !allowedModes[mode.key] then continue end
++            if !LocalPlayer():IsSuperAdmin() and !LocalPlayer():IsAdmin() and !allowedModes[mode.key] then continue end
+             
+             local modeBtn = CreateModeItem(dscroll, mode)
+             table.insert(modeItems, modeBtn)
+@@ -527,6 +527,17 @@
+ 			frame:Close()
+         end
+ 
++        local skipVoteBtn = vgui.Create("DButton", frame)
++        skipVoteBtn:SetText("Skip Next Mode Vote")
++        skipVoteBtn:Dock(TOP)
++        skipVoteBtn:DockMargin(5, 2, 5, 2)
++        skipVoteBtn:SetSize(300, 40)
++        StyleElement(skipVoteBtn)
++        skipVoteBtn.DoClick = function()
++			RunConsoleCommand("modevote_skip")
++			frame:Close()
++        end
++
+         frame.OnClose = function()
+             isMenuOpen = false
+         end

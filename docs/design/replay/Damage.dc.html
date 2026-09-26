@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Round replay damage inspector</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&amp;family=Barlow+Semi+Condensed:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0b0b0c}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:2px solid #f7c773;outline-offset:2px}
+</style>
+</helmet>
+<div style="width: 1440px; height: 810px; position: relative; overflow: hidden; background: #1c1e21; font-family: Bahnschrift, 'Barlow Semi Condensed', 'Barlow', sans-serif; color: #ececec">
+<div style="position: absolute; left: 380px; right: 470px; top: 90px; bottom: 150px; display: flex; align-items: center; justify-content: center; color: #5b5e63; font-size: 15px; letter-spacing: 3px">REPLAY FROZEN AT THE HIT</div>
+
+<div style="position: absolute; left: 16px; right: 16px; top: 16px; height: 60px; box-sizing: border-box; padding: 0 10px 0 18px; background: rgba(15,15,17,0.92); border: 1px solid rgba(83,19,23,0.8); border-radius: 8px; display: flex; align-items: center; gap: 20px">
+<div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1; flex-basis: 0">
+<div style="font-size: 11px; letter-spacing: 1.5px; color: #b9b9b9; font-weight: 600">ROUND REPLAY</div>
+<div style="font-size: 20px; font-weight: 700">Homicide · Round 14</div>
+</div>
+<div role="group" aria-label="Mode" style="display: flex; gap: 2px; padding: 3px; background: rgba(0,0,0,0.35); border-radius: 7px">
+<button type="button" style="height: 36px; padding: 0 14px; border: 0; border-radius: 5px; background: transparent; color: #cfcfcf; font-size: 14px; font-weight: 600">Watch</button>
+<button type="button" style="height: 36px; padding: 0 14px; border: 0; border-radius: 5px; background: transparent; color: #cfcfcf; font-size: 14px; font-weight: 600">Direct a clip</button>
+<button type="button" aria-pressed="true" style="height: 36px; padding: 0 14px; border: 0; border-radius: 5px; background: #a30000; color: #ffffff; font-size: 14px; font-weight: 600">Inspect damage</button>
+</div>
+<div style="display: flex; justify-content: flex-end; flex-grow: 1; flex-basis: 0">
+<button type="button" aria-label="Close replay" style="height: 40px; padding: 0 10px 0 12px; display: flex; align-items: center; gap: 10px; background: #a30000; border: 1px solid #d01010; border-radius: 6px; font-size: 14px; font-weight: 600; color: #ffffff">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+Close
+<span style="font-size: 11px; font-weight: 500; border: 1px solid rgba(255,255,255,0.45); border-radius: 3px; padding: 0 5px">Esc</span>
+</button>
+</div>
+</div>
+
+<div style="position: absolute; left: 16px; top: 88px; bottom: 16px; width: 350px; box-sizing: border-box; padding: 12px; background: rgba(15,15,17,0.94); border: 1px solid rgba(83,19,23,0.8); border-radius: 8px; display: flex; flex-direction: column; gap: 10px">
+<div style="font-size: 11px; letter-spacing: 1.5px; color: #b9b9b9; font-weight: 600">EVERY HIT THIS ROUND</div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px">
+<sc-for list="{{kinds}}" as="k" hint-placeholder-count="8">
+<button type="button" onClick="{{k.pick}}" aria-pressed="{{k.pressed}}" style="{{k.style}}">{{k.label}}</button>
+</sc-for>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<sc-for list="{{hits}}" as="h" hint-placeholder-count="7">
+<button type="button" onClick="{{h.pick}}" aria-pressed="{{h.pressed}}" style="{{h.style}}">
+<span style="font-size: 12px; color: #9f9f9f; width: 38px; font-variant-numeric: tabular-nums">{{h.t}}</span>
+<span style="{{h.chip}}">{{h.kind}}</span>
+<span style="flex-grow: 1; text-align: left; font-size: 13px">{{h.who}}</span>
+<span style="font-size: 12px; color: #ffb3b3; font-variant-numeric: tabular-nums">{{h.harm}}</span>
+</button>
+</sc-for>
+</div>
+</div>
+
+<div style="position: absolute; right: 16px; top: 88px; bottom: 16px; width: 454px; box-sizing: border-box; padding: 16px; background: rgba(15,15,17,0.94); border: 1px solid rgba(83,19,23,0.8); border-radius: 8px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<div style="display: flex; align-items: center; gap: 8px">
+<span style="{{sel.chip}}">{{sel.kind}}</span>
+<span style="font-size: 12px; color: #9f9f9f">at {{sel.t}}</span>
+</div>
+<div style="font-size: 20px; font-weight: 700">{{sel.who}}</div>
+<div style="font-size: 13px; color: #b0b0b0">{{sel.with}}</div>
+</div>
+<button type="button" style="height: 36px; padding: 0 12px; background: transparent; border: 1px solid rgba(247,199,115,0.6); border-radius: 6px; color: #f7c773; font-size: 13px; font-weight: 600; white-space: nowrap">Clip this hit</button>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+<sc-for list="{{sel.facts}}" as="f" hint-placeholder-count="6">
+<div style="padding: 8px 10px; background: rgba(0,0,0,0.3); border-radius: 6px; display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 11px; color: #9f9f9f">{{f.k}}</span>
+<span style="font-size: 16px; font-weight: 600">{{f.v}}</span>
+</div>
+</sc-for>
+</div>
+
+<div style="display: flex; gap: 14px">
+<div style="width: 120px; height: 200px; background: rgba(0,0,0,0.25); border-radius: 6px; position: relative; flex-shrink: 0">
+<svg width="120" height="200" viewBox="0 0 120 200" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" aria-label="Body diagram">
+<circle cx="60" cy="24" r="13"></circle>
+<path d="M44 44h32l6 58H38z"></path>
+<path d="M44 46l-14 50M76 46l14 50M48 102l-6 84M72 102l6 84"></path>
+</svg>
+<sc-for list="{{sel.marks}}" as="m" hint-placeholder-count="1">
+<div style="{{m.style}}"></div>
+</sc-for>
+</div>
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 6px">
+<div style="font-size: 11px; letter-spacing: 1.5px; color: #b9b9b9; font-weight: 600">{{sel.pathTitle}}</div>
+<sc-for list="{{sel.path}}" as="p" hint-placeholder-count="4">
+<div style="display: flex; justify-content: space-between; gap: 8px; font-size: 13px; padding: 5px 8px; background: rgba(0,0,0,0.25); border-radius: 4px">
+<span>{{p.a}}</span>
+<span style="color: #ffb3b3; font-variant-numeric: tabular-nums">{{p.b}}</span>
+</div>
+</sc-for>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="display: flex; justify-content: space-between; align-items: baseline">
+<div style="font-size: 11px; letter-spacing: 1.5px; color: #b9b9b9; font-weight: 600">VICTIM AFTER THE HIT</div>
+<div style="display: flex; gap: 12px; font-size: 11px; color: #b0b0b0">
+<span style="display: flex; align-items: center; gap: 5px"><span style="width: 10px; height: 2px; background: #ff6b6b"></span>Blood</span>
+<span style="display: flex; align-items: center; gap: 5px"><span style="width: 10px; height: 2px; background: #6fb6ff"></span>Conscious</span>
+<span style="display: flex; align-items: center; gap: 5px"><span style="width: 10px; height: 2px; background: #f7c773"></span>Pain</span>
+</div>
+</div>
+<svg width="420" height="96" viewBox="0 0 420 96" aria-label="Victim vitals over the next 20 seconds" style="background: rgba(0,0,0,0.25); border-radius: 6px">
+<path d="M0 12H90L120 26L200 44L300 70L420 84" stroke="#ff6b6b" stroke-width="2" fill="none"></path>
+<path d="M0 10H92L110 18L230 40L260 88H420" stroke="#6fb6ff" stroke-width="2" fill="none"></path>
+<path d="M0 86H90L96 24L200 30L420 36" stroke="#f7c773" stroke-width="2" fill="none"></path>
+<path d="M90 0V96" stroke="rgba(255,255,255,0.5)" stroke-dasharray="3 3"></path>
+<text x="94" y="92" fill="#cfcfcf" font-size="10" font-family="Bahnschrift, Barlow, sans-serif">hit</text>
+<text x="262" y="82" fill="#cfcfcf" font-size="10" font-family="Bahnschrift, Barlow, sans-serif">passes out</text>
+</svg>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":810}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { kind: 'All', hit: 0 }; }
+  renderVals() {
+    const tint = { Bullet: '#c00000', Buckshot: '#c00000', Melee: '#8a5a2b', Blast: '#b8660b', Fire: '#b8440b', Fall: '#4b6aa8', Vehicle: '#4b6aa8', Bleed: '#7a2e4a' };
+    const chip = (k) => 'font-size: 11px; font-weight: 700; letter-spacing: 0.5px; padding: 2px 6px; border-radius: 3px; color: #ffffff; background: ' + (tint[k] || '#555');
+    const all = [
+      { t: '02:10', kind: 'Bullet', who: '[Player] → [Player]', harm: '38', with: 'M4A1 · 21 m · clear line of sight',
+        facts: [['Harm', '38'], ['Hit', 'Chest'], ['Range', '21 m'], ['Penetrated', 'Yes'], ['Armor', 'None'], ['Bleed', '+2.4/s']],
+        pathTitle: 'THROUGH THE BODY', path: [['Entry · left chest', ''], ['Left lung', '−22'], ['Heart', '−14'], ['Exit · back', '']],
+        marks: [[52, 64]] },
+      { t: '03:02', kind: 'Buckshot', who: '[Player] → [Player]', harm: '61', with: 'Remington 870 · 6 m · 7 of 9 pellets',
+        facts: [['Harm', '61'], ['Pellets', '7 / 9'], ['Range', '6 m'], ['Penetrated', 'No'], ['Armor', 'Vest'], ['Bleed', '+4.1/s']],
+        pathTitle: 'PELLETS', path: [['Stomach ×3', '−24'], ['Right arm ×2', '−11'], ['Chest ×2 (vest)', '−6']],
+        marks: [[58, 80], [64, 84], [80, 66], [56, 60]] },
+      { t: '03:48', kind: 'Melee', who: '[You] → [Player]', harm: '24', with: 'Kitchen knife · slash · from behind',
+        facts: [['Harm', '24'], ['Hit', 'Neck'], ['Swing', '0.4 s'], ['Blocked', 'No'], ['Armor', 'None'], ['Bleed', '+6.0/s']],
+        pathTitle: 'WOUND', path: [['Carotid artery', 'arterial'], ['Neck', '−24']], marks: [[60, 40]] },
+      { t: '04:05', kind: 'Blast', who: 'Grenade ([Player]) → [Player]', harm: '72', with: 'F1 grenade · 3.2 m from the blast',
+        facts: [['Harm', '72'], ['Distance', '3.2 m'], ['Fragments', '4 hit'], ['Knocked', 'Yes'], ['Armor', 'Helmet'], ['Bleed', '+3.0/s']],
+        pathTitle: 'FRAGMENTS', path: [['Left leg', '−30'], ['Stomach', '−26'], ['Left arm', '−16']], marks: [[48, 150], [60, 88], [36, 90]] },
+      { t: '05:40', kind: 'Fall', who: '[Player]', harm: '18', with: 'Fell 7.5 m · landed at 13 m/s',
+        facts: [['Harm', '18'], ['Height', '7.5 m'], ['Speed', '13 m/s'], ['Broke', 'Left shin'], ['Armor', '—'], ['Bleed', '—']],
+        pathTitle: 'INJURIES', path: [['Left shin', 'fracture'], ['Right leg', '−6']], marks: [[48, 170]] },
+      { t: '07:12', kind: 'Vehicle', who: '[Player] (driver) → [Player]', harm: '55', with: 'Sedan · 58 km/h · front bumper',
+        facts: [['Harm', '55'], ['Speed', '58 km/h'], ['Thrown', '6 m'], ['Knocked', 'Yes'], ['Armor', 'None'], ['Bleed', '+1.2/s']],
+        pathTitle: 'INJURIES', path: [['Pelvis', '−25'], ['Head (landing)', '−18'], ['Right arm', '−12']], marks: [[60, 100], [60, 24]] },
+      { t: '08:30', kind: 'Bleed', who: '[Player] bled out', harm: '—', with: 'From the 02:10 chest wound by [Player]',
+        facts: [['Blood left', '0%'], ['Bled for', '6 m 20 s'], ['Cause', 'Chest'], ['Treated', 'Bandage ×1'], ['Credit', '[Player]'], ['Pulse', 'Stopped']],
+        pathTitle: 'CAUSE', path: [['Left lung wound', '02:10'], ['Heart wound', '02:10']], marks: [[52, 64]] },
+    ];
+    const kindsList = ['All', 'Bullet', 'Buckshot', 'Melee', 'Blast', 'Fire', 'Fall', 'Vehicle', 'Bleed'];
+    const shown = all.map((h, i) => ({ ...h, i })).filter((h) => this.state.kind === 'All' || h.kind === this.state.kind);
+    const sel = all[this.state.hit] || all[0];
+    return {
+      kinds: kindsList.map((k) => ({
+        label: k, pressed: this.state.kind === k ? 'true' : 'false', pick: () => this.setState({ kind: k }),
+        style: 'height: 30px; padding: 0 10px; border-radius: 15px; font-size: 12px; font-weight: 600; ' +
+          (this.state.kind === k ? 'background: #a30000; border: 1px solid #d01010; color: #ffffff' : 'background: transparent; border: 1px solid rgba(255,255,255,0.18); color: #cfcfcf'),
+      })),
+      hits: shown.map((h) => ({
+        t: h.t, kind: h.kind, who: h.who, harm: h.harm, chip: chip(h.kind),
+        pressed: this.state.hit === h.i ? 'true' : 'false', pick: () => this.setState({ hit: h.i }),
+        style: 'min-height: 44px; display: flex; align-items: center; gap: 8px; padding: 0 8px; border-radius: 6px; border: 0; ' +
+          (this.state.hit === h.i ? 'background: rgba(163,0,0,0.35)' : 'background: rgba(0,0,0,0.2)'),
+      })),
+      sel: {
+        t: sel.t, kind: sel.kind, who: sel.who, with: sel.with, chip: chip(sel.kind), pathTitle: sel.pathTitle,
+        facts: sel.facts.map(([k, v]) => ({ k, v })),
+        path: sel.path.map(([a, b]) => ({ a, b })),
+        marks: sel.marks.map(([x, y]) => ({ style: 'position: absolute; left: ' + (x - 6) + 'px; top: ' + (y - 6) + 'px; width: 12px; height: 12px; border-radius: 50%; background: #ff3b3b; box-shadow: 0 0 0 3px rgba(255,59,59,0.3)' })),
+      },
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+--- a/lua/entities/vfire/shared.lua
++++ b/lua/entities/vfire/shared.lua
+@@ -610,16 +610,17 @@
+ 
+ 		if curTime >= self.nextFuelThink then
+ 			self:FuelThink()
+-			self.nextFuelThink = curTime + vFireFuelThinkTickRate + throttleAdd
++			self.nextFuelThink = curTime + vFireFuelThinkTickRate + throttleAdd + (ZCTickBudget and ZCTickBudget.InitialDelay(self,"fuel",vFireFuelThinkTickRate) or 0)
+ 		end
+ 
+ 		if curTime >= self.nextLifeThink then
+ 			self:LifeThink()
+-			self.nextLifeThink = curTime + vFireLifeThinkTickRate + throttleAdd
++			if not IsValid(self) then return end
++			self.nextLifeThink = curTime + vFireLifeThinkTickRate + throttleAdd + (ZCTickBudget and ZCTickBudget.InitialDelay(self,"life",vFireLifeThinkTickRate) or 0)
+ 		end
+ 
+ 		if curTime >= self.nextEatThink then
+-			self:EatThink()
++			if not (ZCTickBudget and ZCTickBudget.Fire(self,"EatThink",nil)) then self:EatThink() end
+ 			self.nextEatThink = curTime + vFireEatThinkTickRate + throttleAdd
+ 		end
+ 
+@@ -631,13 +632,13 @@
+ 		local ran
+ 		if curTime >= self.nextDropThink then
+ 			if !ran then ran = math.random(0, 1000 + vFiresCount * 10) end
+-			self:DropThink(ran)
++			if not (ZCTickBudget and ZCTickBudget.Fire(self,"DropThink",ran)) then self:DropThink(ran) end
+ 			self.nextDropThink = curTime + vFireDropThinkTickRate + throttleAdd
+ 		end
+ 
+ 		if curTime >= self.nextSpreadThink then
+ 			if !ran then ran = math.random(0, 1000 + vFiresCount * 10) end
+-			self:SpreadThink(ran)
++			if not (ZCTickBudget and ZCTickBudget.Fire(self,"SpreadThink",ran)) then self:SpreadThink(ran) end
+ 			self.nextSpreadThink = curTime + vFireSpreadThinkTickRate + throttleAdd
+ 		end
+ 
+@@ -801,7 +802,7 @@
+ 
+ 
+ 		-- Loop through whatever we're burning
+-		for _, ent in pairs(self.burning) do
++		for k, ent in pairs(self.burning) do
+ 			
+ 			if IsValid(ent) then
+ 
