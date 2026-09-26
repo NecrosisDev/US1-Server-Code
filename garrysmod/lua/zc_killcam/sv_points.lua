@@ -26,7 +26,7 @@ assert(K.Highlight and K.Highlight.Score, "sv_highlight.lua must load first")
 
 K.Points = K.Points or {}
 local P = K.Points
-P.Version = "20260926.pts2"
+P.Version = "20260926.pts3"
 
 local H = K.Highlight
 
@@ -37,9 +37,18 @@ local mode = CreateConVar("zc_killcam_points", "1", FCVAR_ARCHIVE, "Killcam poin
 -- an ordinary clean kill scores ~200, so 40 makes it ~5 ZP, in the same order as the XP faucet's 3-6.
 -- ratify-by: 2026-10-22)
 local RATE = CreateConVar("zc_killcam_points_rate", "40", FCVAR_ARCHIVE, "Score needed per 1 ZPoint (higher = slower)")
-local HEAL = CreateConVar("zc_killcam_points_heal", "25", FCVAR_ARCHIVE, "ZPoints for patching somebody else up")
-local CAP = CreateConVar("zc_killcam_points_cap", "150", FCVAR_ARCHIVE, "Most ZPoints one player can earn in one round (0 = uncapped)")
-local HEALCAP = CreateConVar("zc_killcam_points_healcap", "6", FCVAR_ARCHIVE, "Most PAID heals one player can bank in a round")
+-- 2026-09-26 balance pass (docs/POINTS_BALANCE.md has the working): a heal is worth about one clean kill, not five.
+-- At 25 a helpful player out-earned a traitor's whole round from six bandages, and the per-round cap (150) was more
+-- than an hour of the playtime faucet in one round. Still shadow numbers: tools/points_shadow_report.py replays the
+-- shadow log under any settings, so these are replaced by what the server's own rounds show.
+local HEAL = CreateConVar("zc_killcam_points_heal", "6", FCVAR_ARCHIVE, "ZPoints for patching somebody else up")
+local CAP = CreateConVar("zc_killcam_points_cap", "40", FCVAR_ARCHIVE, "Most ZPoints one player can earn in one round (0 = uncapped)")
+local HEALCAP = CreateConVar("zc_killcam_points_healcap", "4", FCVAR_ARCHIVE, "Most PAID heals one player can bank in a round")
+-- The "encouraged to be good" half (owner, 2026-09-26): a small, reliable reward for a traitor round in which you
+-- took part and nothing counted against you. It pays for the ordinary good round, which the rest of this file
+-- cannot see: no kill, no heal, just played it straight.
+local CLEAN = CreateConVar("zc_killcam_points_clean", "3", FCVAR_ARCHIVE, "ZPoints for a traitor round you took part in with nothing counted against you (0 = off)")
+local ACTIVE_AFTER = 15 -- seconds into the round a player must still be giving input to count as having taken part
 local HEALCD = CreateConVar("zc_killcam_points_healcd", "60", FCVAR_ARCHIVE, "Seconds before the same healer/patient pair pays again")
 -- PROVISIONAL(2026-09-26, two minutes is long enough that "shoot a friend, bandage the friend" never pays and short
 -- enough that an accident early in the round does not stop a player being paid for helping later; ratify-by: 2026-10-26)
@@ -59,6 +68,10 @@ P.healPairs = healPairs
 local lastT1 = 0
 
 local function inRound() return zb ~= nil and zb.ROUND_STATE == 1 end
+-- [steamid64] = true once something counted against that player this round (an unprovoked kill or conduct)
+local marked = P.marked or {}
+P.marked = marked
+local roundStart = P.roundStart or 0
 
 -- The live player behind a recorder slot, or nil. A slot with no SteamID64 is a bot (sv_highlight's isBot), and
 -- an identity whose UserID has been reused belongs to somebody else now -- the same check sv_highlight makes
@@ -159,10 +172,32 @@ end)
 -- What one player earned this round, before the cap. Combat is divided here and nowhere else.
 function P.Owed(e)
     local rate = math.max(RATE:GetInt(), 1)
-    return math.floor(e.combat / rate) + math.floor(e.heal)
+    return math.floor(e.combat / rate) + math.floor(e.heal) + (e.clean or 0)
 end
 
-local function flush()
+hook.Add("ZCKillcam_Conduct", "ZCKillcam.Points", function(_, offender)
+    if IsValid(offender) and offender.SteamID64 and offender:SteamID64() then marked[offender:SteamID64()] = true end
+end)
+hook.Add("ZCKillcam_Death", "ZCKillcam.Points", function(victim, killer, tag)
+    if tag ~= "ivi" or not killer or not killer.id or not K.JudgeDeath then return end
+    if K.JudgeDeath(victim, killer, tag) == "unprovoked" then marked[killer.id] = true end
+end)
+
+-- Everybody who took part in a traitor round and kept it clean. "Took part" = still giving input ACTIVE_AFTER
+-- seconds into the round (sv_intent.lua's activity clock), so a player who loaded in and went AFK is not paid.
+local function markClean(traitorRound)
+    local amount = CLEAN:GetInt()
+    if not traitorRound or amount <= 0 then return end
+    local activeAt = K.Intent and K.Intent.active or {}
+    for _, p in ipairs(player.GetHumans and player.GetHumans() or player.GetAll()) do
+        local sid = IsValid(p) and not p:IsBot() and p:SteamID64() or nil
+        if sid and not marked[sid] and (activeAt[p:UserID()] or 0) >= roundStart + ACTIVE_AFTER then
+            row(sid, p.PlayerName and p:PlayerName() or p:Nick()).clean = amount
+        end
+    end
+end
+
+local function flush(roundMode, humans)
     stats.rounds = stats.rounds + 1
     local live = mode:GetInt() >= 2
     local cap = CAP:GetInt()
@@ -176,8 +211,8 @@ local function flush()
         if owed > 0 then
             people = people + 1
             paid = paid + owed
-            lines[#lines + 1] = string.format("%s %d ZP (combat %d/%d, %d heal%s)%s", tostring(e.name or sid), owed,
-                math.floor(e.combat), math.max(RATE:GetInt(), 1), e.heals, e.heals == 1 and "" or "s", capped and " [capped]" or "")
+            lines[#lines + 1] = string.format("%s %d ZP (combat %d/%d, %d heal%s%s)%s", tostring(e.name or sid), owed,
+                math.floor(e.combat), math.max(RATE:GetInt(), 1), e.heals, e.heals == 1 and "" or "s", e.clean and ", clean" or "", capped and " [capped]" or "")
 
             if live then
                 -- The shop refuses a profile that has not loaded, which is the right answer: paying an unloaded
@@ -197,7 +232,10 @@ local function flush()
 
     if #lines > 0 then
         stats.last = string.format("%d player%s, %d ZP", people, people == 1 and "" or "s", paid)
-        print(string.format("[Killcam] points %s: %s | %s", live and "PAID" or "would pay (shadow)", stats.last, table.concat(lines, "; ")))
+        -- mode= and humans= are for tools/points_shadow_report.py: kills are the whole game in tdm/dm and rare for an
+        -- innocent in homicide, so the rates are read per mode; humans= counts the players who earned nothing too.
+        print(string.format("[Killcam] points %s mode=%s humans=%d: %s | %s", live and "PAID" or "would pay (shadow)", tostring(roundMode or "?"),
+            humans or 0, stats.last, table.concat(lines, "; ")))
     else
         stats.last = "nobody earned anything"
     end
@@ -207,19 +245,27 @@ hook.Add("ZB_EndRound", "ZCKillcam.Points", function()
     if mode:GetInt() <= 0 then return end
     -- Behind the work queue so a busy round-end (the highlight is being cut and packed right now) does not take
     -- the payout's cost on the same tick.
-    K.Work("points.flush", function() flush() end, function() stats.errors = stats.errors + 1 end)
+    -- Read now, while CurrentRound() is still this round; the job below may run after it has moved on.
+    local current = CurrentRound and CurrentRound()
+    local roundMode = istable(current) and current.name or nil
+    local humans = #(player.GetHumans and player.GetHumans() or player.GetAll())
+    local ok, err = pcall(markClean, K.TraitorRound and K.TraitorRound() or false)
+    if not ok then stats.errors = stats.errors + 1 ErrorNoHalt("[Killcam] points clean: " .. tostring(err) .. "\n") end
+    K.Work("points.flush", function() flush(roundMode, humans) end, function() stats.errors = stats.errors + 1 end)
 end)
 
 hook.Add("ZB_StartRound", "ZCKillcam.Points", function()
     P.round = {} round = P.round
     P.healPairs = {} healPairs = P.healPairs
+    P.marked = {} marked = P.marked
+    P.roundStart = CurTime() roundStart = P.roundStart
     lastT1 = 0
 end)
 
 concommand.Add("zc_killcam_points_stats", function(p)
     if IsValid(p) and not p:IsAdmin() then return end
-    local line = string.format("[Killcam] points %s mode=%d rate=%d heal=%d cap=%d | rounds=%d bursts=%d overlaps=%d heals=%d refused=%d own-damage=%d capped=%d paid=%d ZP to %d | last: %s",
-        P.Version, mode:GetInt(), RATE:GetInt(), HEAL:GetInt(), CAP:GetInt(), stats.rounds, stats.bursts, stats.overlaps,
+    local line = string.format("[Killcam] points %s mode=%d rate=%d heal=%d clean=%d cap=%d | rounds=%d bursts=%d overlaps=%d heals=%d refused=%d own-damage=%d capped=%d paid=%d ZP to %d | last: %s",
+        P.Version, mode:GetInt(), RATE:GetInt(), HEAL:GetInt(), CLEAN:GetInt(), CAP:GetInt(), stats.rounds, stats.bursts, stats.overlaps,
         stats.heals, stats.healsRefused, stats.healsSelfInflicted or 0, stats.capped, stats.paid, stats.players, stats.last)
     if IsValid(p) then p:PrintMessage(HUD_PRINTCONSOLE, line) else print(line) end
 end)

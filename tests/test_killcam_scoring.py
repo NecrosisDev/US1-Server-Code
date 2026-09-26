@@ -568,6 +568,27 @@ class KillcamScoringTests(unittest.TestCase):
         self.assertEqual(tuple(got), (True, 3))
 
     # ------------------------------------------------------------------ points
+    def test_clean_round_bonus_goes_to_active_players_with_nothing_counted(self):
+        self.load_highlight()
+        got = self.run_lua('''
+            Include("zc_killcam/sv_points.lua")
+            CurrentRound = function() return {name = "hmcd"} end
+            local good, rdm, victim, afk = MakePlayer(1, "s1"), MakePlayer(2, "s2"), MakePlayer(3, "s3"), MakePlayer(4, "s4")
+            hook.Run("ZB_PreRoundStart") SetNow(0) hook.Run("ZB_StartRound")
+            good.vel, rdm.vel, victim.vel = 200, 200, 200
+            Tick(20)                                      -- three of them are playing; afk never moves
+            Hit(30, rdm, victim) Kill(31, rdm, victim)    -- unprovoked
+            local printed
+            print = function(s) printed = s end
+            hook.Run("ZB_EndRound")
+            local R = K.Points.round
+            return R["s1"] and R["s1"].clean or 0, R["s2"] and R["s2"].clean or 0, R["s4"] and R["s4"].clean or 0, printed
+        ''')
+        good, rdm, afk, line = got
+        self.assertEqual((good, rdm, afk), (3, 0, 0))
+        self.assertIn('mode=hmcd humans=4', line)
+        self.assertIn('P1 3 ZP (combat 0/40, 0 heals, clean)', line)
+
     def test_healing_someone_you_hurt_does_not_pay(self):
         self.load_highlight()
         got = self.run_lua('''
