@@ -18,7 +18,7 @@ return string.sub([========[x            -- Shot and death can share one quantiz
         return state.rate and state.rate<0.95 and "SLOW MOTION" or "RECORDED VIEW",nil,0
     end
     function P.Finale(state)
-        local d=P.Data(state)
+        local d=P.GetReplayData(state)
         local n,last=P.Past(state,d)
         local _,_,finish=P.Bounds(state)
         if not last or n~=d.count or finish-state.cs>90 or (state.bullet and state.bullet.at and not state.bullet.done) then return 0 end
@@ -32,7 +32,7 @@ return string.sub([========[x            -- Shot and death can share one quantiz
         local reveal=V.Cinema.Reduced:GetBool() and 1 or P.Ease(age/0.6)
         local left, top, width=w*.10,h*.28,w*.60
         local dx=(1-reveal)*18*s
-        local d=P.Data(state)
+        local d=P.GetReplayData(state)
         local first,span=P.Bounds(state)
         -- An abstract flight motif; it is not a fabricated map or anatomical diagram.
         local cx,cy=w*.82,h*.48
@@ -62,7 +62,7 @@ return string.sub([========[x            -- Shot and death can share one quantiz
         local s=P.Fonts(h)
         if state.pending or state.dialog then return end
         local pad,top,bottom=32*s,90*s,88*s
-        local d=P.Data(state)
+        local d=P.GetReplayData(state)
         local n,last=P.Past(state,d)
         local cs=P.Clock(state)
         local first,span,finish=P.Bounds(state)

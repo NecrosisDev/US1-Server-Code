@@ -113,6 +113,19 @@ function SWEP:AnimHoldPost(model)
     --self:BoneSet("l_finger02", vector_zero, finger2)
 end
 
+-- Missing/severed bones do not necessarily have a physics object.
+local function TaserSpineAngles(ragdoll)
+    if not IsValid(ragdoll) then return end
+    local bone = ragdoll:LookupBone("ValveBiped.Bip01_Spine2")
+    if not isnumber(bone) or bone < 0 then return end
+    local index = ragdoll:TranslateBoneToPhysBone(bone)
+    if not isnumber(index) or index < 0 then return end
+    local phys = ragdoll:GetPhysicsObjectNum(index)
+    if not IsValid(phys) then return end
+    local ang = phys:GetAngles()
+    if isangle(ang) then return ang end
+end
+
 function SWEP:Shoot(override)
 	if not self:CanPrimaryAttack() then return false end
 	if not self:CanUse() then return false end
@@ -214,15 +227,22 @@ function SWEP:Shoot(override)
             local tasered =  CurTime() + time
 			local cons1, cons2
 			timer.Simple(0.1,function()
+				if not IsValid(self) or not IsValid(ent) then return end
+				local wm = self:GetWM()
+				if not IsValid(wm) then return end
 				for i = 0, 1 do
 					if not IsValid(ent) then return end
 					local ent = hg.GetCurrentCharacter(ent)
-					local phys = ent:GetPhysicsObjectNum(tr.PhysicsBone or 0)
+					if not IsValid(ent) then return end
+					local physBone = tr.PhysicsBone or 0
+					if not isnumber(physBone) or physBone < 0 then return end
+					local phys = ent:GetPhysicsObjectNum(physBone)
+					if not IsValid(phys) then return end
 					local localpos, _ = WorldToLocal(tr.HitPos + tr.Normal * 5, angle_zero, IsValid(phys) and phys:GetPos() or ent:GetPos(), IsValid(phys) and phys:GetAngles() or angle_zero)
-					local lpos2, _ = WorldToLocal(tr.StartPos, angle_zero, self:GetWM():GetPos(), self:GetWM():GetAngles())
+					local lpos2, _ = WorldToLocal(tr.StartPos, angle_zero, wm:GetPos(), wm:GetAngles())
 					--localpos = Vector()
 					
-					local cons = constraint.CreateKeyframeRope(tr.HitPos, 0.1, "cable/cable2", nil, ent, localpos + VectorRand(-0.5,0.5), tr.PhysicsBone, self:GetWM(), lpos2, 0,
+					local cons = constraint.CreateKeyframeRope(tr.HitPos, 0.1, "cable/cable2", nil, ent, localpos + VectorRand(-0.5,0.5), physBone, wm, lpos2, 0,
 					{
 						["Slack"] = 200 - ent:GetPos():Distance(self:GetPos()),
 						["Collide"] = 1,
@@ -246,71 +266,62 @@ function SWEP:Shoot(override)
 			end)
 
 			--чзх добавить возможность тазерить мощнее при нажатии лкм
-			local i = 1
-			local max = math.Round(time * 80)
-			timer.Create("Tasering"..ent:EntIndex(), 0.01, max,function()
-				i = i + 1
-				
-                local tasered = tasered
-				if !ragdoll.organism then return end
-				
-				if IsValid(self:GetWM()) and IsValid(owner) and owner:GetActiveWeapon() != self then
-					self:GetWM():SetPos(owner:HasWeapon(self:GetClass()) and owner:EyePos() or self:GetPos())
-					self:GetWM():SetAngles(owner:HasWeapon(self:GetClass()) and owner:EyeAngles() or self:GetAngles())
-				end
+            local i = 0
+            local max = math.Round(time * 80)
+            local timerName = "Tasering" .. ent:EntIndex()
+            local bodyOrganism = IsValid(ragdoll) and ragdoll.organism
+            local hitOrganism = ent.organism
+            local function stopTasering()
+                timer.Remove(timerName)
+                if IsValid(ragdoll) then ragdoll:StopSound("tazer.wav") end
+                if IsValid(ent) and ent ~= ragdoll then ent:StopSound("tazer.wav") end
+            end
+            timer.Create(timerName, 0.01, max, function()
+                if not IsValid(self) or not IsValid(ent) or not IsValid(ragdoll)
+                    or not istable(bodyOrganism) or ragdoll.organism ~= bodyOrganism
+                    or ent.organism ~= hitOrganism then
+                    stopTasering()
+                    return
+                end
+                i = i + 1
 
-				if IsValid(ragdoll) then
-					local rh = ragdoll:GetPhysicsObjectNum(ragdoll:TranslateBoneToPhysBone(ragdoll:LookupBone("ValveBiped.Bip01_R_Hand")))
-					local lh = ragdoll:GetPhysicsObjectNum(ragdoll:TranslateBoneToPhysBone(ragdoll:LookupBone("ValveBiped.Bip01_L_Hand")))
-					local rl = ragdoll:GetPhysicsObjectNum(ragdoll:TranslateBoneToPhysBone(ragdoll:LookupBone("ValveBiped.Bip01_R_Foot")))
-					local ll = ragdoll:GetPhysicsObjectNum(ragdoll:TranslateBoneToPhysBone(ragdoll:LookupBone("ValveBiped.Bip01_L_Foot")))
-					local pelvis = ragdoll:GetPhysicsObjectNum(ragdoll:TranslateBoneToPhysBone(ragdoll:LookupBone("ValveBiped.Bip01_Pelvis")))
-					local spine2 = ragdoll:GetPhysicsObjectNum(ragdoll:TranslateBoneToPhysBone(ragdoll:LookupBone("ValveBiped.Bip01_Spine2")))
-					local spine = ragdoll:GetPhysicsObjectNum(ragdoll:TranslateBoneToPhysBone(ragdoll:LookupBone("ValveBiped.Bip01_Spine1")))
-
-					local pelvispos = pelvis:GetPos() - pelvis:GetAngles():Right() * -100
-
-					local ang = spine2:GetAngles()
-					ang:Add(AngleRand(-5, 5))
-					ang:RotateAroundAxis(ang:Up(), 180)
-
-					local mul = 1000 * ragdoll.organism.pulse / 70
-					local damp = 50
-					
-					--hg.ShadowControl(ragdoll, 0, 0.001, ang, mul, damp, vector_origin, 0, 0)
-					--hg.ShadowControl(ragdoll, 1, 0.001, ang, mul, damp, vector_origin, 0, 0)
-					
-					hg.ShadowControl(ragdoll, 3, 0.001, ang, mul, damp, vector_origin, 0, 0)
-					hg.ShadowControl(ragdoll, 4, 0.001, ang, mul, damp, vector_origin, 0, 0)
-					hg.ShadowControl(ragdoll, 5, 0.001, ang, mul, damp, vector_origin, 0, 0)
-
-					hg.ShadowControl(ragdoll, 2, 0.001, ang, mul, damp, vector_origin, 0, 0)
-					hg.ShadowControl(ragdoll, 6, 0.001, ang, mul, damp, vector_origin, 0, 0)
-					hg.ShadowControl(ragdoll, 7, 0.001, ang, mul, damp, vector_origin, 0, 0)
-					
-					hg.ShadowControl(ragdoll, 8, 0.001, ang, mul, damp, vector_origin, 0, 0)
-					hg.ShadowControl(ragdoll, 9, 0.001, ang, mul, damp, vector_origin, 0, 0)
-
-					hg.ShadowControl(ragdoll, 11, 0.001, ang, mul, damp, vector_origin, 0, 0)
-					hg.ShadowControl(ragdoll, 12, 0.001, ang, mul, damp, vector_origin, 0, 0)
-				end
-
-                if ent:IsPlayer() then
-                    ent.organism.avgpain = ent.organism.avgpain + 0.02
-					--ent:SelectWeapon("weapon_hands_sh")
+                local wm = self:GetWM()
+                if IsValid(wm) and IsValid(owner) and owner:GetActiveWeapon() ~= self then
+                    wm:SetPos(owner:HasWeapon(self:GetClass()) and owner:EyePos() or self:GetPos())
+                    wm:SetAngles(owner:HasWeapon(self:GetClass()) and owner:EyeAngles() or self:GetAngles())
                 end
 
-				if math.random(10000) == 1 then
-					ent.organism.heartstop = !ent.organism.heartstop
-				end
+                -- The old pelvis position and six other bone lookups were unused.
+                -- Only skip physical shaking when Spine2 is unavailable; keep the
+                -- existing medical effects and duration for an otherwise valid body.
+                local ang = TaserSpineAngles(ragdoll)
+                local pulse = bodyOrganism.pulse
+                if ang and isnumber(pulse) and pulse == pulse and math.abs(pulse) < math.huge then
+                    ang:Add(AngleRand(-5, 5))
+                    ang:RotateAroundAxis(ang:Up(), 180)
+                    local mul = 1000 * pulse / 70
+                    local damp = 50
+                    hg.ShadowControl(ragdoll, 3, 0.001, ang, mul, damp, vector_origin, 0, 0)
+                    hg.ShadowControl(ragdoll, 4, 0.001, ang, mul, damp, vector_origin, 0, 0)
+                    hg.ShadowControl(ragdoll, 5, 0.001, ang, mul, damp, vector_origin, 0, 0)
+                    hg.ShadowControl(ragdoll, 2, 0.001, ang, mul, damp, vector_origin, 0, 0)
+                    hg.ShadowControl(ragdoll, 6, 0.001, ang, mul, damp, vector_origin, 0, 0)
+                    hg.ShadowControl(ragdoll, 7, 0.001, ang, mul, damp, vector_origin, 0, 0)
+                    hg.ShadowControl(ragdoll, 8, 0.001, ang, mul, damp, vector_origin, 0, 0)
+                    hg.ShadowControl(ragdoll, 9, 0.001, ang, mul, damp, vector_origin, 0, 0)
+                    hg.ShadowControl(ragdoll, 11, 0.001, ang, mul, damp, vector_origin, 0, 0)
+                    hg.ShadowControl(ragdoll, 12, 0.001, ang, mul, damp, vector_origin, 0, 0)
+                end
 
-                if i == max then
-                    if IsValid(ragdoll) then
-                        ragdoll:StopSound("tazer.wav")
+                if istable(hitOrganism) then
+                    if ent:IsPlayer() then
+                        hitOrganism.avgpain = (tonumber(hitOrganism.avgpain) or 0) + 0.02
                     end
-
-                    ent:StopSound("tazer.wav")
+                    if math.random(10000) == 1 then
+                        hitOrganism.heartstop = not hitOrganism.heartstop
+                    end
                 end
+                if i >= max then stopTasering() end
             end)
             return
 		end

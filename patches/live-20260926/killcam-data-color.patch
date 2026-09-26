@@ -1,0 +1,45 @@
+--- a/garrysmod/lua/zc_killcam/cl_viewer.lua
++++ b/garrysmod/lua/zc_killcam/cl_viewer.lua
+@@ -1,6 +1,6 @@
+ -- Small native entry point. Existing clients can fetch missing parts after a live update.
+ if not CLIENT then return end
+-local VERSION="5d6edd9e3d0d19c54e80d464002cf26aa902d3291d77dbc646f6def252170db9"
++local VERSION="27314f2bca83439aace847953a9eb83fe00609f2c7d5b5e00ea48d9109e6efb9"
+ local function ack(ok,detail)
+     local function send()
+         if util.NetworkStringToID("ZCKCViewerAck")==0 then return false end
+--- a/garrysmod/lua/autorun/server/zc_killcam_viewer_delivery.lua
++++ b/garrysmod/lua/autorun/server/zc_killcam_viewer_delivery.lua
+@@ -1,6 +1,6 @@
+ -- Bounded client-code transport; does not reload recorder, clips, rounds or active players.
+ if not SERVER then return end
+-local VERSION="5d6edd9e3d0d19c54e80d464002cf26aa902d3291d77dbc646f6def252170db9"
++local VERSION="27314f2bca83439aace847953a9eb83fe00609f2c7d5b5e00ea48d9109e6efb9"
+ util.AddNetworkString("ZCKCViewerRequest")
+ util.AddNetworkString("ZCKCViewerPart")
+ util.AddNetworkString("ZCKCViewerAck")
+--- a/garrysmod/lua/zc_killcam/viewer_parts/cl_part_01.lua
++++ b/garrysmod/lua/zc_killcam/viewer_parts/cl_part_01.lua
+@@ -912,7 +912,7 @@
+     -- eliminations, Data = the cyan data accent (recorded shot facts only).
+     function P.Palette()
+         local T = V.Theme()
+-        P.Ink, P.Paper, P.Muted, P.Accent, P.Gold, P.Data, P.Edge = T.ink, T.text, T.muted, T.accent, T.gold, T.data, T.edge
++        P.Ink, P.Paper, P.Muted, P.Accent, P.Gold, P.DataColor, P.Edge = T.ink, T.text, T.muted, T.accent, T.gold, T.data, T.edge
+     end
+     P.Palette()
+     function P.Active(state)
+--- a/garrysmod/lua/zc_killcam/viewer_parts/cl_part_02.lua
++++ b/garrysmod/lua/zc_killcam/viewer_parts/cl_part_02.lua
+@@ -174,9 +174,9 @@
+         metric("IMPACT ANGLE",contact and facts.angle and string.format("%.1f deg",facts.angle) or (contact and "Not recorded" or "Awaiting impact"),1,2,not(contact and facts.angle))
+         metric("CALIBER / LOAD",facts.caliber or (facts.diameter and string.format("%.2f mm",facts.diameter)) or "Not recorded",2,2,true)
+         P.Rect(x+20*s,y+258*s,bw-40*s,1,tint(P.Edge))
+-        P.Text(contact and (V.Penetration and V.Penetration.Label(b,active) or string.format("%.0f DAMAGE  /  %s",math.max(0,V.Cinema.Number(b.hit[5])),b.body and "WOUND TRACE" or "CONTACT POINT")) or (V.ShotVisual and V.ShotVisual.Active() and "GENERIC PROFILE / RECORDED SHOT LINE" or "FOLLOWING THE RECORDED SHOT"),"Micro",x+20*s,y+272*s,tint(contact and P.Data or accent),nil,bw-40*s)
++        P.Text(contact and (V.Penetration and V.Penetration.Label(b,active) or string.format("%.0f DAMAGE  /  %s",math.max(0,V.Cinema.Number(b.hit[5])),b.body and "WOUND TRACE" or "CONTACT POINT")) or (V.ShotVisual and V.ShotVisual.Active() and "GENERIC PROFILE / RECORDED SHOT LINE" or "FOLLOWING THE RECORDED SHOT"),"Micro",x+20*s,y+272*s,tint(contact and P.DataColor or accent),nil,bw-40*s)
+         local summary=contact and V.Penetration and V.Penetration.Detail(b)
+-        if summary then P.Text(summary,"Micro",x+20*s,y+292*s,tint(P.Data),nil,bw-40*s) end -- U4: organ % / energy: the data accent
++        if summary then P.Text(summary,"Micro",x+20*s,y+292*s,tint(P.DataColor),nil,bw-40*s) end -- U4: organ % / energy: the data accent
+         local names={"TRACK","CONTACT",b.body and "TRACE" or "INSPECT","RESUME"}
+         local sw=(bw-52*s)/4
+         for i=1,4 do

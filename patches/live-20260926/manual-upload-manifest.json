@@ -1,0 +1,42 @@
+{
+  "source_viewer_version": "5d6edd9e3d0d19c54e80d464002cf26aa902d3291d77dbc646f6def252170db9",
+  "patched_viewer_version": "27314f2bca83439aace847953a9eb83fe00609f2c7d5b5e00ea48d9109e6efb9",
+  "files": {
+    "addons/zcity/lua/weapons/weapon_taser.lua": {
+      "before": "e13f77c0221f20dcc69706fe47b856bab6b2ff84759ba1827230beda5a339c39",
+      "after": "3b459026470bcdd57c51f99f54c29fdb47f57e0a3bd2917abb59f5ef69860cc3",
+      "bytes": 12640
+    },
+    "lua/zc_killcam/cl_viewer.lua": {
+      "before": "aea8cc5889e407c88ce27054f545a6b1fe59d87b1b349d2b5d0dcd6ded92582b",
+      "after": "8c21dab68a7b0ca4adf09dd09dc55cfa9c0b08199bbb62f0d76b76f946aa5924",
+      "bytes": 3686
+    },
+    "lua/autorun/server/zc_killcam_viewer_delivery.lua": {
+      "before": "7d9244ea64d629ce24a82e7eddb912bd612a503e52a2f5ec6da11627fca78db8",
+      "after": "7ea0c0c10e99394e670b92f37f4e7bae9d588031f831ddc0f37574351248c74c",
+      "bytes": 3815
+    },
+    "lua/zc_killcam/viewer_parts/cl_part_01.lua": {
+      "before": "75ebd3f4f54629f5bce45d59486975f137a4c78558555f2f45b10f11bbbdb071",
+      "after": "7bb4a109d75296461787266c8f4da4fc4ebbe9a13058a82f226bdfc6c1494735",
+      "bytes": 57284
+    },
+    "lua/zc_killcam/viewer_parts/cl_part_02.lua": {
+      "before": "627c71ffb082e18b4f22db3de456672a5d103c898ba89185a6d01ec8ccbd8e9d",
+      "after": "2b7317ed44e61654659e74e1e763a136f67e0d1c36b663c97cbc3c3591a46a5a",
+      "bytes": 75716
+    }
+  },
+  "unchanged_viewer_dependencies": {
+    "lua/zc_killcam/viewer_parts/cl_part_03.lua": "951cec94c0ebb155940cc66312906c794eb759c71dec0da3810f013f9e66844e",
+    "lua/zc_killcam/viewer_parts/cl_part_04.lua": "a800ec33246e81df715029b66bc5197ee0f488dbfe64037ced94b29347f723c0",
+    "lua/zc_killcam/viewer_parts/cl_part_05.lua": "aa4d6c0e9ee9464fc94cc95ca2f1ef848400058bc771f0be8c57849c33ad2c22",
+    "lua/zc_killcam/viewer_parts/cl_part_06.lua": "fc224bdf613895b2e6739e1587eacb8aee34d72a3abbf762d798d4e10883dc82",
+    "lua/zc_killcam/viewer_parts/cl_part_07.lua": "6f1feaa425f6b2d07e1b1ac7408747bc7c112a3cc809994e1d682e4d035cf793",
+    "lua/zc_killcam/viewer_parts/cl_part_08.lua": "99ebac205ea491a6d4aea66c79ffdb2e87eafd5e343d30393ce5175d7161c452",
+    "lua/zc_killcam/viewer_parts/cl_part_09.lua": "fd7befb8cd9c61f87ba3565435abcf6c485d1fc05330c03ae52e9fcae976a830"
+  },
+  "server_modified": false,
+  "repository_modified": false
+}

@@ -752,7 +752,7 @@ do
             end
         end
     end
-    function P.Data(state)
+    function P.GetReplayData(state)
         local clip = state.clip
         if state.reelData and state.reelData.clip == clip then return state.reelData end
         local d = {clip=clip, marks={}, shots={}, count=0}
