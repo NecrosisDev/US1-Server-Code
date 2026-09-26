@@ -739,7 +739,7 @@ local function provenBeat(inst, src, kills)
 end
 local function highlightMeta(replay)
     local seq = replay and replay.seq
-    if not seq then return "Highlight of the round", nil end
+    if not seq then return nil, nil end -- nothing on screen: the frame says nothing (owner 2026-09-26: "highlight" x5)
     local inst = replay.inst
     local src = (istable(inst) and inst.star ~= nil) and inst or seq
     local star = tostring(src.star or (inst and inst.attacker) or "?")
@@ -783,11 +783,13 @@ local function paintRecap(x, y, w, h, finished)
     local star = rows and rows[1]
     local ty = y + pad
     -- the winner and the round length are in the header already; this frame is the star and the totals
-    S.chip(finished and "HIGHLIGHT PLAYED" or "NO HIGHLIGHT THIS ROUND", x + pad, ty)
+    -- owner 2026-09-26: no chip here - the card's subtitle already says ROUND RECAP; the one line is the reason
     local note
     if finished then note = RE.ReplaysLine() else note = noHighlightReason() end
-    if note then text(note, 10, 500, x + w - pad, ty + u(5), T.muted, TEXT_ALIGN_RIGHT) end
-    ty = ty + u(30)
+    if note then
+        text(fit(note, 11, 500, w - pad * 2), 11, 500, x + pad, ty, T.muted)
+        ty = ty + u(26)
+    end
     if star then
         local av = u(44)
         draw.RoundedBox(4, x + pad, ty, av, av, avatarColor(1))
@@ -805,7 +807,7 @@ local function paintRecap(x, y, w, h, finished)
         ty = ty + u(22)
     end
     if RE.Summary then
-        local totals = string.format("%d kills  ·  %d heals", RE.Summary.totalKills or 0, RE.Summary.totalHeals or 0)
+        local totals = string.format("Round total: %d kills  ·  %d heals", RE.Summary.totalKills or 0, RE.Summary.totalHeals or 0)
         text(totals, 12, 600, x + pad, ty, T.text)
         if RE.Summary.survivors and #RE.Summary.survivors > 0 then
             text(fit("Survived: " .. table.concat(RE.Summary.survivors, ", "), 11, 500, w - pad * 2), 11, 500, x + pad, ty + u(18), T.muted)
@@ -857,7 +859,7 @@ local function paintInset(panel, x, y, w, h)
     K.Card(x, y, w, h, T.inset, K.Alpha(T.edge, 200))
     local replay = P.Replay()
     local phase = replay and replay.phase
-    local drawn = false
+    local drawn, recap = false, false
     if phase == "playing" then drawn = P.RenderInset(panel, x + 1, y + 1, w - 2, h - 2) end
     if drawn and replay.kind == "highlight" then
         -- remember what is playing for the stamp, and hold the title card over the first beat (no cut: the shot runs on)
@@ -891,9 +893,12 @@ local function paintInset(panel, x, y, w, h)
             -- Owner 2026-09-24: the inset is never an empty box. No replay to draw (quiet round, killcams off for this
             -- player, or the highlight has already played) -> the round recap takes the frame.
             paintRecap(x + 1, y + 1, w - 2, h - 2, finished)
+            recap = true
         end
     end
     -- chips: what this is (a round's highlight, or part N of the map reel) and the slow-motion rate
+    RE.InsetRecap = recap
+    if recap then return y + h + u(8) + u(20) + u(10), true end -- the recap labels itself: no chip, no meta over it
     local label = "HIGHLIGHT"
     if replay and replay.seq and replay.seq.reel then
         -- hl_captions_20260925: seq.scope "round" is this round's reel (several of its moments), not the map's
@@ -904,7 +909,7 @@ local function paintInset(panel, x, y, w, h)
     local cw = S.chip(label, x + u(8), y + u(8))
     if replay and replay.rate and replay.rate < 0.99 then S.chip(string.format("%.2gx", replay.rate), x + w - u(8), y + u(8), T.accent, nil, TEXT_ALIGN_RIGHT) end
     local meta, victims = highlightMeta(replay)
-    text(fit(meta, 11, 600, w - cw - u(30)), 11, 600, x + u(8) + cw + u(8), y + u(18), T.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+    if meta then text(fit(meta, 11, 600, w - cw - u(30)), 11, 600, x + u(8) + cw + u(8), y + u(18), T.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER) end
     -- scrub bar + meta
     local barY = y + h - u(24)
     if replay and replay.cs and replay.first and replay.last then
@@ -1562,6 +1567,12 @@ local function sideBallotRows(width)
     if cur ~= "" then rows[#rows + 1] = cur end
     return rows
 end
+-- The side card's one label for its frame: what the frame holds right now.
+function RE.SideSubtitle(isFinal, recap)
+    if isFinal then return "MAP REEL" end
+    return recap and "ROUND RECAP" or "HIGHLIGHT OF THE ROUND"
+end
+RE.HighlightMeta = highlightMeta
 local function paintSide(panel, w, h)
     local cw = math.min(u(440), math.floor(w * 0.32))
     local x = w - P.RightGutter() - cw - u(24)
@@ -1573,11 +1584,11 @@ local function paintSide(panel, w, h)
     local keysOk = aliveVoteKeys() or not RE.Side()
     local ballot = hasVote and not RE.ModeVote.active and (keysOk or aliveMapKeys()) and RE.MapVote.active and not RE.MapVote.result and sideBallotRows(iw) or nil
     K.HudPlate(x, y, cw, u(52) + ih + (hasVote and (u(54) + (ballot and (#ballot - 1) * u(16) or 0)) or pad)) -- U3.4: the HUD plate (theme glass + edge)
-    paintInset(panel, x + pad, y + u(52), iw, ih) -- before the title: see paintPanel's header note
+    local _, recap = paintInset(panel, x + pad, y + u(52), iw, ih) -- before the title: see paintPanel's header note
     -- U3.1: the mode (the result only if this player's winner card never showed it), never "ROUND OVER"
     local title, isResult = headerText()
     text(fit(string.upper(title), 16, 800, iw), 16, 800, x + pad, y + u(10), isResult and T.gold or T.text)
-    text(final() and "MAP REEL" or "HIGHLIGHT OF THE ROUND", 9, 700, x + pad, y + u(34), T.muted)
+    text(RE.SideSubtitle(final(), recap), 9, 700, x + pad, y + u(34), T.muted)
     if not hasVote then return end
     local fy = y + u(52) + ih + u(10)
     if RE.ModeVote.active then

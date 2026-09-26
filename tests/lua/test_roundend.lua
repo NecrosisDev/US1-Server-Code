@@ -201,3 +201,10 @@ STUB.calls = {}
 RE.Panel.Paint(RE.Panel, 1920, 1080)
 assert(string.find(paintedText(), "TRAITORS WIN", 1, true), "untold: the result")
 print("roundend ok")
+
+-- owner 2026-09-26 ("highlight" x5 on a round with no highlight): one label for the frame, no fallback meta text
+assert(RE.HighlightMeta(nil) == nil, "no replay: no meta line")
+assert(RE.SideSubtitle(false, true) == "ROUND RECAP", "recap subtitle")
+assert(RE.SideSubtitle(false, false) == "HIGHLIGHT OF THE ROUND", "highlight subtitle")
+assert(RE.SideSubtitle(true, true) == "MAP REEL", "final intermission subtitle")
+print("ok roundend recap labels")
