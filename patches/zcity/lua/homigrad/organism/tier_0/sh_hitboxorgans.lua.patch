@@ -1,6 +1,17 @@
 --- a/lua/homigrad/organism/tier_0/sh_hitboxorgans.lua
 +++ b/lua/homigrad/organism/tier_0/sh_hitboxorgans.lua
-@@ -68,7 +68,6 @@
+@@ -38,7 +38,9 @@
+ 
+ 	for nameBone, organs in pairs(organs) do
+ 		local bone = ent:LookupBone(nameBone)
+-		--if not bone then continue end
++		-- US1: a playermodel without this bone (custom models) made GetBoneMatrix(nil) throw every call - the admin
++		-- hg_show_hitbox overlay every frame, and real hits on the server. Skip organs whose bone the model lacks.
++		if not bone then continue end
+ 		matrix = ent:GetBoneMatrix(bone)
+ 		if not matrix then continue end
+ 		pos = matrix:GetTranslation()
+@@ -68,7 +70,6 @@
  
  --local util_IsOBBIntersectingOBB = util.IsOBBIntersectingOBB --huy not server side
  local util_IntersectRayWithOBB = util.IntersectRayWithOBB
@@ -8,7 +19,7 @@
  local stepDiv = 1
  local tracePos = Vector(0, 0, 0)
  
-@@ -94,11 +93,100 @@
+@@ -94,11 +95,100 @@
  
  if SERVER then return end
  
@@ -111,7 +122,7 @@
  hook.Add("PostDrawTranslucentRenderables", "homigrad-organism", function()
  	if not hg_show_hitbox:GetBool() then return end
  	if not LocalPlayer():IsAdmin() then return end
-@@ -106,38 +194,64 @@
+@@ -106,38 +196,64 @@
  		if GetViewEntity() == ply then continue end
  		ply = hg.GetCurrentCharacter(ply)
  		local organs = hg.organism.GetHitBoxOrgans(ply:GetModel(), ply)
@@ -133,13 +144,6 @@
 -				local organ = box[6] and organs[box[6]][box[7]]
 -				render_DrawWireframeBox(box[1], box[2], box[3], box[4], (hitBoxs[i] and white) or (organ and organ[6]) or black)
 -			end
--
--			for i = 1, #inputHole do
--				render.DrawWireframeSphere(inputHole[i], 1, 16, 16, red)
--			end
--
--			for i = 1, #outputHole do
--				render.DrawWireframeSphere(outputHole[i], 0.5, 16, 16, blue)
 +		if hg.organism.BallisticsV2 and hg.organism.BallisticsV2.TagShapes then hg.organism.BallisticsV2.TagShapes(boxs, organs) end
 +		if hg_show_hitbox_dir:GetFloat() > 0 then
 +			local V2 = hg.organism.BallisticsV2
@@ -153,12 +157,17 @@
 +					local organ = box[6] and organs[box[6]][box[7]]
 +					hg.organism.DrawOrganShape(box, (result.hitBoxs[i] and white) or (organ and organ[6]) or black)
 +				end
-+
+ 
+-			for i = 1, #inputHole do
+-				render.DrawWireframeSphere(inputHole[i], 1, 16, 16, red)
+-			end
 +				for i = 1, #result.segments do
 +					local seg = result.segments[i]
 +					render.DrawLine(seg.a, seg.b, segColors[seg.class] or white, true)
 +				end
-+
+ 
+-			for i = 1, #outputHole do
+-				render.DrawWireframeSphere(outputHole[i], 0.5, 16, 16, blue)
 +				for i = 1, #result.events do
 +					local ev = result.events[i]
 +					local style = eventStyle[ev.kind]

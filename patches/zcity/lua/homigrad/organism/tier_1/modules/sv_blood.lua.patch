@@ -11,6 +11,15 @@
  local CurTime = CurTime
  local time
  local max, min, Round = math.max, math.min, math.Round
+@@ -68,7 +75,7 @@
+ 		
+ 		local bon = "ValveBiped.Bip01_Head1"
+ 		local bone = ent:LookupBone(bon)
+-		local mat = ent:GetBoneMatrix(bone)
++		local mat = bone and ent:GetBoneMatrix(bone) -- US1: a model without a head bone threw here
+ 	
+ 		if mat and mat:GetAngles():Right()[3] < 0.25 then
+ 			org.vomitInThroat = nil
 @@ -88,7 +95,7 @@
  	if org.isPly and not org.otrub and org.blood < 2900 then org.owner:Notify(math.random(2) == 1 and "I cant feel anything..." or (math.random(2) == 1 and "I think I'm gonna faint right now...") or "I dont feel so good...",60,"blood2",0) end
  
@@ -67,7 +76,7 @@
  	
  	if (org.internalBleed > 1 or org.pneumothorax > 0) and org.blood > 2000 and org.o2[1] > 0 then
  		org.wantToVomit = org.wantToVomit or 0
-@@ -229,7 +242,7 @@
+@@ -229,12 +242,12 @@
  	if !hg.IsValidPlayer(owner) then return end
  	
  	local org = owner.organism
@@ -76,3 +85,9 @@
  	local ent = hg.GetCurrentCharacter(owner)
  
  	local bon = "ValveBiped.Bip01_Head1"
+ 	local bone = ent:LookupBone(bon)
+-	local mat = ent:GetBoneMatrix(bone)
++	local mat = bone and ent:GetBoneMatrix(bone) -- US1: a model without a head bone threw here
+ 
+ 	if not mat then return end
+ 
