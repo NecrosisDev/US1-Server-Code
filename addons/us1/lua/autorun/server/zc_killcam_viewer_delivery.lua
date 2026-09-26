@@ -1,6 +1,6 @@
 -- Bounded client-code transport; does not reload recorder, clips, rounds or active players.
 if not SERVER then return end
-local VERSION="9138d23f6f7134627ccd3e9ccb074a1579c1fbf9adef314e3d0c8f0b5db15b5b"
+local VERSION="42a386300e22641e3334094097c90a569942586d5df06e5c92c88279ef5e156a"
 util.AddNetworkString("ZCKCViewerRequest")
 util.AddNetworkString("ZCKCViewerPart")
 util.AddNetworkString("ZCKCViewerAck")

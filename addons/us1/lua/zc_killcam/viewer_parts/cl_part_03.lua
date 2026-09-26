@@ -1,5 +1,8 @@
-return string.sub([========[x    local bottom = vgui.Create("DPanel", frame) bottom:Dock(BOTTOM) bottom:SetTall(84) bottom:DockMargin(0, 6, 0, 0) bottom.Paint = nil
-    local scene = vgui.Create("DPanel", frame) scene:Dock(FILL) scene:DockMargin(0, 6, 0, 0)
+return string.sub([========[x    -- U4: the viewer's one hint row, from the shared shortcut list (V.Shortcuts, the round replay's too)
+    local hints = vgui.Create("DPanel", frame) hints:Dock(BOTTOM) hints:SetTall(u(30)) hints:DockMargin(0, u(6), 0, 0)
+    hints.Paint = function(_, w, h) V.HintRow(V.ShortcutHints("tactical"), 0, (h - u(22)) / 2, TEXT_ALIGN_LEFT, u(22)) end
+    local bottom = vgui.Create("DPanel", frame) bottom:Dock(BOTTOM) bottom:SetTall(u(84)) bottom:DockMargin(0, u(6), 0, 0) bottom.Paint = nil
+    local scene = vgui.Create("DPanel", frame) scene:Dock(FILL) scene:DockMargin(0, 0, 0, 0)
     scene.Paint = paintScene
     scene.OnMouseWheeled = function(_, delta) if state then state.zoom = math.Clamp(state.zoom * (delta > 0 and 1.15 or 0.87), 0.08, 3) end end
     scene.OnMousePressed = function(s) if state then s.drag = {gui.MouseX(), gui.MouseY(), state.camX, state.camY} state.follow = nil s:MouseCapture(true) end end
@@ -15,22 +18,20 @@ return string.sub([========[x    local bottom = vgui.Create("DPanel", frame) bot
         end
     end
 
-    local timeline = vgui.Create("DPanel", bottom) timeline:Dock(TOP) timeline:SetTall(44)
+    local timeline = vgui.Create("DPanel", bottom) timeline:Dock(TOP) timeline:SetTall(u(44))
     timeline.Paint = paintTimeline
     timeline.OnMousePressed = function(s) s.dragging = true if state then state.playing = false end end
-    local bar = vgui.Create("DPanel", bottom) bar:Dock(FILL) bar:DockMargin(0, 4, 0, 0) bar.Paint = nil
-    local function add(text, wide, fn) local b = button(bar, text, function() if state then fn() end end) b:Dock(LEFT) b:SetWide(wide) b:DockMargin(0, 0, 4, 0) return b end
+    local bar = vgui.Create("DPanel", bottom) bar:Dock(FILL) bar:DockMargin(0, u(4), 0, 0) bar.Paint = nil
+    local function add(text, wide, fn) local b = button(bar, text, function() if state then fn() end end) b:Dock(LEFT) b:SetWide(u(wide)) b:DockMargin(0, 0, u(4), 0) return b end
     add("|< event", 80, function() jumpEvent(-1) end)
-    add("-1s", 50, function() seek(state.cs - 100) end)
+    -- U4: the same steps as the keys (and the round replay): 5 s, one frame (0.1 s)
+    add("-5 s", 56, function() seek(state.cs - 500) end)
     add("-0.1", 50, function() state.playing = false seek(state.cs - 10) end)
-    add(function() return state and state.playing and "Pause" or "Play" end, 80, function()
-        if state.cs >= state.clip.last then seek(state.clip.first) end
-        state.playing = not state.playing
-    end)
+    add(function() return state and state.playing and "Pause" or "Play" end, 80, function() V.TacticalToggle() end)
     add("+0.1", 50, function() state.playing = false seek(state.cs + 10) end)
-    add("+1s", 50, function() seek(state.cs + 100) end)
+    add("+5 s", 56, function() seek(state.cs + 500) end)
     add("event >|", 80, function() jumpEvent(1) end)
-    add(function() return "Speed " .. (state and state.speed or 1) .. "x" end, 100, function() state.speed = state.speed == 1 and 2 or (state.speed == 2 and 0.25 or 1) end)
+    add(function() return string.format("Speed %.2gx", state and state.speed or 1) end, 110, function() state.speed = state.speed == 1 and 2 or (state.speed == 2 and 0.25 or 1) end)
     add(function() return "Follow: " .. (state and state.follow and state.clip.actors[state.follow].label or "free") end, 190, function()
         local n = #state.clip.actors
         local i = state.follow or 0
@@ -43,26 +44,26 @@ return string.sub([========[x    local bottom = vgui.Create("DPanel", frame) bot
         if not state then return end
         local filed = notes[state.id]
         if filed and #filed > 0 then
-            local box = vgui.Create("DPanel", right) box:Dock(TOP) box:SetTall(26 + #filed * 38) box:DockMargin(0, 0, 0, 6)
+            local box = vgui.Create("DPanel", right) box:Dock(TOP) box:SetTall(u(26) + #filed * u(38)) box:DockMargin(0, 0, 0, u(6))
             box.Paint = function(_, w, h)
                 surface.SetDrawColor(COL.panel) surface.DrawRect(0, 0, w, h)
-                draw.SimpleText("Reported by " .. filed.reporter, "ZCKC.Head", 8, 4, COL.bad)
+                draw.SimpleText("Reported by " .. filed.reporter, COL.head, u(8), u(4), COL.bad)
                 for i, item in ipairs(filed) do
-                    local y = 26 + (i - 1) * 38
-                    draw.SimpleText(string.format("Hit %d, %s%s", item.instance, item.attacker, item.attackerId ~= "" and ("  " .. item.attackerId) or ""), "ZCKC.Small", 8, y, COL.dim)
-                    draw.SimpleText(item.text ~= "" and item.text or "(no comment)", "ZCKC.Body", 8, y + 14, COL.text)
+                    local y = u(26) + (i - 1) * u(38)
+                    draw.SimpleText(string.format("Hit %d, %s%s", item.instance, item.attacker, item.attackerId ~= "" and ("  " .. item.attackerId) or ""), COL.small, u(8), y, COL.dim)
+                    draw.SimpleText(item.text ~= "" and item.text or "(no comment)", COL.body, u(8), y + u(15), COL.text)
                 end
             end
         end
         if state.seq then -- life sequence: every hit taken that life, one button each, and a report control
-            local strip = vgui.Create("DPanel", right) strip:Dock(TOP) strip:SetTall(30 + #state.seq.instances * 26 + 34) strip:DockMargin(0, 0, 0, 6)
-            strip.Paint = function(_, w, h) surface.SetDrawColor(COL.panel) surface.DrawRect(0, 0, w, h) draw.SimpleText("Every hit you took that life", "ZCKC.Head", 8, 4, COL.text) end
-            strip:DockPadding(6, 28, 6, 6)
+            local strip = vgui.Create("DPanel", right) strip:Dock(TOP) strip:SetTall(u(30) + #state.seq.instances * u(26) + u(34)) strip:DockMargin(0, 0, 0, u(6))
+            strip.Paint = function(_, w, h) surface.SetDrawColor(COL.panel) surface.DrawRect(0, 0, w, h) draw.SimpleText("Every hit you took that life", COL.head, u(8), u(4), COL.text) end
+            strip:DockPadding(u(6), u(28), u(6), u(6))
             for i, inst in ipairs(state.seq.instances) do
                 local b = button(strip, function()
                     return string.format("%d  %s  %s dmg  %s%s", i, tostring(inst.attacker), tostring(inst.dmg or 0), V.Tags and V.Tags[inst.tag] or inst.tag or "", state.reported[i] and "  (reported)" or "")
                 end, function() loadInstance(state.id, state.seq, i) end)
-                b:Dock(TOP) b:SetTall(24) b:DockMargin(0, 0, 0, 2)
+                b:Dock(TOP) b:SetTall(u(24)) b:DockMargin(0, 0, 0, u(2))
                 local paint = b.Paint
                 b.Paint = function(s, w, h) paint(s, w, h) if state and state.index == i then surface.SetDrawColor(COL.text) surface.DrawRect(0, 0, 3, h) end end
             end
@@ -73,40 +74,52 @@ return string.sub([========[x    local bottom = vgui.Create("DPanel", frame) bot
             end, function()
                 if current.reportable and not state.reported[state.index] and V.ReportDialog then V.ReportDialog(state.id, state.index, current) end
             end)
-            report:Dock(TOP) report:SetTall(28) report:DockMargin(0, 4, 0, 0)
+            report:Dock(TOP) report:SetTall(u(28)) report:DockMargin(0, u(4), 0, 0)
         end
-        local head = vgui.Create("DPanel", right) head:Dock(TOP) head:SetTall(26 + #state.findings * 34)
+        local head = vgui.Create("DPanel", right) head:Dock(TOP) head:SetTall(u(26) + #state.findings * u(36))
         head.Paint = function(_, w, h)
             surface.SetDrawColor(COL.panel) surface.DrawRect(0, 0, w, h)
-            draw.SimpleText("Findings", "ZCKC.Head", 8, 4, COL.text)
+            draw.SimpleText("Findings", COL.head, u(8), u(4), COL.text)
             for i, f in ipairs(state.findings) do
-                local y = 26 + (i - 1) * 34
-                draw.SimpleText(f.name, "ZCKC.Small", 8, y, COL.dim)
-                draw.SimpleText(f.value, "ZCKC.Body", 8, y + 13, COL[f.tone or ""] or COL.text)
+                local y = u(26) + (i - 1) * u(36)
+                draw.SimpleText(f.name, COL.small, u(8), y, COL.dim)
+                draw.SimpleText(f.value, COL.body, u(8), y + u(14), COL[f.tone or ""] or COL.text)
             end
         end
-        local list = vgui.Create("DScrollPanel", right) list:Dock(FILL) list:DockMargin(0, 6, 0, 0)
+        local list = vgui.Create("DScrollPanel", right) list:Dock(FILL) list:DockMargin(0, u(6), 0, 0)
         for _, e in ipairs(state.log) do
-            local row = vgui.Create("DButton", list) row:Dock(TOP) row:SetTall(22) row:SetText("")
+            local row = vgui.Create("DButton", list) row:Dock(TOP) row:SetTall(u(22)) row:SetText("")
             row.Paint = function(s, w, h)
                 local current = state and math.abs(state.cs - e.cs) < 25
-                if current or s:IsHovered() then surface.SetDrawColor(COL.line) surface.DrawRect(0, 0, w, h) end
+                if current or s:IsHovered() then surface.SetDrawColor(COL.hover) surface.DrawRect(0, 0, w, h) end
                 surface.SetDrawColor(COL[e.kind] or COL.text) surface.DrawRect(0, 3, 3, h - 6)
-                draw.SimpleText(string.format("%+.1f", e.cs / 100), "ZCKC.Small", 8, h / 2, COL.dim, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-                draw.SimpleText(e.text, "ZCKC.Small", 48, h / 2, COL.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+                draw.SimpleText(string.format("%+.1f", e.cs / 100), COL.small, u(8), h / 2, COL.dim, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+                draw.SimpleText(e.text, COL.small, u(48), h / 2, COL.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
             end
             row.DoClick = function() if state then seek(e.cs - 50) state.playing = true if e.a and state.clip.actors[e.a] then state.follow = e.a end end end
         end
     end
 
+    -- U4 keys, one meaning across the viewers: Space play, Left / Right 5 s, comma / period one frame, B back, Esc close
     frame.OnKeyCodePressed = function(_, key)
+        if key == KEY_B then return V.TacticalBack() end
         if not state then return end
-        if key == KEY_SPACE then state.playing = not state.playing
-        elseif key == KEY_LEFT then seek(state.cs - 100)
-        elseif key == KEY_RIGHT then seek(state.cs + 100)
+        if key == KEY_SPACE then V.TacticalToggle()
+        elseif key == KEY_LEFT then seek(state.cs - 500)
+        elseif key == KEY_RIGHT then seek(state.cs + 500)
         elseif key == KEY_COMMA then state.playing = false seek(state.cs - 10)
         elseif key == KEY_PERIOD then state.playing = false seek(state.cs + 10) end
     end
+    -- Esc opens the game menu before a panel sees it: close this viewer and put the menu away (Z-City's own pause menu
+    -- asks OnShowZCityPause first, below). A share sheet over it closes first.
+    local think = frame.Think
+    frame.Think = function(s)
+        if think then think(s) end
+        local up = gui.IsGameUIVisible()
+        if up and not s.menuUp and not gui.IsConsoleVisible() then gui.HideGameUI() s:Remove() return end
+        s.menuUp = up
+    end
+    frame.menuUp = gui.IsGameUIVisible()
 
     frame.records = left
     ask("zckc_index", target)
@@ -120,17 +133,19 @@ net.Receive("zckc_index", function()
     end
     if not IsValid(frame) then return end
     frame.records:Clear()
-    frame.note = locked and STATUS_TEXT[3] or (n == 0 and ("Nothing under \"" .. sid .. "\"" .. (sid == "mine" and IsValid(frame) and (frame.scope or "") ~= "" and " (that tab is not open to your rank)" or "") .. ".") or nil)
+    -- what the empty scene says until a record is picked (a state, not a passing note)
+    frame.status = locked and STATUS_TEXT[3] or (n == 0 and ("Nothing under \"" .. sid .. "\"" .. (sid == "mine" and IsValid(frame) and (frame.scope or "") ~= "" and " (that tab is not open to your rank)" or "") .. ".") or nil)
+    local u = COL.u
     for _, r in ipairs(rows) do
         local what = r.tag == "life" and (r.role == "" and r.other or "Your death, last hit by " .. r.other) or r.role == "" and r.other or r.tag == "ivi" and (r.role == "killer" and "You killed " or "Killed by ") .. r.other or "Traitor, killed by " .. r.other
         local b = button(frame.records, "", function() ask("zckc_clip", r.clip) end)
-        b:Dock(TOP) b:SetTall(46) b:DockMargin(0, 0, 0, 4)
+        b:Dock(TOP) b:SetTall(u(46)) b:DockMargin(0, 0, 0, u(4))
         b.Paint = function(s, w, h)
             local active = state and state.id == r.clip
-            surface.SetDrawColor((active or s:IsHovered()) and COL.line or COL.panel) surface.DrawRect(0, 0, w, h)
+            surface.SetDrawColor((active or s:IsHovered()) and COL.hover or COL.panel) surface.DrawRect(0, 0, w, h)
             surface.SetDrawColor(r.tag == "ivi" and COL.bad or COL.attacker) surface.DrawRect(0, 0, 3, h)
-            draw.SimpleText(what, "ZCKC.Body", 10, 6, COL.text)
-            draw.SimpleText(os.date("%d %b %H:%M", r.t) .. "  " .. r.map .. (r.reported and "  reported" or ""), "ZCKC.Small", 10, 26, COL.dim)
+            draw.SimpleText(what, COL.body, u(10), u(6), COL.text)
+            draw.SimpleText(os.date("%d %b %H:%M", r.t) .. "  " .. r.map .. (r.reported and "  reported" or ""), COL.small, u(10), u(26), COL.dim)
         end
     end
 end)
@@ -150,8 +165,31 @@ function V.OpenSequence(id, seq)
     open()
     openClip(id, seq)
 end
-function V.Note(text) if IsValid(frame) then frame.note = text end end
+-- V.Note is the viewer kit's (cl_part_01): the one note every viewer screen draws, this frame's header included.
 function V.MarkReported(id, index) if state and state.id == id and index then state.reported[index] = true end end
+function V.TacticalOpen() return IsValid(frame) end
+-- Play / pause, the button and Space alike: from the start again once the clip has run out.
+function V.TacticalToggle()
+    if not state then return end
+    if not state.playing and state.cs >= state.clip.last then seek(state.clip.first) end
+    state.playing = not state.playing
+end
+-- B, back: this view closes, and when it was opened from your own death replay (B there) that replay picks up at the
+-- hit chosen here; otherwise you are back where you were.
+function V.TacticalBack()
+    if not IsValid(frame) then return end
+    local id, index = state and state.id, state and state.index
+    frame:Remove()
+    local life = V.ObserverLife
+    if id and life and life.id == id and V.ObserverAction then V.ObserverAction("watch", index or 1) end
+end
+hook.Add("OnShowZCityPause", "ZCKillcam.TacticalEsc", function()
+    if not IsValid(frame) then return end
+    if IsValid(hg and hg.chat) and hg.chat:GetActive() then return end -- chat open: Esc is ZChat's
+    if V.ShareUp() then V.ShareClose() return false end
+    frame:Remove()
+    return false
+end)
 
 concommand.Add("zc_killcam", function(_, _, args) open(args[1]) end)
 -- Shown in the console rather than a panel, deliberately: this is a staff tool that wants copying into a ban note,
@@ -424,7 +462,7 @@ end
 -- The player's own switch. Userinfo: the server reads it before it sends a death replay or the round's highlight.
 CreateClientConVar("zc_killcam_show", "1", true, true, "Show killcams: your death replay and the round's best moment (0 = never)", 0, 1)
 local function listSetting() -- Z-City's settings menu (Esc > Settings) builds itself from hg.settings.tbl each time it opens
-    if hg and hg.settings and hg.settings.AddOpt then hg.settings:AddOpt("Gameplay", "zc_killcam_show", "Killcams (death replay & round highlight)") end
+    if hg and hg.settings and hg.settings.AddOpt then hg.settings:AddOpt("Replays & killcam", "zc_killcam_show", "Killcams (death replay & round highlight)") end
 end
 listSetting()
 hook.Add("InitPostEntity", "ZCKillcam.Setting", listSetting)
@@ -465,19 +503,19 @@ end)
 ----------------------------------------------------------------- shared: report box and replies
 local REASONS = {"No reason given", "They shot first", "Mistaken identity", "Revenge for an earlier round"}
 function V.ReportDialog(id, index, inst, onClose)
-    local style = V.LifeStyle
+    local style = V.LifeStyleFill and V.LifeStyleFill() or V.LifeStyle -- the theme's tokens (cl_part_07)
     local box = vgui.Create("DFrame")
     box:SetSize(math.max(ScreenScale(230), 560), 250) box:Center() box:SetTitle("") box:ShowCloseButton(false) box:SetDraggable(false) box:MakePopup()
     box.Paint = function(_, w, h)
         surface.SetDrawColor(0, 0, 0, 120) surface.DrawRect(-ScrW(), -ScrH(), ScrW() * 2, ScrH() * 2)
         surface.SetDrawColor(28, 28, 28, 245) surface.DrawRect(0, 0, w, h)
         surface.SetDrawColor(style.edge) surface.DrawOutlinedRect(0, 0, w, h, 2)
-        draw.SimpleText("Report this hit to staff", "ZCKC.LifeHead", 16, 10, style.text)
-        draw.SimpleText(string.format("%s   ·   %s   ·   %d hit%s, %s dmg   ·   %.0fs before your death", tostring(inst.attacker), (string.gsub(inst.wep or "unknown weapon", "^weapon_", "")), inst.hits or 0, inst.hits == 1 and "" or "s", tostring(inst.dmg or 0), inst.ago or 0), "ZCKC.LifeSmall", 16, 48, style.dim)
-        draw.SimpleText("Staff get this replay from the attacker's view, with your note.", "ZCKC.LifeSmall", 16, 68, style.dim)
+        draw.SimpleText("Report this hit to staff", V.LF.Head, 16, 10, style.text)
+        draw.SimpleText(string.format("%s   ·   %s   ·   %d hit%s, %s dmg   ·   %.0fs before your death", tostring(inst.attacker), (string.gsub(inst.wep or "unknown weapon", "^weapon_", "")), inst.hits or 0, inst.hits == 1 and "" or "s", tostring(inst.dmg or 0), inst.ago or 0), V.LF.Small, 16, 48, style.dim)
+        draw.SimpleText("Staff get this replay from the attacker's view, with your note.", V.LF.Small, 16, 68, style.dim)
     end
     local function flat(button, colour, filled)
-        button:SetFont("ZCKC.LifeSmall") button:SetTextColor(filled and style.text or colour)
+        button:SetFont(V.LF.Small) button:SetTextColor(filled and style.text or colour)
         button.Paint = function(self, w, h)
             if filled then surface.SetDrawColor(155, 0, 0, self:IsHovered() and 255 or 220) surface.DrawRect(0, 0, w, h)
             else
@@ -487,7 +525,7 @@ function V.ReportDialog(id, index, inst, onClose)
         end
     end
     local entry = vgui.Create("DTextEntry", box)
-    entry:SetPos(16, 134) entry:SetSize(box:GetWide() - 32, 56) entry:SetMultiline(true) entry:SetFont("ZCKC.LifeSmall")
+    entry:SetPos(16, 134) entry:SetSize(box:GetWide() - 32, 56) entry:SetMultiline(true) entry:SetFont(V.LF.Small)
     entry:SetPlaceholderText("I was holding a medkit and never aimed at them")
     entry:SetPaintBackground(false) entry:SetTextColor(style.text) entry:SetCursorColor(style.text)
     entry.AllowInput = function(self) return #self:GetValue() >= 240 end
@@ -501,13 +539,13 @@ function V.ReportDialog(id, index, inst, onClose)
     for _, reason in ipairs(REASONS) do
         local chip = vgui.Create("DButton", box)
         chip:SetText(reason) flat(chip, style.dim)
-        surface.SetFont("ZCKC.LifeSmall")
+        surface.SetFont(V.LF.Small)
         chip:SetPos(x, 98) chip:SetSize(surface.GetTextSize(reason) + 18, 24)
         chip.DoClick = function() entry:SetText(reason .. ". ") entry:RequestFocus() entry:SetCaretPos(#entry:GetValue()) end
         x = x + chip:GetWide() + 6
     end
     local count = vgui.Create("DLabel", box)
-    count:SetPos(16, 206) count:SetSize(200, 20) count:SetFont("ZCKC.LifeSmall") count:SetTextColor(style.dim)
+    count:SetPos(16, 206) count:SetSize(200, 20) count:SetFont(V.LF.Small) count:SetTextColor(style.dim)
     count.Think = function(self) self:SetText(#entry:GetValue() .. " / 240") end
     local send = vgui.Create("DButton", box)
     send:SetText("Send report") flat(send, style.text, true) send:SetSize(120, 28) send:SetPos(box:GetWide() - 136, 204)
@@ -525,13 +563,11 @@ function V.ReportDialog(id, index, inst, onClose)
     return box
 end
 
-local function say(text)
-    if L then L.note, L.noteUntil = text, RealTime() + 4 end
-    if V.Note then V.Note(text) end
-end
+-- U4: every reply is the viewer's one note (V.Say -> V.Note, cl_part_01), drawn the same on every viewer screen.
+local function say(text, kind) V.Say(text, kind) end
 net.Receive("zckc_report", function()
     local id, code = net.ReadString(), net.ReadUInt(3)
-    say(REPLY[code] or "The report was not accepted.")
+    say(REPLY[code] or "The report was not accepted.", code == 0 and "ok" or "warn")
     local last = V.lastReport
     if code == 0 and last and last.id == id then
         if L and L.id == id then L.reported[last.index] = true end
@@ -541,7 +577,7 @@ end)
 net.Receive("zckc_save", function()
     local _, code = net.ReadString(), net.ReadUInt(3)
     if L and code == 0 then L.saved = true end
-    say(code == 0 and "Saved to your records (zc_killcam)." or "Nothing to save.")
+    say(code == 0 and "Saved to your records (zc_killcam)." or "Nothing to save.", code == 0 and "ok" or "info")
 end)
 
 ----------------------------------------------------------------- ghosts
@@ -639,8 +675,8 @@ local function load(index)
     L.cs = L.clip.first
     -- Every hit starts from a clean view. All of these DECAY over time instead of being written each frame, so without
     -- this the last shot's recoil kick, the red hit flash, the aim zoom and the slow-motion ramp all bleed across the
-    -- cut into the next hit. L.note is deliberately left alone: it is feedback about the whole sequence ("Saved to your
-    -- records"), not about this hit, and clearing it would swallow a message the player just asked for.
+    -- cut into the next hit. The note (V.NoteState) is deliberately left alone: it is feedback about the whole sequence
+    -- ("Saved to your records"), not about this hit, and clearing it would swallow a message the player just asked for.
     L.rate, L.zoom, L.kick = 1, 0, 0
     L.hitFlash, L.hitDmg, L.hitGroup = 0, nil, nil
     L.bullet = nil -- nil = this hit's killing round has not been looked for yet; false = looked for, there isn't one

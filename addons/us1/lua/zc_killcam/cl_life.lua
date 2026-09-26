@@ -11,14 +11,26 @@
 -- Keys: G report this hit, V save, Space start / next hit, B top-down viewer, Q close.
 -- PROVISIONAL(2026-09-21, the 3D replay is unseen in-engine by its author: needs the owner's eyes, ratify-by: 2026-10-05)
 if not CLIENT then return end
+-- UI cohesion U4 (2026-09-26): this is an OLDER standalone copy; the viewer (zc_killcam/viewer_parts, cl_part_03..08)
+-- carries the current one. It is only sent to clients while the server boots, so it may run before the viewer - and
+-- then it must not define what the viewer owns: the convars zc_killcam_povgun / _autoplay / _fov (the first
+-- definition wins the help text, which is how the two autoplay descriptions came to contradict each other) and the
+-- ZCKC.Life* fonts. It reads those convars by name, tolerating their absence. After the viewer it does nothing.
+ZCKillcamView = ZCKillcamView or {}
 local V = ZCKillcamView
+if V.Life then return end -- the viewer is loaded: never replace its hooks with this copy's
+local function setting(name, fallback) -- a convar the viewer defines, read by name (nil until the viewer has run)
+    local cv = GetConVar(name)
+    if not cv then return fallback end
+    if isbool(fallback) then return cv:GetBool() end
+    return cv:GetFloat()
+end
 
 local TAGS = {ivi = "Innocent hit innocent", tvt = "Traitor hit traitor", ivt = "Innocent hit traitor", tvi = "Traitor hit innocent", other = "Not a traitor round"}
 local REPLY = {[0] = "Reported to staff.", [1] = "That sequence is not yours.", [2] = "That sequence is gone.", [3] = "That hit cannot be reported.", [4] = "You already reported that hit.", [5] = "Report limit reached, try again later."}
 local SLOW_FROM, SLOW_TO, SLOW, GHOST_MODEL = -100, 60, 0.25, "models/player/group01/male_07.mdl"
 V.Tags = TAGS
 
-local povGun = CreateClientConVar("zc_killcam_povgun", "1", true, false, "Show the attacker's own body, arms and weapon in the first-person replay")
 -- weapons.Get merges the base classes in (RHPos, WorldPos ... mostly live on homigrad_base);
 -- weapons.GetStored would only show what the weapon file itself declares. It copies, so cache.
 local weaponTables = {}
@@ -55,7 +67,6 @@ local function heldTransform(w, eyePos, pitch, yaw)
     return pos, ang, handPos, handAng
 end
 
-local autoplay = CreateClientConVar("zc_killcam_autoplay", "1", true, false, "Start the death replay by itself once the forgiveness prompt has gone (0 = wait for Space)")
 local FORGIVE_WINDOW = 5 -- seconds the gamemode's forgiveness prompt owns the bottom of the screen and the F key
 
 local deathAt, wasAlive = 0, true
@@ -183,7 +194,7 @@ local function load(index)
     for i, actor in ipairs(L.clip.actors) do
         -- The attacker gets a body as well: the gamemode's first person IS the player's own body and
         -- world weapon seen from the eyes, so that is what the replay shows (head hidden, as it would be).
-        if i ~= L.clip.pov or povGun:GetBool() then
+        if i ~= L.clip.pov or setting("zc_killcam_povgun", true) then
             local g = ClientsideModel(modelFor(actor), RENDERGROUP_OPAQUE)
             if IsValid(g) then
                 g:SetNoDraw(true) g:SetIK(false) g:SetPlaybackRate(0)
@@ -561,7 +572,7 @@ hook.Add("Think", "ZCKillcam.Life", function()
     if L.waiting then -- offered, not started: spectating carries on untouched underneath
         if typing then return end
         if q then return leave() end
-        if space or (autoplay:GetBool() and RealTime() >= L.startAt) then go(1) end
+        if space or (setting("zc_killcam_autoplay", true) and RealTime() >= L.startAt) then go(1) end
         return
     end
     if not typing then
@@ -602,9 +613,8 @@ end)
 -- The gamemode's first person runs at hg_fov clamped to 75-100. A normal view is then widened by the
 -- engine for screens wider than 4:3; render.RenderView takes the number as given, so the same widening is applied here.
 -- PROVISIONAL(2026-09-21, the widening is reasoned from the owner's "FOV a little low" report, not measured: zc_killcam_fov overrides, ratify-by: 2026-10-05)
-local fovOverride = CreateClientConVar("zc_killcam_fov", "0", true, false, "Replay field of view (0 = follow hg_fov)")
 local function replayFov(widen)
-    local fov = fovOverride:GetFloat()
+    local fov = setting("zc_killcam_fov", 0) -- the viewer's convar (cl_part_06); 0 = follow hg_fov
     if fov <= 0 then
         local hgFov = GetConVar("hg_fov")
         fov = math.Clamp(hgFov and hgFov:GetFloat() or 90, 75, 100)
@@ -675,23 +685,9 @@ hook.Add("PreDrawHalos", "ZCKillcam.Life", function()
 end)
 
 ----------------------------------------------------------------- overlay
--- Styled after the gamemode's own HUD and menus (read from its source 2026-09-21): its font choice
--- (hg_font, Bahnschrift by default) at ScreenScale sizes, white text, near-black translucent panels
--- and the dark red outline its forgiveness menu uses. No rounded corners anywhere, as there.
-local function face()
-    local cv = GetConVar("hg_font")
-    local name = cv and cv:GetString() or ""
-    return name ~= "" and name or "Bahnschrift"
-end
-local function fonts()
-    surface.CreateFont("ZCKC.LifeTitle", {font = face(), size = ScreenScale(16), weight = 400, antialias = true})
-    surface.CreateFont("ZCKC.LifeHead", {font = face(), size = ScreenScale(10), weight = 400, antialias = true})
-    surface.CreateFont("ZCKC.LifeBody", {font = face(), size = ScreenScale(7), weight = 400, antialias = true})
-    surface.CreateFont("ZCKC.LifeSmall", {font = face(), size = ScreenScale(6), weight = 400, antialias = true})
-end
-fonts()
-hook.Add("OnScreenSizeChanged", "ZCKillcam.LifeFonts", fonts)
-cvars.AddChangeCallback("hg_font", fonts, "ZCKillcam.LifeFonts")
+-- Styled after the gamemode's own HUD and menus (read from its source 2026-09-21): white text, near-black translucent
+-- panels and the dark red outline its forgiveness menu uses. The ZCKC.Life* font names are the viewer's to define
+-- (U4: the viewer draws with V.Font now); until the viewer has run they fall back to the engine's default font.
 
 local DIM, TEXT, RED, BLUE, GREEN, AMBER = Color(170, 170, 170), Color(255, 255, 255), Color(225, 60, 60), Color(70, 130, 180), Color(140, 215, 120), Color(255, 175, 75)
 local PANEL, EDGE = Color(28, 28, 28, 208), Color(155, 0, 0, 240)
@@ -738,15 +734,16 @@ local function weaponName(class) return (string.gsub(class or "unknown weapon", 
 local function drawWaiting(w, seq)
     local ease = math.min((RealTime() - L.shownAt) / 0.4, 1)
     surface.SetAlphaMultiplier(ease)
-    local text = string.format(autoplay:GetBool() and "Every hit you took this life (%d) replays shortly" or "A replay of every hit you took this life (%d) is ready", #seq.instances)
+    local auto = setting("zc_killcam_autoplay", true)
+    local text = string.format(auto and "Every hit you took this life (%d) replays shortly" or "A replay of every hit you took this life (%d) is ready", #seq.instances)
     surface.SetFont("ZCKC.LifeBody")
     local tw, th = surface.GetTextSize(text)
     local pw = math.max(tw + 40, ScreenScale(150))
     local x, y = w / 2 - pw / 2, ScreenScale(8)
     panel(x, y, pw, th * 2 + 26, EDGE)
     draw.SimpleText(text, "ZCKC.LifeBody", w / 2, y + 8, TEXT, TEXT_ALIGN_CENTER)
-    keyRow({{"Space", autoplay:GetBool() and "Watch now" or "Watch"}, {"Q", "Skip"}}, w / 2, y + th + 14, true)
-    if autoplay:GetBool() then -- the wait, as a bar draining along the bottom edge of the banner
+    keyRow({{"Space", auto and "Watch now" or "Watch"}, {"Q", "Skip"}}, w / 2, y + th + 14, true)
+    if auto then -- the wait, as a bar draining along the bottom edge of the banner
         local total = math.max(L.startAt - L.shownAt, 0.01)
         surface.SetDrawColor(TEXT) surface.DrawRect(x + 2, y + th * 2 + 22, (pw - 4) * math.Clamp((L.startAt - RealTime()) / total, 0, 1), 2)
     end

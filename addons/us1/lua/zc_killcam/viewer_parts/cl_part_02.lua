@@ -37,12 +37,12 @@ return string.sub([========[x            -- Shot and death can share one quantiz
         -- An abstract flight motif; it is not a fabricated map or anatomical diagram.
         local cx,cy=w*.82,h*.48
         P.Ring(cx,cy,math.min(144*s,w*.13),1,P.Tint(P.Edge,a*.65))
-        P.Ring(cx,cy,math.min(120*s,w*.105),reveal*.73,P.Tint(P.Cyan,a*.45))
+        P.Ring(cx,cy,math.min(120*s,w*.105),reveal*.73,P.Tint(P.Accent,a*.45))
         P.Line(w*.70,cy,w*.93,cy,P.Tint(P.Edge,a))
-        P.Diamond(cx,cy,9*s,P.Tint(P.Amber,a))
+        P.Diamond(cx,cy,9*s,P.Tint(P.Gold,a))
         P.Text(string.format("%02d",math.max(1,V.Cinema.Number(state.index,1))),"Number",cx,cy+35*s,P.Tint(P.Muted,a*.25),TEXT_ALIGN_CENTER)
-        P.Rect(left,top-24*s,54*s*reveal,3*s,P.Tint(P.Cyan,a))
-        P.Text("HIGHLIGHT OF THE ROUND","Small",left+dx,top,P.Tint(P.Cyan,a),nil,width)
+        P.Rect(left,top-24*s,54*s*reveal,3*s,P.Tint(P.Accent,a))
+        P.Text("HIGHLIGHT OF THE ROUND","Small",left+dx,top,P.Tint(P.Accent,a),nil,width)
         P.Text(V.Cinema.Hero(state),"Hero",left+dx,top+32*s,P.Tint(P.Paper,a),nil,width)
         P.Text(weapon,"Body",left,top+128*s,P.Tint(P.Muted,a),nil,width*.9)
         P.Text("THE DEFINING MOMENT","Micro",left,h*.71,P.Tint(P.Muted,a),nil,width)
@@ -52,11 +52,11 @@ return string.sub([========[x            -- Shot and death can share one quantiz
         for i=1,3 do
             local x=left+(i-1)*(cw+24*s)
             P.Rect(x,top+190*s,cw,1,P.Tint(P.Edge,a))
-            P.Text(values[i],"Value",x,top+209*s,P.Tint(i==1 and P.Amber or P.Paper,a),nil,cw)
+            P.Text(values[i],"Value",x,top+209*s,P.Tint(i==1 and P.Gold or P.Paper,a),nil,cw)
             P.Text(labels[i],"Micro",x,top+247*s,P.Tint(P.Muted,a),nil,cw)
         end
-        P.Text("SPACE  SKIP","Micro",w*.10,h-52*s,P.Tint(P.Muted,a))
-        P.Text("US1  /  ROUND REPLAY BETA","Micro",w*.90,h-52*s,P.Tint(P.Muted,a),TEXT_ALIGN_RIGHT)
+        -- U4: the one hint row (drawOverlay paints it); the BETA mark is P.Play's, underneath this card
+        V.ClaimHints(state,V.Hints.highlight,w*.10,h-58*s,TEXT_ALIGN_LEFT,22*s,a)
     end
     function P.Play(w,h,state,weapon)
         local s=P.Fonts(h)
@@ -68,11 +68,11 @@ return string.sub([========[x            -- Shot and death can share one quantiz
         local first,span,finish=P.Bounds(state)
         local progress=math.Clamp((cs-first)/span,0,1)
         local phase,_,beat=P.Phase(state)
-        local accent=beat==1 and P.Amber or P.Cyan
+        local accent=beat==1 and P.Gold or P.Accent
         P.Rect(0,0,w,top,P.Tint(P.Ink,.95))
         P.Rect(0,h-bottom,w,bottom,P.Tint(P.Ink,.96))
-        P.Rect(pad,top-1,54*s,1,P.Cyan)
-        P.Text("ROUND HIGHLIGHT / BETA","Micro",pad,14*s,P.Cyan)
+        P.Rect(pad,top-1,54*s,1,P.Accent)
+        P.Text("ROUND HIGHLIGHT / BETA","Micro",pad,14*s,P.Accent)
         P.Text(V.Cinema.Hero(state),"Title",pad,35*s,P.Paper,nil,w*.52-pad)
         P.Text(phase,"Micro",w-pad,14*s,accent,TEXT_ALIGN_RIGHT,w*.39)
         P.Text(weapon,"Body",w-pad,39*s,P.Muted,TEXT_ALIGN_RIGHT,w*.38)
@@ -92,11 +92,11 @@ return string.sub([========[x            -- Shot and death can share one quantiz
         end
         for _,m in ipairs(d.marks) do
             local x=pad+(width-12*s)*math.Clamp((m.cs-first)/span,0,1)+6*s
-            P.Diamond(x,y+s,5*s,m.cs<=cs and P.Amber or P.Edge)
+            P.Diamond(x,y+s,5*s,m.cs<=cs and P.Gold or P.Edge)
         end
         P.Rect(pad+math.min(width-2*s,width*progress),y-3*s,2*s,8*s,P.Paper)
-        P.Text("SPACE  SKIP    N  DISABLE","Micro",pad,h-30*s,P.Muted,nil,width*.42)
-        P.Text(string.format("%02d / %02d ELIMINATED",n,d.count),"Micro",w-pad,h-30*s,P.Amber,TEXT_ALIGN_RIGHT,width*.40)
+        V.ClaimHints(state,V.Hints.highlight,pad,h-36*s,TEXT_ALIGN_LEFT,22*s) -- U4: the one hint row (drawOverlay)
+        P.Text(string.format("%02d / %02d ELIMINATED",n,d.count),"Micro",w-pad,h-30*s,P.Gold,TEXT_ALIGN_RIGHT,width*.40)
         if w>1000*s then P.Text(string.format("%05.2f / %05.2f",math.max(0,cs-first)/100,span/100),"Micro",w/2,h-30*s,P.Muted,TEXT_ALIGN_CENTER) end
         -- Elimination cards only name events that playback has actually reached.
         if last then
@@ -108,8 +108,8 @@ return string.sub([========[x            -- Shot and death can share one quantiz
                 local yy=top+32*s
                 local cw=math.min(326*s,w*.42)
                 P.Rect(x,yy,cw,79*s,P.Tint(P.Ink,alpha*.91))
-                P.Rect(x,yy,2*s,79*s,P.Tint(P.Amber,alpha))
-                P.Text(last.head and "HEADSHOT CONFIRMED" or "ELIMINATION CONFIRMED","Micro",x+16*s,yy+12*s,P.Tint(P.Amber,alpha),nil,cw-32*s)
+                P.Rect(x,yy,2*s,79*s,P.Tint(P.Gold,alpha))
+                P.Text(last.head and "HEADSHOT CONFIRMED" or "ELIMINATION CONFIRMED","Micro",x+16*s,yy+12*s,P.Tint(P.Gold,alpha),nil,cw-32*s)
                 P.Text(last.name,"Body",x+16*s,yy+36*s,P.Tint(P.Paper,alpha),nil,cw-32*s)
             end
         end
@@ -119,9 +119,9 @@ return string.sub([========[x            -- Shot and death can share one quantiz
             local yy=h-bottom-142*s
             local cw=math.min(530*s,w*.54)
             P.Rect(pad,yy,cw,112*s,P.Tint(P.Ink,a*.94))
-            P.Rect(pad,yy,2*s,112*s,P.Tint(P.Cyan,a))
+            P.Rect(pad,yy,2*s,112*s,P.Tint(P.Accent,a))
             P.Text(string.format("%02d",d.count),"Number",pad+18*s,yy+17*s,P.Tint(P.Paper,a),nil,95*s)
-            P.Text("MOMENT COMPLETE","Micro",pad+118*s,yy+22*s,P.Tint(P.Cyan,a),nil,cw-134*s)
+            P.Text("MOMENT COMPLETE","Micro",pad+118*s,yy+22*s,P.Tint(P.Accent,a),nil,cw-134*s)
             P.Text(V.Cinema.Hero(state),"Value",pad+118*s,yy+46*s,P.Tint(P.Paper,a),nil,cw-134*s)
             P.Text("ELIMINATIONS","Micro",pad+18*s,yy+83*s,P.Tint(P.Muted,a),nil,cw-36*s)
         end
@@ -134,7 +134,7 @@ return string.sub([========[x            -- Shot and death can share one quantiz
         local beat,phase=contact and 3 or 1,contact and 1 or 0
         if active and active.cinematic then beat,phase=V.Cinema.Beat(active)
         elseif active then phase=contact and (active.bodyP or 1) or (active.p or 0) end
-        local accent=contact and P.Cyan or P.Amber
+        local accent=contact and P.Accent or P.Gold
         local bw=math.min(414*s,w*.47)
         local bh=360*s
         local x,y=w-32*s-bw,math.min(h*.32,h-125*s-bh)
@@ -174,9 +174,9 @@ return string.sub([========[x            -- Shot and death can share one quantiz
         metric("IMPACT ANGLE",contact and facts.angle and string.format("%.1f deg",facts.angle) or (contact and "Not recorded" or "Awaiting impact"),1,2,not(contact and facts.angle))
         metric("CALIBER / LOAD",facts.caliber or (facts.diameter and string.format("%.2f mm",facts.diameter)) or "Not recorded",2,2,true)
         P.Rect(x+20*s,y+258*s,bw-40*s,1,tint(P.Edge))
-        P.Text(contact and (V.Penetration and V.Penetration.Label(b,active) or string.format("%.0f DAMAGE  /  %s",math.max(0,V.Cinema.Number(b.hit[5])),b.body and "WOUND TRACE" or "CONTACT POINT")) or (V.ShotVisual and V.ShotVisual.Active() and "GENERIC PROFILE / RECORDED SHOT LINE" or "FOLLOWING THE RECORDED SHOT"),"Micro",x+20*s,y+272*s,tint(accent),nil,bw-40*s)
+        P.Text(contact and (V.Penetration and V.Penetration.Label(b,active) or string.format("%.0f DAMAGE  /  %s",math.max(0,V.Cinema.Number(b.hit[5])),b.body and "WOUND TRACE" or "CONTACT POINT")) or (V.ShotVisual and V.ShotVisual.Active() and "GENERIC PROFILE / RECORDED SHOT LINE" or "FOLLOWING THE RECORDED SHOT"),"Micro",x+20*s,y+272*s,tint(contact and P.Data or accent),nil,bw-40*s)
         local summary=contact and V.Penetration and V.Penetration.Detail(b)
-        if summary then P.Text(summary,"Micro",x+20*s,y+292*s,tint(P.Muted),nil,bw-40*s) end
+        if summary then P.Text(summary,"Micro",x+20*s,y+292*s,tint(P.Data),nil,bw-40*s) end -- U4: organ % / energy: the data accent
         local names={"TRACK","CONTACT",b.body and "TRACE" or "INSPECT","RESUME"}
         local sw=(bw-52*s)/4
         for i=1,4 do
@@ -993,16 +993,23 @@ end
 
 
 
-surface.CreateFont("ZCKC.Small", {font = "Tahoma", size = 13, weight = 500})
-surface.CreateFont("ZCKC.Body", {font = "Tahoma", size = 15, weight = 500})
-surface.CreateFont("ZCKC.Head", {font = "Tahoma", size = 18, weight = 800})
-
-local COL = {
-    bg = Color(18, 20, 24, 250), panel = Color(28, 31, 37), line = Color(60, 66, 78), text = Color(225, 228, 235), dim = Color(140, 147, 160),
-    victim = Color(90, 170, 255), killer = Color(255, 90, 80), attacker = Color(255, 170, 70), bystander = Color(150, 155, 165),
-    good = Color(120, 210, 130), bad = Color(255, 110, 100), shot = Color(255, 220, 120), hit = Color(255, 90, 80), death = Color(255, 255, 255),
-    draw = Color(190, 160, 255), aim = Color(255, 170, 70), down = Color(150, 200, 255),
-}
+-- The tactical (top-down) viewer's colours and fonts, from the one theme (UI cohesion U4, 2026-09-26): chrome from the
+-- ZCity tokens, the roles and log kinds kept apart as data (you blue, the killer red, attackers amber, drawn weapons in
+-- the data cyan). Fonts are V.Font (hg_font) scaled with the screen (h / 1080) like every other viewer screen; COL.u
+-- scales a layout number the same way. Refilled when the viewer opens and when the screen height changes.
+function V.TacticalStyle(col)
+    local T = V.Theme()
+    local s = math.Clamp(ScrH() / 1080, 0.75, 1.5)
+    col.s, col.h = s, ScrH()
+    col.u = col.u or function(n) return math.floor(n * col.s + 0.5) end
+    col.small, col.body, col.head = V.Font(13 * s, 500), V.Font(15 * s, 500), V.Font(18 * s, 700)
+    col.bg, col.panel, col.line, col.hover, col.text, col.dim = T.bg, T.card, T.line, T.hover, T.text, T.muted
+    col.victim, col.killer, col.attacker, col.bystander = T.death, T.kill, T.amber, T.muted
+    col.good, col.bad, col.shot, col.hit, col.death = T.green, T.kill, T.gold, T.kill, T.white
+    col.draw, col.aim, col.down, col.ink = T.data, T.amber, T.death, T.ink
+    return col
+end
+local COL = V.TacticalStyle({})
 local STATUS_TEXT = {[1] = "You are not a party to that clip.", [2] = "That clip has expired.", [3] = "Clips cannot be opened while you are alive in a live round.", [4] = "Still sending the previous clip."}
 local MAP_SPAN, MAP_RES = 3200, 1024 -- world units covered by the overhead render, and its texture size
 
@@ -1072,7 +1079,7 @@ net.Receive("zckc_clip", function()
     if status ~= 0 then
         -- replay_v1 P3: a refusal of what the round viewer asked for is shown there (cl_part_09 V.TapeRefused)
         if V.TapeRefused and string.sub(id, 1, 5) == "tape:" and V.TapeRefused(id, status) then return end
-        if IsValid(frame) then frame.note = STATUS_TEXT[status] or "The clip could not be opened." end
+        if IsValid(frame) then V.Say(STATUS_TEXT[status] or "The clip could not be opened.", "error") end -- U4: the one note
         return
     end
     local seq, total, len = net.ReadUInt(8), net.ReadUInt(8), net.ReadUInt(16)
@@ -1090,7 +1097,7 @@ net.Receive("zckc_clip", function()
     if raw and string.sub(id, 1, 5) == "tape:" and V.TapeBlob then return V.TapeBlob(id, raw) end
     local clip = raw and util.JSONToTable(raw)
     if not clip or not ((clip.actors and clip.events) or clip.instances) then
-        if IsValid(frame) then frame.note = "The clip is damaged." end
+        if IsValid(frame) then V.Say("The clip is damaged.", "error") end
         return
     end
     openClip(id, clip)
@@ -1112,7 +1119,10 @@ function openClip(id, clip, seq, index)
         cs = clip.first, playing = true, speed = 1, follow = clip.victim, zoom = 0.45, camX = 0, camY = 0, showMap = true,
         wantMap = clip.map == game.GetMap(), hasMap = false, seq = seq, index = index,
         reported = state and state.id == id and state.reported or {}}
-    if IsValid(frame) then frame.note = nil frame:Rebuild() end
+    if IsValid(frame) then
+        if V.NoteState and V.NoteState.kind == "error" then V.NoteState = nil end -- a refusal about the last clip no longer applies
+        frame:Rebuild()
+    end
 end
 
 local function seek(cs) state.cs = math.Clamp(cs, state.clip.first, state.clip.last) end
@@ -1149,9 +1159,10 @@ end
 local function paintScene(self, w, h)
     surface.SetDrawColor(COL.panel) surface.DrawRect(0, 0, w, h)
     if not state then
-        draw.SimpleText(IsValid(frame) and frame.note or "Pick a record on the left.", "ZCKC.Body", w / 2, h / 2, COL.dim, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+        draw.SimpleText(IsValid(frame) and frame.status or "Pick a record on the left.", COL.body, w / 2, h / 2, COL.dim, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
         return
     end
+    local u = COL.u
     local clip, cs = state.clip, state.cs
     if state.follow and clip.actors[state.follow] then
         local fx, fy = V.StateAt(clip.actors[state.follow], cs)
@@ -1166,9 +1177,9 @@ local function paintScene(self, w, h)
         surface.SetDrawColor(255, 255, 255, 235)
         surface.SetMaterial(mapMat)
         surface.DrawTexturedRect(x0, y0, MAP_SPAN * zoom, MAP_SPAN * zoom)
-        surface.SetDrawColor(10, 12, 16, 120) surface.DrawRect(0, 0, w, h) -- dim it so the markers read
+        surface.SetDrawColor(COL.ink.r, COL.ink.g, COL.ink.b, 120) surface.DrawRect(0, 0, w, h) -- dim it so the markers read
     else
-        surface.SetDrawColor(COL.line.r, COL.line.g, COL.line.b, 70)
+        surface.SetDrawColor(COL.dim.r, COL.dim.g, COL.dim.b, 40)
         local step = 256
         local gx0 = math.floor((state.camX - cx / zoom) / step) * step
         for gx = gx0, state.camX + cx / zoom, step do local sx = toScreen(gx, 0) surface.DrawLine(sx, 0, sx, h) end
@@ -1176,8 +1187,8 @@ local function paintScene(self, w, h)
         for gy = gy0, state.camY + cy / zoom, step do local _, sy = toScreen(0, gy) surface.DrawLine(0, sy, w, sy) end
     end
     -- scale bar
-    surface.SetDrawColor(COL.text) surface.DrawRect(12, h - 18, 500 * zoom, 2)
-    draw.SimpleText("500 units", "ZCKC.Small", 12, h - 34, COL.text)
+    surface.SetDrawColor(COL.text) surface.DrawRect(u(12), h - u(18), 500 * zoom, 2)
+    draw.SimpleText("500 units", COL.small, u(12), h - u(36), COL.text)
 
     local refZ = 0
     if state.follow and clip.actors[state.follow] then local _, _, fz = V.StateAt(clip.actors[state.follow], cs) refZ = fz or 0 end
@@ -1198,7 +1209,7 @@ local function paintScene(self, w, h)
                         local tx, ty = toScreen(bx, by)
                         surface.SetDrawColor(COL.hit.r, COL.hit.g, COL.hit.b, alpha)
                         if e[8] == 1 then surface.DrawLine(sx, sy, tx, ty) else dashed(sx, sy, tx, ty) end
-                        disc(tx, ty, 4 + 6 * (1 - age / 60), Color(255, 90, 80, alpha))
+                        disc(tx, ty, 4 + 6 * (1 - age / 60), V.Alpha(COL.hit, alpha))
                     end
                 elseif e[2] == 1 then
                     local r = math.rad(ayaw)
@@ -1233,7 +1244,7 @@ local function paintScene(self, w, h)
                 local target = actor.named and V.AimedAt(clip, i, cs)
                 local r = math.rad(yaw)
                 local reach = (V.Unarmed(clip, wep) and 60 or 420) * zoom
-                if target then surface.SetDrawColor(255, 60, 50, 230) else surface.SetDrawColor(col.r, col.g, col.b, alpha * 0.55) end
+                if target then surface.SetDrawColor(COL.killer.r, COL.killer.g, COL.killer.b, 230) else surface.SetDrawColor(col.r, col.g, col.b, alpha * 0.55) end
                 surface.DrawLine(sx, sy, sx + math.cos(r) * reach, sy - math.sin(r) * reach)
             end
             local radius = V.HasFlag(flags, 2) and 5 or 7
@@ -1243,15 +1254,15 @@ local function paintScene(self, w, h)
             elseif ragdoll then
                 surface.SetDrawColor(col.r, col.g, col.b, alpha) surface.DrawRect(sx - 9, sy - 3, 18, 6)
             else
-                disc(sx, sy, radius, Color(col.r, col.g, col.b, alpha))
+                disc(sx, sy, radius, V.Alpha(col, alpha))
             end
             if i == state.follow then surface.DrawCircle(sx, sy, 12, 255, 255, 255, 160) end
-            if math.abs(dz) > 100 then draw.SimpleText(dz > 0 and "above" or "below", "ZCKC.Small", sx + 10, sy - 6, Color(255, 255, 255, 200)) end
+            if math.abs(dz) > 100 then draw.SimpleText(dz > 0 and "above" or "below", COL.small, sx + 10, sy - u(7), V.Alpha(COL.text, 200)) end
             if actor.named then
                 local tag = actor.label .. (alive and "" or " (dead)") .. (ragdoll and alive and " (down)" or "")
-                draw.SimpleTextOutlined(tag, "ZCKC.Small", sx, sy - 26, col, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, 1, color_black)
+                draw.SimpleTextOutlined(tag, COL.small, sx, sy - u(26), col, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, 1, color_black)
                 local class = clip.weaponName[wep]
-                draw.SimpleTextOutlined(V.Unarmed(clip, wep) and "unarmed" or (string.gsub(class, "^weapon_", "")), "ZCKC.Small", sx, sy + 18, COL.text, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, 1, color_black)
+                draw.SimpleTextOutlined(V.Unarmed(clip, wep) and "unarmed" or (string.gsub(class, "^weapon_", "")), COL.small, sx, sy + u(18), COL.text, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, 1, color_black)
                 if alive then
                     surface.SetDrawColor(0, 0, 0, 200) surface.DrawRect(sx - 16, sy - 17, 32, 4)
                     surface.SetDrawColor(COL.good) surface.DrawRect(sx - 15, sy - 16, 30 * math.Clamp(hp / 100, 0, 1), 2)
@@ -1259,8 +1270,8 @@ local function paintScene(self, w, h)
             end
         end
     end
-    draw.SimpleText(string.format("%+.1fs   %sx   %s", cs / 100, state.speed, clip.map or ""), "ZCKC.Head", 12, 10, COL.text)
-    if clip.map ~= game.GetMap() then draw.SimpleText("Recorded on another map: no backdrop", "ZCKC.Small", 12, 32, COL.dim) end
+    draw.SimpleText(string.format("%+.1fs   %.2gx   %s", cs / 100, state.speed, clip.map or ""), COL.head, u(12), u(10), COL.text)
+    if clip.map ~= game.GetMap() then draw.SimpleText("Recorded on another map: no backdrop", COL.small, u(12), u(34), COL.dim) end
 end
 
 ----------------------------------------------------------------- timeline
@@ -1283,8 +1294,8 @@ local function paintTimeline(self, w, h)
         end
     end
     surface.SetDrawColor(COL.text) surface.DrawRect(xOf(0), 4, 1, h - 8)
-    draw.SimpleText("death", "ZCKC.Small", xOf(0) + 4, 2, COL.dim)
-    surface.SetDrawColor(255, 255, 255) surface.DrawRect(xOf(state.cs) - 1, 2, 3, h - 4)
+    draw.SimpleText("death", COL.small, xOf(0) + 4, 2, COL.dim)
+    surface.SetDrawColor(COL.death) surface.DrawRect(xOf(state.cs) - 1, 2, 3, h - 4)
     if self.dragging then
         local mx = self:CursorPos()
         seek(clip.first + math.Clamp((mx - 10) / (w - 20), 0, 1) * (clip.last - clip.first))
@@ -1297,8 +1308,8 @@ local function button(parent, text, fn)
     local b = vgui.Create("DButton", parent)
     b:SetText("") b.label = text
     b.Paint = function(s, w, h)
-        surface.SetDrawColor(s:IsHovered() and COL.line or COL.panel) surface.DrawRect(0, 0, w, h)
-        draw.SimpleText(isfunction(s.label) and s.label() or s.label, "ZCKC.Body", w / 2, h / 2, COL.text, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+        draw.RoundedBox(V.Theme().radius.chip, 0, 0, w, h, s:IsHovered() and COL.hover or COL.panel)
+        draw.SimpleText(isfunction(s.label) and s.label() or s.label, COL.body, w / 2, h / 2, COL.text, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
     end
     b.DoClick = fn
     return b
@@ -1308,23 +1319,27 @@ local notes
 local function open(target)
     if IsValid(frame) then frame:Remove() end
     state = nil
+    V.TacticalStyle(COL)
+    local u = COL.u
     frame = vgui.Create("DFrame")
-    frame:SetSize(math.min(ScrW() * 0.9, 1500), math.min(ScrH() * 0.88, 900))
+    frame:SetSize(math.min(ScrW() * 0.9, 1500 * COL.s), math.min(ScrH() * 0.88, 900 * COL.s))
     frame:Center() frame:SetTitle("") frame:MakePopup() frame:SetDraggable(true)
+    frame:DockPadding(u(6), u(40), u(6), u(6))
     frame.Paint = function(_, w, h)
-        surface.SetDrawColor(COL.bg) surface.DrawRect(0, 0, w, h)
-        draw.SimpleText("Incident records", "ZCKC.Head", 14, 6, COL.text)
-        if frame.note then draw.SimpleText(frame.note, "ZCKC.Body", 200, 8, COL.bad) end
+        if COL.h ~= ScrH() then V.TacticalStyle(COL) end
+        draw.RoundedBox(V.Theme().radius.card, 0, 0, w, h, COL.bg)
+        draw.SimpleText("Incident records", COL.head, u(14), u(20), COL.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+        V.DrawNote(w / 2, u(6), TEXT_ALIGN_CENTER, u(28)) -- U4: the viewer's one note, same look as the replays'
     end
     frame.OnRemove = function() state = nil end
 
-    local side = vgui.Create("DPanel", frame) side:Dock(LEFT) side:SetWide(250) side:DockMargin(0, 6, 6, 0) side.Paint = nil
-    local tabs = vgui.Create("DPanel", side) tabs:Dock(TOP) tabs:SetTall(28) tabs:DockMargin(0, 0, 0, 6) tabs.Paint = nil
+    local side = vgui.Create("DPanel", frame) side:Dock(LEFT) side:SetWide(u(250)) side:DockMargin(0, 0, u(6), 0) side.Paint = nil
+    local tabs = vgui.Create("DPanel", side) tabs:Dock(TOP) tabs:SetTall(u(28)) tabs:DockMargin(0, 0, 0, u(6)) tabs.Paint = nil
     -- The server decides what each tab may list: "All" answers admins only, "Submitted" operators and up.
     for _, tab in ipairs({{"Mine", ""}, {"Submitted", "submitted"}, {"All", "all"}}) do
         local b = button(tabs, tab[1], function() frame.scope = tab[2] ask("zckc_index", tab[2]) end)
-        b:Dock(LEFT) b:SetWide(80) b:DockMargin(0, 0, 5, 0)
+        b:Dock(LEFT) b:SetWide(u(80)) b:DockMargin(0, 0, u(5), 0)
     end
     local left = vgui.Create("DScrollPanel", side) left:Dock(FILL)
-    local right = vgui.Create("DPanel", frame) right:Dock(RIGHT) right:SetWide(330) right:DockMargin(6, 6, 0, 0) right.Paint = nil
+    local right = vgui.Create("DPanel", frame) right:Dock(RIGHT) right:SetWide(u(330)) right:DockMargin(u(6), 0, 0, 0) right.Paint = nil
 ]========], 2)

@@ -30,7 +30,7 @@ R.REFUSED = {[1] = "You can't watch that round: only rounds you played, and only
     [4] = "The server is still sending something else; try again in a moment."}
 R.Actors = CreateClientConVar("zc_replay_actors", "16", true, false, "Round replay: how many players nearest the camera are drawn (the followed one always is)", 2, 64)
 R.stats = {think = {n = 0, sum = 0, max = 0}, hud = {n = 0, sum = 0, max = 0}}
-R.keys, R.hits, R.hitN, R.tw = {}, {}, 0, {}
+R.keys, R.hits, R.hitN = {}, {}, 0
 
 ----------------------------------------------------------------- pure: the index
 function R.NewIndex()
@@ -366,7 +366,7 @@ function R.OnBlob(id, raw)
     local tail = string.sub(id, #rs.prefix + 1)
     if tail == "index" then
         rs.indexJob = {raw = raw or "", pos = 1, idx = R.NewIndex()}
-        rs.note = "Reading the round…"
+        rs.status = "Reading the round…" -- the loading card's line (a state); passing notes are V.Say
         return
     end
     local c = rs.chunks[rs.idx.seqAt[tonumber(tail)]]
@@ -388,7 +388,7 @@ function V.TapeRefused(id, status)
     end
     local c = rs.chunks[rs.idx.seqAt[tonumber(string.sub(id, #rs.prefix + 1))]]
     if c and c.state == "asked" then c.state = nil end
-    rs.note, rs.noteUntil = text, RealTime() + 6
+    V.Say(text, "error") -- U4: the viewer's one note
     return true
 end
 -- Wrapped at call time: cl_part_03 defines V.TapeBlob and this runs after it. Hot reload rebuilds both.
@@ -505,7 +505,7 @@ function R.Step(rs)
             -- not a chunk at all: an EMPTY ready chunk, so playback carries on through it (actors hidden for its
             -- ten seconds) instead of stalling on it or asking for it again forever
             c.state, c.data = "ready", {rows = {}, rags = {}, events = {}, segs = {}}
-            rs.note, rs.noteUntil = "Part of this round could not be read.", RealTime() + 6
+            V.Say("Part of this round could not be read.", "warn")
             MsgN("[Replay] chunk " .. tostring(c.seq) .. ": " .. tostring(job.job.bad[1]))
             return true
         end
@@ -588,7 +588,7 @@ function V.OpenRound(rid, cs, resume)
     rs = {rid = rid, prefix = "tape:" .. rid .. ":", askedAt = RealTime(), startCs = cs, resume = resume, chunks = {},
         mode = resume and resume.mode or "follow", speed = 1, playing = true, dist = 110, orbitYaw = 0, orbitPitch = 14,
         show = {}, dist2 = {}, order = {}, want = {}, bounds = {math.huge, math.huge, -math.huge, -math.huge},
-        map = true, rosterTop = 0, note = "Asking the server for round " .. rid .. "…",
+        map = true, rosterTop = 0, status = "Asking the server for round " .. rid .. "…",
         menuUp = gui.IsGameUIVisible and gui.IsGameUIVisible() or false}
     R.open = rs
     R.Ask(rs.prefix .. "index")
@@ -617,8 +617,8 @@ function R.Start(rs)
     L.cs = math.Clamp(want or R.OpensAt(idx.marks), 0, L.clip.last)
     local follow = rs.resume and rs.resume.uid and idx.index[rs.resume.uid]
     rs.follow = follow or (idx.me and idx.index[idx.me]) or 1
-    rs.note = idx.me == nil and "You are not identified in this round: no bookmarks of your own." or nil
-    rs.noteUntil = RealTime() + 6
+    rs.status = nil
+    if idx.me == nil then V.Say("You are not identified in this round: no bookmarks of your own.", "info") end
     R.SetMode(rs, L, rs.mode)
 end
 function R.Seek(rs, L, cs)
@@ -745,6 +745,7 @@ function R.Cycle(rs, L, dir)
         if V.StateAt(L.clip.actors[i], L.cs) then return R.Follow(rs, L, i) end
     end
 end
+-- The keys are V.Shortcuts (cl_part_01), the list the tactical viewer's hint row shares: one key, one meaning.
 function R.Keys(rs, L)
     local P = R.Pressed
     if P(KEY_SPACE) then R.Toggle(rs, L) end
@@ -752,12 +753,26 @@ function R.Keys(rs, L)
     if P(KEY_RBRACKET) then R.Mark(rs, L, 1) end
     if P(KEY_LEFT) then R.Seek(rs, L, L.cs - 500) end
     if P(KEY_RIGHT) then R.Seek(rs, L, L.cs + 500) end
+    -- U4: comma / period step one frame (0.1 s) and hold there, as in the tactical viewer
+    if P(KEY_COMMA) then rs.playing = false R.Seek(rs, L, L.cs - 10) end
+    if P(KEY_PERIOD) then rs.playing = false R.Seek(rs, L, L.cs + 10) end
     if P(KEY_1) then R.SetMode(rs, L, "free") end
     if P(KEY_2) then R.SetMode(rs, L, "follow") end
     if P(KEY_3) then R.SetMode(rs, L, "fp") end
     if P(KEY_M) then rs.map = not rs.map end
     if P(KEY_Q) then R.Cycle(rs, L, -1) end
     if P(KEY_E) then R.Cycle(rs, L, 1) end
+    -- U4: S shares this moment. The free camera flies on WASD, so there S is "back" and the Share button shares.
+    if P(KEY_S) and rs.mode ~= "free" then R.Share(rs, L) end
+end
+-- Share the moment on screen: ZCGoobApps.Share.Open({kind = "round", round, at = seconds into the round, title}).
+function R.Share(rs, L)
+    if not rs or not rs.idx or not L or not L.clip then return end
+    R.Titles(rs)
+    local at = math.floor(math.max(0, L.cs or 0) / 100)
+    if V.Share({kind = "round", round = rs.rid, at = at, title = rs.cardTitle .. " · " .. R.Clock(L.cs)}) then
+        rs.playing = false -- the moment holds still under the sheet
+    end
 end
 -- replay_close_20260926 (owner: "the full round replay does NOT let you close it"): Z-City replaces the game menu -
 -- its OnPauseMenuShow opens ZMainMenu and returns false - so gui.IsGameUIVisible() never turns true on Esc and the
@@ -766,7 +781,11 @@ end
 hook.Add("OnShowZCityPause", "ZCKillcam.RoundEsc", function()
     -- hook order is pairs order: when chat is open, leave Esc to ZChat (it closes chat) - final review 2026-09-26
     if IsValid(hg and hg.chat) and hg.chat:GetActive() then return end
-    if R.open then R.Close("esc") return false end
+    if R.open then
+        if V.ShareUp() then V.ShareClose() return false end -- U4: a share sheet over the replay closes first
+        R.Close("esc")
+        return false
+    end
 end)
 -- Returns false when the viewer closed. Runs inside the life player's fenced Think.
 function R.Advance(L, me)
@@ -905,6 +924,7 @@ function R.Press(code)
     elseif act == "jump" then R.Seek(rs, L, L.cs + arg)
     elseif act == "mark" then R.Mark(rs, L, arg)
     elseif act == "speed" then rs.speed = arg
+    elseif act == "share" then R.Share(rs, L)
     elseif act == "map" then rs.map = not rs.map
     elseif act == "cycle" then R.Cycle(rs, L, arg) end
 end
@@ -953,30 +973,10 @@ function R.DragSeek(rs, L)
 end
 
 ----------------------------------------------------------------- the HUD (mockup 17; ZCity tokens)
-R.C = {panel = Color(15, 15, 17, 232), edge = Color(83, 19, 23, 181), accent = Color(192, 0, 0), main = Color(150, 0, 0),
-    text = Color(225, 225, 225), muted = Color(165, 165, 165), dim = Color(170, 170, 170), white = Color(235, 235, 235),
-    ok = Color(119, 157, 135), down = Color(215, 153, 74), dead = Color(65, 63, 65), gold = Color(247, 199, 115),
-    red = Color(255, 143, 159), me = Color(70, 150, 220), meText = Color(191, 224, 255), track = Color(255, 255, 255, 20),
-    buf = Color(255, 255, 255, 51), tick = Color(255, 255, 255, 31), other = Color(255, 255, 255, 89),
-    sel = Color(150, 0, 0, 82), shade = Color(0, 0, 0, 77), black = Color(0, 0, 0, 255), mapBg = Color(22, 24, 26, 240),
-    kill = Color(255, 154, 154), fill = Color(20, 17, 17, 250), strike = Color(255, 255, 255, 64)}
 R.SEG = {}
 for age = 0, 12 do R.SEG[age] = Color(255, 225, 140, 255 - age * 18) end
 R.KT = {}
 function R.KillText(n) local t = R.KT[n] if not t then t = n .. " K" R.KT[n] = t end return t end
--- Text width, measured once per font generation (V.FontGen) and string: no measuring every frame.
-function R.W(font, text)
-    if R.twGen ~= V.FontGen then R.twGen, R.tw = V.FontGen, {} end
-    local byFont = R.tw[font]
-    if not byFont then byFont = {} R.tw[font] = byFont end
-    local w = byFont[text]
-    if not w then
-        surface.SetFont(font)
-        w = surface.GetTextSize(text)
-        byFont[text] = w
-    end
-    return w
-end
 function R.Hit(x, y, w, h, act, arg)
     local n = R.hitN + 1
     R.hitN = n
@@ -990,49 +990,44 @@ function R.HitAt(mx, my)
         if mx >= t[1] and my >= t[2] and mx < t[1] + t[3] and my < t[2] + t[4] then return t end
     end
 end
-function R.Box(x, y, w, h)
-    draw.RoundedBox(4, x, y, w, h, R.C.edge)
-    draw.RoundedBox(4, x + 1, y + 1, w - 2, h - 2, R.C.panel)
-end
--- A button; returns its width.
-function R.Button(x, y, h, text, on, act, arg)
-    local C = R.C
-    local w = R.W("ZCKC.LifeSmall", text) + 18
-    draw.RoundedBox(3, x, y, w, h, on and C.accent or C.edge)
-    draw.RoundedBox(3, x + 1, y + 1, w - 2, h - 2, on and C.main or C.shade)
-    draw.SimpleText(text, "ZCKC.LifeSmall", x + w / 2, y + h / 2, on and C.white or C.text, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-    R.Hit(x, y, w, h, act, arg)
-    return w
-end
 -- replay_ui_20260926 (owner-approved canvas "Round Replay Redesign", Main + Loading boards): a top bar with the round,
--- the camera switch, Shortcuts and a real Close button; the followed player's chip; the map and the player list on the
--- right; the kill feed bottom-left; one transport bar with the timeline, play, skip, bookmarks, speed and toggles; and
--- loading / failure cards that always have a way out. Laid out at 1440x810 and scaled by the screen height. Every
--- helper is a field on R: the assembled viewer chunk is at LuaJIT's 200-local limit.
-R.UI = {panel = Color(15, 15, 17, 235), edge = Color(83, 19, 23, 204), red = Color(163, 0, 0), redEdge = Color(208, 16, 16),
-    accent = Color(192, 0, 0), text = Color(236, 236, 236), muted = Color(159, 159, 159), caps = Color(185, 185, 185),
-    gold = Color(247, 199, 115), ink = Color(26, 20, 8), me = Color(191, 224, 255), alive = Color(127, 176, 143),
-    down = Color(224, 160, 80), dead = Color(74, 72, 74), deadText = Color(138, 135, 138), track = Color(255, 255, 255, 23),
-    buf = Color(255, 255, 255, 51), sel = Color(163, 0, 0, 97), segBg = Color(0, 0, 0, 90), line = Color(255, 255, 255, 36),
-    hover = Color(255, 255, 255, 14), kill = Color(255, 90, 90), death = Color(70, 150, 220), other = Color(255, 255, 255, 140),
-    white = Color(255, 255, 255), shadow = Color(0, 0, 0, 160)}
-R.SPEEDS = {{0.25, "¼×"}, {0.5, "½×"}, {1, "1×"}, {2, "2×"}, {4, "4×"}}
+-- the camera switch, Share, Shortcuts and a real Close button; the followed player's chip; the map and the player
+-- list on the right; the kill feed bottom-left; one transport bar with the timeline, play, skip, bookmarks, speed and
+-- toggles; and loading / failure cards that always have a way out. Laid out at 1440x810 and scaled by the screen
+-- height. Every helper is a field on R: the assembled viewer chunk is at LuaJIT's 200-local limit.
+-- U4 (2026-09-26): the colours are the one theme's (V.Theme: the GoobOS kit's tokens, or the viewer's copy), with the
+-- few alpha variants this HUD needs made once per theme table here rather than every frame in the painters.
+function R.Palette()
+    local T = V.Theme()
+    if R.uiFor == T and R.UI then return R.UI end
+    R.uiFor = T
+    local function a(c, alpha) return Color(c.r, c.g, c.b, alpha) end
+    R.UI = {panel = T.glassHi, edge = a(T.edge, 204), red = T.main, redEdge = T.accent, accent = T.accent, text = T.text,
+        muted = T.muted, caps = T.muted, gold = T.gold, ink = T.ink, me = T.death, alive = T.healthy, down = T.amber,
+        dead = a(T.muted, 90), deadText = a(T.muted, 170), track = a(T.white, 23), buf = a(T.white, 51), sel = a(T.main, 97),
+        segBg = a(T.ink, 150), line = a(T.white, 36), hover = a(T.white, 14), kill = T.kill, death = T.death,
+        other = a(T.white, 140), white = T.white, ghostHover = a(T.hover, 240), mapBg = a(T.ink, 245), ring = T.ink,
+        feedEdge = a(T.edge, 190), goldEdge = a(T.gold, 115), pill = a(T.ink, 230), tip = a(T.ink, 245),
+        head = a(T.accent, 140), playHover = Color(math.min(255, T.accent.r + 22), T.accent.g, T.accent.b), warnEdge = a(T.amber, 140)}
+    return R.UI
+end
+R.Palette()
+-- The rate chip format every viewer uses (%.2gx): 0.25x, 0.5x, 1x, 2x, 4x.
+R.SPEEDS = {{0.25}, {0.5}, {1}, {2}, {4}}
+for _, sp in ipairs(R.SPEEDS) do sp[2] = string.format("%.2gx", sp[1]) end
 R.MODES = {{"free", "1", "Free"}, {"follow", "2", "Follow"}, {"fp", "3", "First person"}}
-R.SHORTCUTS = {{"Play / pause", "Space"}, {"Back / forward 5 s", "Left  Right"}, {"Previous / next bookmark", "[  ]"},
-    {"Camera: free, follow, first person", "1  2  3"}, {"Previous / next player", "Q  E"}, {"Show / hide map", "M"},
-    {"Look around / orbit", "Right-drag"}, {"Close the replay", "Esc"}}
+-- The Shortcuts card lists V.Shortcuts (cl_part_01): the one list, shared with the tactical viewer's hint row.
 R.HINTS = {free = "WASD move · right-drag look · Shift fast", follow = "Scroll to zoom · right-drag to orbit", fp = "Their eyes"}
 
+-- U4: V.Font (hg_font, cached, rebuilt when it changes); R.F holds this scale's names and R.T takes the short one.
 function R.Fonts(h)
     local u = math.Clamp(h / 810, 0.7, 2.2)
     R.u = u
-    if R.fontU == u then return u end
-    R.fontU, R.w2 = u, {}
-    local cv = GetConVar("hg_font")
-    local face = cv and cv:GetString() ~= "" and cv:GetString() or "Bahnschrift"
+    if R.fontU == u and R.fontGen == V.FontGen and R.F then return u end
+    R.fontU, R.fontGen, R.w2, R.F = u, V.FontGen, {}, {}
     for name, spec in pairs({Title = {20, 700}, Body = {14, 500}, Strong = {15, 600}, Small = {12, 500}, Caps = {11, 600},
         Key = {11, 500}, Time = {22, 700}, Big = {20, 700}}) do
-        surface.CreateFont("ZCKC.Rep" .. name, {font = face, size = math.max(10, math.floor(spec[1] * u + 0.5)), weight = spec[2], antialias = true, extended = true})
+        R.F[name] = V.Font(math.max(10, math.floor(spec[1] * u + 0.5)), spec[2])
     end
     return u
 end
@@ -1043,7 +1038,7 @@ function R.TW(font, text)
     if not w then surface.SetFont(font) w = surface.GetTextSize(text) byFont[text] = w end
     return w
 end
-function R.T(text, font, x, y, col, ax, ay) draw.SimpleText(text, "ZCKC.Rep" .. font, x, y, col, ax or TEXT_ALIGN_LEFT, ay or TEXT_ALIGN_TOP) end
+function R.T(text, font, x, y, col, ax, ay) draw.SimpleText(text, R.F[font], x, y, col, ax or TEXT_ALIGN_LEFT, ay or TEXT_ALIGN_TOP) end
 function R.Card(x, y, w, h, edge)
     local r = math.floor(8 * R.u)
     draw.RoundedBox(r, x, y, w, h, edge or R.UI.edge)
@@ -1062,7 +1057,7 @@ function R.Btn(x, y, w, h, style, act, arg)
         draw.RoundedBox(r, x + 1, y + 1, w - 2, h - 2, over and U.accent or U.red)
     elseif style == "ghost" then
         draw.RoundedBox(r, x, y, w, h, U.line)
-        draw.RoundedBox(r, x + 1, y + 1, w - 2, h - 2, over and Color(40, 40, 44, 240) or U.panel)
+        draw.RoundedBox(r, x + 1, y + 1, w - 2, h - 2, over and U.ghostHover or U.panel)
     elseif over then
         draw.RoundedBox(r, x, y, w, h, U.hover)
     end
@@ -1128,9 +1123,9 @@ function R.Circle(cx, cy, r, col) draw.RoundedBox(math.floor(r), cx - r, cy - r,
 function R.Chip(text, x, cy, col, font)
     font = font or "Key"
     local u = R.u
-    local w = R.TW("ZCKC.Rep" .. font, text) + 10 * u
+    local w = R.TW(R.F[font], text) + 10 * u
     local h = 16 * u
-    draw.RoundedBox(math.floor(3 * u), x, cy - h / 2, w, h, Color(col.r, col.g, col.b, 110))
+    draw.RoundedBox(math.floor(3 * u), x, cy - h / 2, w, h, V.Alpha(col, 110))
     draw.RoundedBox(math.floor(3 * u), x + 1, cy - h / 2 + 1, w - 2, h - 2, R.UI.panel)
     R.T(text, font, x + w / 2, cy, col, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
     return w
@@ -1158,6 +1153,7 @@ function R.Paint(w, h)
     local began = SysTime()
     R.hitN = 0
     R.Fonts(h)
+    R.Palette()
     local L = rs.L
     if rs.failed or not L or not L.clip then
         R.PaintLoading(rs, w, h)
@@ -1175,11 +1171,7 @@ function R.Paint(w, h)
         R.PaintBar(rs, L, cs, 16 * u, barTop, w - 32 * u, 122 * u)
         if rs.keysOpen then R.PaintKeys(colX - 16 * u - 300 * u, 88 * u, 300 * u) end
         if rs.buffering then R.PaintBuffering(rs, cs, w, h) end
-        if rs.note and RealTime() < (rs.noteUntil or 0) then
-            local tw = R.TW("ZCKC.RepBody", rs.note) + 28 * u
-            draw.RoundedBox(math.floor(16 * u), w / 2 - tw / 2, 88 * u, tw, 32 * u, R.UI.shadow)
-            R.T(rs.note, "Body", w / 2, 104 * u, R.UI.gold, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-        end
+        V.DrawNote(w / 2, 88 * u, TEXT_ALIGN_CENTER, 32 * u) -- U4: the viewer's one note, as on the other replay screens
     end
     local s, ms = R.stats.hud, (SysTime() - began) * 1000
     s.n, s.sum = s.n + 1, s.sum + ms
@@ -1200,16 +1192,16 @@ function R.PaintTop(rs, L, w, h)
     R.Card(x, y, bw, bh)
     R.Titles(rs)
     R.T("ROUND REPLAY", "Caps", x + 18 * u, y + 10 * u, U.caps)
-    local cw = R.TW("ZCKC.RepCaps", "ROUND REPLAY")
+    local cw = R.TW(R.F.Caps, "ROUND REPLAY")
     draw.RoundedBox(math.floor(3 * u), x + 26 * u + cw, y + 9 * u, 38 * u, 15 * u, U.gold)
     R.T("BETA", "Caps", x + 45 * u + cw, y + 16.5 * u, U.ink, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
     R.T(rs.cardTitle, "Title", x + 18 * u, y + 27 * u, U.text)
-    R.T(rs.cardSub, "Small", x + 30 * u + R.TW("ZCKC.RepTitle", rs.cardTitle), y + 33 * u, U.muted)
+    R.T(rs.cardSub, "Small", x + 30 * u + R.TW(R.F.Title, rs.cardTitle), y + 33 * u, U.muted)
     -- the camera switch, centred
     local segH, pad = 36 * u, 3 * u
     local widths, total = {}, 0
     for i, m in ipairs(R.MODES) do
-        widths[i] = R.TW("ZCKC.RepStrong", m[3]) + R.TW("ZCKC.RepKey", m[2]) + 44 * u
+        widths[i] = R.TW(R.F.Strong, m[3]) + R.TW(R.F.Key, m[2]) + 44 * u
         total = total + widths[i] + 2 * u
     end
     local gx = x + bw / 2 - total / 2
@@ -1218,21 +1210,27 @@ function R.PaintTop(rs, L, w, h)
         local on = rs.mode == m[1]
         R.Btn(gx, y + bh / 2 - segH / 2, widths[i], segH, on and "on" or "flat", "mode", m[1])
         R.T(m[3], "Strong", gx + 12 * u, y + bh / 2, on and U.white or U.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-        R.Chip(m[2], gx + 20 * u + R.TW("ZCKC.RepStrong", m[3]), y + bh / 2, on and U.white or U.muted)
+        R.Chip(m[2], gx + 20 * u + R.TW(R.F.Strong, m[3]), y + bh / 2, on and U.white or U.muted)
         gx = gx + widths[i] + 2 * u
     end
     -- Close (a real way out: Esc is Z-City's menu key), then Shortcuts to its left
-    local closeW = 58 * u + R.TW("ZCKC.RepStrong", "Close") + R.TW("ZCKC.RepKey", "Esc")
+    local closeW = 58 * u + R.TW(R.F.Strong, "Close") + R.TW(R.F.Key, "Esc")
     local cx = x + bw - 10 * u - closeW
     R.Btn(cx, y + 10 * u, closeW, 40 * u, "red", "close")
     R.Icon("x", cx + 18 * u, y + 30 * u, 16 * u, U.white)
     R.T("Close", "Strong", cx + 32 * u, y + 30 * u, U.white, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-    R.Chip("Esc", cx + 40 * u + R.TW("ZCKC.RepStrong", "Close"), y + 30 * u, U.white)
-    local kw = 44 * u + R.TW("ZCKC.RepBody", "Shortcuts")
+    R.Chip("Esc", cx + 40 * u + R.TW(R.F.Strong, "Close"), y + 30 * u, U.white)
+    local kw = 44 * u + R.TW(R.F.Body, "Shortcuts")
     local kx = cx - 8 * u - kw
     R.Btn(kx, y + 10 * u, kw, 40 * u, rs.keysOpen and "on" or "ghost", "keys")
     R.Icon("keys", kx + 18 * u, y + 30 * u, 18 * u, U.text)
     R.T("Shortcuts", "Body", kx + 32 * u, y + 30 * u, U.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+    -- U4: Share this moment (S), left of Shortcuts
+    local shareW = 40 * u + R.TW(R.F.Body, "Share") + R.TW(R.F.Key, "S")
+    local sx = kx - 8 * u - shareW
+    R.Btn(sx, y + 10 * u, shareW, 40 * u, "ghost", "share")
+    R.T("Share", "Body", sx + 14 * u, y + 30 * u, U.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+    R.Chip("S", sx + 22 * u + R.TW(R.F.Body, "Share"), y + 30 * u, U.muted)
 end
 function R.PaintSubject(rs, L, cs, w, h)
     local U, u = R.UI, R.u
@@ -1240,8 +1238,8 @@ function R.PaintSubject(rs, L, cs, w, h)
     local name = a and (a.uid == rs.idx.me and (a.name .. " (you)") or a.name) or "?"
     local label = rs.mode == "free" and "FREE CAMERA" or (rs.mode == "fp" and "FIRST PERSON" or "FOLLOWING")
     local hint = R.HINTS[rs.mode] or ""
-    local nameW = math.max(200 * u, R.TW("ZCKC.RepStrong", name) + 70 * u)
-    local bw = 6 * u + 40 * u + 8 * u + nameW + 40 * u + 20 * u + R.TW("ZCKC.RepSmall", hint) + 16 * u
+    local nameW = math.max(200 * u, R.TW(R.F.Strong, name) + 70 * u)
+    local bw = 6 * u + 40 * u + 8 * u + nameW + 40 * u + 20 * u + R.TW(R.F.Small, hint) + 16 * u
     local x, y, bh = 16 * u, 88 * u, 52 * u
     R.Card(x, y, bw, bh)
     R.Btn(x + 6 * u, y + 6 * u, 40 * u, 40 * u, "flat", "cycle", -1)
@@ -1250,7 +1248,7 @@ function R.PaintSubject(rs, L, cs, w, h)
     R.T(label, "Caps", nx, y + 9 * u, U.muted)
     if a then R.Circle(nx + 4.5 * u, y + 34 * u, 4.5 * u, R.StatusColor(R.Status(a, cs))) end
     R.T(name, "Strong", nx + 16 * u, y + 34 * u, a and a.uid == rs.idx.me and U.me or U.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-    if a then R.T(R.KillText(R.Kills(a, cs)), "Small", nx + 24 * u + R.TW("ZCKC.RepStrong", name), y + 34 * u, U.muted, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER) end
+    if a then R.T(R.KillText(R.Kills(a, cs)), "Small", nx + 24 * u + R.TW(R.F.Strong, name), y + 34 * u, U.muted, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER) end
     local ex = nx + nameW
     R.Btn(ex, y + 6 * u, 40 * u, 40 * u, "flat", "cycle", 1)
     R.Icon("chevR", ex + 20 * u, y + 26 * u, 18 * u, U.text)
@@ -1265,7 +1263,7 @@ function R.PaintMap(rs, L, cs, x, y, mw, mh)
     R.T("M to hide", "Small", x + mw - 10 * u, y + 9 * u, U.muted, TEXT_ALIGN_RIGHT)
     R.Hit(x, y, mw, 26 * u, "map")
     local ix, iy, iw, ih = x + 10 * u, y + 30 * u, mw - 20 * u, mh - 40 * u
-    draw.RoundedBox(math.floor(4 * u), ix, iy, iw, ih, Color(22, 24, 26, 245))
+    draw.RoundedBox(math.floor(4 * u), ix, iy, iw, ih, U.mapBg)
     local b = rs.bounds
     if b[1] > b[3] then return y + mh end
     local spanX, spanY = math.max(b[3] - b[1], 256), math.max(b[4] - b[2], 256)
@@ -1277,7 +1275,7 @@ function R.PaintMap(rs, L, cs, x, y, mw, mh)
         if ax then
             local px, py = mx + (ax - cx) * scale, my - (ay - cy) * scale -- world +y is up the map
             local col = (a.uid == rs.idx.me) and U.death or (V.HasFlag(flags, 1) and (V.HasFlag(flags, 4) and U.down or U.text) or U.dead)
-            if i == rs.follow then R.Circle(px, py, 7 * u, U.white) R.Circle(px, py, 5.5 * u, Color(22, 24, 26)) end
+            if i == rs.follow then R.Circle(px, py, 7 * u, U.white) R.Circle(px, py, 5.5 * u, U.ring) end
             R.Circle(px, py, 4 * u, col)
         end
     end
@@ -1325,7 +1323,7 @@ function R.PaintRoster(rs, L, cs, x, y, rw, maxH)
         R.T(a.hudName, a.uid == me and "Strong" or "Body", x + 34 * u, ry + rowH / 2, nameCol, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
         if st == "dead" then
             surface.SetDrawColor(255, 255, 255, 64)
-            surface.DrawRect(x + 34 * u, ry + rowH / 2, math.min(R.TW("ZCKC.RepBody", a.hudName), rw - 110 * u), 1)
+            surface.DrawRect(x + 34 * u, ry + rowH / 2, math.min(R.TW(R.F.Body, a.hudName), rw - 110 * u), 1)
         end
         if st ~= "alive" then R.T(st, "Small", x + rw - 52 * u, ry + rowH / 2, U.muted, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER) end
         R.T(R.KillText(R.Kills(a, cs)), "Small", x + rw - 16 * u, ry + rowH / 2, U.text, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
@@ -1343,7 +1341,7 @@ function R.PaintFeed(rs, cs, x, bottom, fw)
     local rowH = 26 * u
     local fh = 36 * u + math.max(n, 1) * rowH + 6 * u
     local y = bottom - fh
-    R.Card(x, y, fw, fh, Color(83, 19, 23, 190))
+    R.Card(x, y, fw, fh, U.feedEdge)
     R.T("KILL FEED", "Caps", x + 14 * u, y + 12 * u, U.caps)
     local ry = y + 34 * u
     if n == 0 then R.T("Nothing yet", "Small", x + 14 * u, ry + rowH / 2, U.muted, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER) return end
@@ -1361,13 +1359,19 @@ end
 function R.PaintKeys(x, y, kw)
     local U, u = R.UI, R.u
     local rowH = 22 * u
-    local kh = 40 * u + #R.SHORTCUTS * rowH
-    R.Card(x, y, kw, kh, Color(247, 199, 115, 115))
+    local list = R.shortcutList -- V.Shortcuts' round entries, picked once
+    if not list or R.shortcutFor ~= V.Shortcuts then
+        list = {}
+        for _, s in ipairs(V.Shortcuts) do if s.round then list[#list + 1] = s end end
+        R.shortcutList, R.shortcutFor = list, V.Shortcuts
+    end
+    local kh = 40 * u + #list * rowH
+    R.Card(x, y, kw, kh, U.goldEdge)
     R.T("SHORTCUTS", "Caps", x + 16 * u, y + 14 * u, U.gold)
     local ry = y + 36 * u
-    for _, k in ipairs(R.SHORTCUTS) do
-        R.T(k[1], "Body", x + 16 * u, ry + rowH / 2, U.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-        R.T(k[2], "Strong", x + kw - 16 * u, ry + rowH / 2, U.white, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
+    for _, k in ipairs(list) do
+        R.T(k.text, "Body", x + 16 * u, ry + rowH / 2, U.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+        R.T(k.keys, "Strong", x + kw - 16 * u, ry + rowH / 2, U.white, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
         ry = ry + rowH
     end
 end
@@ -1375,9 +1379,9 @@ function R.PaintBuffering(rs, cs, w, h)
     local U, u = R.UI, R.u
     local c = rs.p and rs.chunks[rs.p]
     local text = c and ("Loading " .. R.Clock(c.t0) .. " – " .. R.Clock(c.t1) .. "…") or "Loading this part of the round…"
-    local tw = R.TW("ZCKC.RepBody", text) + 54 * u
+    local tw = R.TW(R.F.Body, text) + 54 * u
     local th = 40 * u
-    draw.RoundedBox(math.floor(th / 2), w / 2 - tw / 2, h * 0.45 - th / 2, tw, th, Color(12, 12, 14, 230))
+    draw.RoundedBox(math.floor(th / 2), w / 2 - tw / 2, h * 0.45 - th / 2, tw, th, U.pill)
     local a = RealTime() * 5 -- a turning arc
     local sx, sy, sr = w / 2 - tw / 2 + 22 * u, h * 0.45, 7 * u
     for i = 0, 5 do
@@ -1413,7 +1417,7 @@ function R.PaintBar(rs, L, cs, x, y, bw, bh)
             surface.DrawTexturedRectRotated(px, ty + 7 * u, 10 * u, 10 * u, 45)
             R.Hit(px - 8 * u, ty, 16 * u, 16 * u, "seek", m.at)
         elseif m.kind == "death" then
-            R.Circle(px, ty + 7 * u, 7 * u, Color(15, 15, 17))
+            R.Circle(px, ty + 7 * u, 7 * u, U.ring)
             R.Circle(px, ty + 7 * u, 5 * u, U.death)
             R.Hit(px - 8 * u, ty, 16 * u, 16 * u, "seek", m.at)
         else
@@ -1424,13 +1428,13 @@ function R.PaintBar(rs, L, cs, x, y, bw, bh)
         if mx >= px - 8 * u and mx <= px + 8 * u and my >= ty - 2 * u and my <= ty + th then tip = m end
     end
     local hx = tx + tw * head
-    R.Circle(hx, railY + railH / 2, 11 * u, Color(192, 0, 0, 140))
+    R.Circle(hx, railY + railH / 2, 11 * u, U.head)
     R.Circle(hx, railY + railH / 2, 8 * u, U.white)
     if tip and tip.d and tip.d.tip then
         local text = tip.d.tip
-        local ww = R.TW("ZCKC.RepSmall", text) + 16 * u
+        local ww = R.TW(R.F.Small, text) + 16 * u
         local px = math.Clamp(tx + tw * tip.t / len - ww / 2, x, x + bw - ww)
-        draw.RoundedBox(math.floor(4 * u), px, ty - 30 * u, ww, 24 * u, Color(12, 12, 14, 245))
+        draw.RoundedBox(math.floor(4 * u), px, ty - 30 * u, ww, 24 * u, U.tip)
         R.T(text, "Small", px + 8 * u, ty - 18 * u, U.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
     end
     -- controls
@@ -1438,11 +1442,11 @@ function R.PaintBar(rs, L, cs, x, y, bw, bh)
     local bx = tx
     local sq = 40 * u
     R.Btn(bx, cy - sq / 2, sq, sq, "ghost", "mark", -1) R.Icon("prev", bx + sq / 2, cy, 18 * u, U.text) bx = bx + sq + 6 * u
-    local fiveW = 16 * u + 8 * u + R.TW("ZCKC.RepBody", "5 s") + 12 * u
+    local fiveW = 16 * u + 8 * u + R.TW(R.F.Body, "5 s") + 12 * u
     R.Btn(bx, cy - sq / 2, fiveW, sq, "ghost", "jump", -500) R.Icon("back", bx + 16 * u, cy, 16 * u, U.text)
     R.T("5 s", "Body", bx + 28 * u, cy, U.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER) bx = bx + fiveW + 6 * u
     local pr = 24 * u
-    R.Circle(bx + pr, cy, pr, R.Over(bx, cy - pr, pr * 2, pr * 2) and Color(214, 0, 0) or U.accent)
+    R.Circle(bx + pr, cy, pr, R.Over(bx, cy - pr, pr * 2, pr * 2) and U.playHover or U.accent)
     R.Hit(bx, cy - pr, pr * 2, pr * 2, "play")
     R.Icon(rs.playing and "pause" or "play", bx + pr, cy, 20 * u, U.white) bx = bx + pr * 2 + 6 * u
     R.Btn(bx, cy - sq / 2, fiveW, sq, "ghost", "jump", 500)
@@ -1450,14 +1454,14 @@ function R.PaintBar(rs, L, cs, x, y, bw, bh)
     R.Icon("fwd", bx + fiveW - 16 * u, cy, 16 * u, U.text) bx = bx + fiveW + 6 * u
     R.Btn(bx, cy - sq / 2, sq, sq, "ghost", "mark", 1) R.Icon("next", bx + sq / 2, cy, 18 * u, U.text) bx = bx + sq + 18 * u
     R.T(rs.clockNow or "0:00", "Time", bx, cy, U.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-    bx = bx + R.TW("ZCKC.RepTime", rs.clockNow or "0:00") + 6 * u
+    bx = bx + R.TW(R.F.Time, rs.clockNow or "0:00") + 6 * u
     R.T("/ " .. (rs.clockEnd or ""), "Body", bx, cy + 2 * u, U.muted, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-    bx = bx + R.TW("ZCKC.RepBody", "/ " .. (rs.clockEnd or "")) + 24 * u
+    bx = bx + R.TW(R.F.Body, "/ " .. (rs.clockEnd or "")) + 24 * u
     -- legend
     surface.SetDrawColor(U.kill) surface.DrawTexturedRectRotated(bx + 4 * u, cy, 8 * u, 8 * u, 45)
-    R.T("Your kills", "Small", bx + 14 * u, cy, U.muted, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER) bx = bx + 24 * u + R.TW("ZCKC.RepSmall", "Your kills")
+    R.T("Your kills", "Small", bx + 14 * u, cy, U.muted, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER) bx = bx + 24 * u + R.TW(R.F.Small, "Your kills")
     R.Circle(bx + 4 * u, cy, 4.5 * u, U.death)
-    R.T("Your death", "Small", bx + 14 * u, cy, U.muted, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER) bx = bx + 24 * u + R.TW("ZCKC.RepSmall", "Your death")
+    R.T("Your death", "Small", bx + 14 * u, cy, U.muted, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER) bx = bx + 24 * u + R.TW(R.F.Small, "Your death")
     surface.SetDrawColor(U.other) surface.DrawRect(bx + 3 * u, cy - 5 * u, 2, 10 * u)
     R.T("Other kills", "Small", bx + 12 * u, cy, U.muted, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
     -- right: speed, feed, map
@@ -1468,7 +1472,7 @@ function R.PaintBar(rs, L, cs, x, y, bw, bh)
     R.Btn(rx - sq, cy - sq / 2, sq, sq, feedOn and "on" or "ghost", "feed") R.Icon("list", rx - sq / 2, cy, 18 * u, feedOn and U.white or U.muted)
     rx = rx - sq - 12 * u
     local segH, pad = 34 * u, 3 * u
-    local sw = 42 * u
+    local sw = math.max(42 * u, R.TW(R.F.Strong, R.SPEEDS[1][2]) + 12 * u) -- wide enough for "0.25x"
     local gx = rx - #R.SPEEDS * (sw + 2 * u)
     draw.RoundedBox(math.floor(7 * u), gx - pad, cy - segH / 2 - pad, #R.SPEEDS * (sw + 2 * u) + pad * 2, segH + pad * 2, U.segBg)
     for _, sp in ipairs(R.SPEEDS) do
@@ -1485,33 +1489,33 @@ function R.PaintLoading(rs, w, h)
     local f = rs.failed
     local ch = f and 170 * u or 160 * u
     local x, y = w / 2 - cw / 2, h * 0.42 - ch / 2
-    R.Card(x, y, cw, ch, f and Color(215, 153, 74, 140) or nil)
+    R.Card(x, y, cw, ch, f and U.warnEdge or nil)
     if f then
         R.T(f.title, "Big", x + 28 * u, y + 26 * u, U.text)
         R.T(f.text, "Body", x + 28 * u, y + 62 * u, U.text)
         local bx = x + 28 * u
         if f.retry then
-            local tw = R.TW("ZCKC.RepStrong", "Try again") + 32 * u
+            local tw = R.TW(R.F.Strong, "Try again") + 32 * u
             R.Btn(bx, y + ch - 64 * u, tw, 40 * u, "red", "retry")
             R.T("Try again", "Strong", bx + tw / 2, y + ch - 44 * u, U.white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
             bx = bx + tw + 10 * u
         end
-        local bw2 = R.TW("ZCKC.RepStrong", "Back to Replays") + 32 * u
+        local bw2 = R.TW(R.F.Strong, "Back to Replays") + 32 * u
         R.Btn(bx, y + ch - 64 * u, bw2, 40 * u, "ghost", "close")
         R.T("Back to Replays", "Strong", bx + bw2 / 2, y + ch - 44 * u, U.text, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
         return
     end
     R.T("ROUND REPLAY", "Caps", x + 28 * u, y + 24 * u, U.caps)
     R.T("Round " .. tostring(rs.rid), "Big", x + 28 * u, y + 42 * u, U.text)
-    local cancelW = 52 * u + R.TW("ZCKC.RepStrong", "Cancel") + R.TW("ZCKC.RepKey", "Esc")
+    local cancelW = 52 * u + R.TW(R.F.Strong, "Cancel") + R.TW(R.F.Key, "Esc")
     local cx = x + cw - 28 * u - cancelW
     R.Btn(cx, y + 26 * u, cancelW, 40 * u, "ghost", "close")
     R.Icon("x", cx + 18 * u, y + 46 * u, 14 * u, U.text)
     R.T("Cancel", "Strong", cx + 32 * u, y + 46 * u, U.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-    R.Chip("Esc", cx + 40 * u + R.TW("ZCKC.RepStrong", "Cancel"), y + 46 * u, U.muted)
+    R.Chip("Esc", cx + 40 * u + R.TW(R.F.Strong, "Cancel"), y + 46 * u, U.muted)
     local ij = rs.indexJob
     local share = ij and ij.raw and #ij.raw > 0 and math.Clamp((ij.pos or 1) / #ij.raw, 0, 1) or nil
-    R.T(rs.note or "Asking the server for the round…", "Body", x + 28 * u, y + 90 * u, U.text)
+    R.T(rs.status or "Asking the server for the round…", "Body", x + 28 * u, y + 90 * u, U.text)
     local py, pw = y + 118 * u, cw - 56 * u
     draw.RoundedBox(math.floor(4 * u), x + 28 * u, py, pw, 8 * u, U.track)
     if share then

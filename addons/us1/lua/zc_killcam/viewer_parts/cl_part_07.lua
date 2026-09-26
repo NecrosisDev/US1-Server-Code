@@ -35,10 +35,11 @@ function V.DrawReplayNames()
                 if not tr.Hit and not tr.StartSolid then
                     local scale = 0.08 * math.Clamp(pos:Distance(view.origin) / 300, 1, 3)
                     cam.Start3D2D(pos, Angle(0, view.angles.y - 90, 90), scale)
-                    surface.SetFont("ZCKC.LifeBody")
+                    surface.SetFont(V.LF.Body)
                     local tw, th = surface.GetTextSize(name)
-                    surface.SetDrawColor(8, 12, 18, 205) surface.DrawRect(-tw / 2 - 9, -th / 2 - 4, tw + 18, th + 8)
-                    draw.SimpleText(name, "ZCKC.LifeBody", 0, 0, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+                    local T = V.Theme()
+                    draw.RoundedBox(T.radius.card, -tw / 2 - 9, -th / 2 - 4, tw + 18, th + 8, T.glass) -- U4: the theme's glass plate
+                    draw.SimpleText(name, V.LF.Body, 0, 0, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
                     cam.End3D2D()
                     shown = shown + 1
                     if shown >= 32 then break end
@@ -249,7 +250,7 @@ hook.Add("PostDrawTranslucentRenderables", "ZCKillcam.LifeOptic", function(_, sk
     end
 end)
 
-local YOU_HALO = Color(90, 170, 255) -- hoisted: this runs every frame, and a Color per frame is garbage per frame
+-- "This is you": the theme's own "you / your death" blue (U4), read per frame - no Color is made here.
 hook.Add("PreDrawHalos", "ZCKillcam.Life", function()
     if not L or L.over or L.waiting then return end
     if V.SceneDepth == 0 and V.UISide() then return end -- postround_20260925: no replay halo in a side card's live world
@@ -261,40 +262,30 @@ hook.Add("PreDrawHalos", "ZCKillcam.Life", function()
     -- accessories going with the ghost - the ghost is not always the body.
     local rag = g.zcRag
     local body = (IsValid(rag) and not rag:GetNoDraw()) and rag or g
-    if not body:GetNoDraw() then halo.Add({body}, YOU_HALO, 1, 1, 2, true, true) end
+    if not body:GetNoDraw() then halo.Add({body}, V.Theme().death, 1, 1, 2, true, true) end
 end)
 
 ----------------------------------------------------------------- overlay
--- Styled after the gamemode's own HUD and menus (read from its source 2026-09-21): its font choice
--- (hg_font, Bahnschrift by default) at ScreenScale sizes, white text, near-black translucent panels
--- and the dark red outline its forgiveness menu uses. No rounded corners anywhere, as there.
-local function face()
-    local cv = GetConVar("hg_font")
-    local name = cv and cv:GetString() or ""
-    return name ~= "" and name or "Bahnschrift"
-end
+-- Styled with the ZCity tokens (UI cohesion U4, 2026-09-26: V.Theme, i.e. the GoobOS kit's A.Theme or the viewer's
+-- copy of it): the gamemode's font (hg_font, Bahnschrift by default, through V.Font) at ScreenScale sizes, glass cards
+-- and pills with the kit's rounded corners (T.radius: card 4, chip 3), edge-red accents, and ONE hint row per stage
+-- (V.Hints): each stage claims its row while it paints and drawOverlay draws the last claim once, on top.
 local function fonts()
     V.FontGen = (V.FontGen or 0) + 1 -- P7: cached text measurements are stamped with this and redone when it moves
-    surface.CreateFont("ZCKC.LifeTitle", {font = face(), size = ScreenScale(16), weight = 400, antialias = true})
-    surface.CreateFont("ZCKC.LifeHead", {font = face(), size = ScreenScale(10), weight = 400, antialias = true})
-    surface.CreateFont("ZCKC.LifeBody", {font = face(), size = ScreenScale(7), weight = 400, antialias = true})
-    surface.CreateFont("ZCKC.LifeSmall", {font = face(), size = ScreenScale(6), weight = 400, antialias = true})
+    V.LF = {Title = V.Font(ScreenScale(16), 400), Head = V.Font(ScreenScale(10), 400), Body = V.Font(ScreenScale(7), 400), Small = V.Font(ScreenScale(6), 400)}
 end
 fonts()
 hook.Add("OnScreenSizeChanged", "ZCKillcam.LifeFonts", fonts)
 cvars.AddChangeCallback("hg_font", fonts, "ZCKillcam.LifeFonts")
 
--- P6 2026-09-24: the ZCity tokens (work/loader/goobos_rework/mockups: --muted, --text, --down, --green, --warn, --glass, --main)
-local DIM, TEXT, RED, BLUE, GREEN, AMBER = Color(165, 165, 165), Color(225, 225, 225), Color(194, 58, 61), Color(70, 130, 180), Color(119, 218, 181), Color(215, 153, 74)
-local PANEL, EDGE = Color(20, 17, 17, 214), Color(150, 0, 0, 235)
-V.TagFill = V.TagFill or Color(20, 17, 17, 250)
--- P7 2026-09-24: key-hint rows, built once instead of every frame. keyRow caches each hint's measured widths on it.
-V.Hints = V.Hints or {
-    wait = {{"Q", "Skip"}, {"N", "Turn killcams off"}},
-    over = {{"V", "Save replay"}, {"B", "Review top-down"}, {"Q", "Back to spectating"}, {"N", "Turn killcams off"}},
-    overSaved = {{"V", "Saved"}, {"B", "Review top-down"}, {"Q", "Back to spectating"}, {"N", "Turn killcams off"}},
-    skip = {{"Space", "Skip"}},
+-- P7 2026-09-24 / U4: the hint rows, one per stage, built once (V.HintRow keeps their measured widths on them).
+-- One key, one meaning: Q back to spectating in every stage, Space start / skip / next hit, N (a second press) off.
+V.Hints = {
+    wait = {{"Space", "Start now"}, {"Q", "Back to spectating"}, {"N", "Turn killcams off"}},
+    card = {{"Space", "Skip"}, {"Q", "Back to spectating"}},
     highlight = {{"Space", "Skip"}, {"N", "Turn killcams off"}},
+    over = {{"V", "Save"}, {"S", "Share"}, {"B", "Top-down"}, {"Q", "Back to spectating"}, {"N", "Turn killcams off"}},
+    overSaved = {{"V", "Saved"}, {"S", "Share"}, {"B", "Top-down"}, {"Q", "Back to spectating"}, {"N", "Turn killcams off"}},
     -- playing: [1 + (report offered and 1 or 0) + (saved and 2 or 0)]
     play = {
         {{"V", "Save"}, {"Space", "Next hit"}, {"B", "Top-down"}, {"Q", "Back to spectating"}},
@@ -303,77 +294,69 @@ V.Hints = V.Hints or {
         {{"G", "Report this hit"}, {"V", "Saved"}, {"Space", "Next hit"}, {"B", "Top-down"}, {"Q", "Back to spectating"}},
     },
 }
--- "0.25x slow motion", formatted only when the shown value changes (it eases every frame)
+-- "0.25x slow motion" (the viewers' one rate format, %.2gx), formatted only when the shown value changes (it eases)
 function V.RateText(rate)
     local r = (rate or 1) < 0.95 and math.floor(rate * 100 + 0.5) or 0
-    if V.RateFor ~= r then V.RateFor, V.RateString = r, r > 0 and string.format("%.2fx slow motion", r / 100) or "" end
+    if V.RateFor ~= r then V.RateFor, V.RateString = r, r > 0 and string.format("%.2gx slow motion", r / 100) or "" end
     return V.RateString
 end
-V.DimFill = V.DimFill or Color(20, 17, 17, 200)
 V.UISounds = V.UISounds or CreateClientConVar("zc_killcam_ui_sounds", "1", true, false, "Soft sound cues when a killcam card or end card comes up", 0, 1)
 function V.Ease(t) t = math.Clamp(t or 0, 0, 1) return t * t * (3 - 2 * t) end -- smoothstep, for every fade
-V.LifeStyle = {panel = PANEL, edge = EDGE, text = TEXT, dim = DIM, red = RED}
+-- The report box (cl_part_03) paints with these: the theme's tokens, refilled when it opens.
+V.LifeStyle = V.LifeStyle or {}
+function V.LifeStyleFill()
+    local T, s = V.Theme(), V.LifeStyle
+    s.panel, s.edge, s.text, s.dim, s.red = T.glass, T.main, T.text, T.muted, T.accent
+    return s
+end
+V.LifeStyleFill()
 
 local function panel(x, y, w, h, edge) -- P6: rounded glass card, the edge as a left accent (mockup cards)
-    draw.RoundedBox(4, x, y, w, h, PANEL)
-    if edge then draw.RoundedBoxEx(4, x, y, 3, h, edge, true, false, true, false) end
+    local T = V.Theme()
+    draw.RoundedBox(T.radius.card, x, y, w, h, T.glass)
+    if edge then draw.RoundedBoxEx(T.radius.card, x, y, 3, h, edge, true, false, true, false) end
 end
 
--- A tag in an outlined box; returns its width. align: 0 left, 1 centre, 2 right of x.
+-- A tag in an outlined pill; returns its width. align: 0 left, 1 centre, 2 right of x.
 local function tagBox(text, x, y, colour, align)
-    surface.SetFont("ZCKC.LifeSmall")
+    local T = V.Theme()
+    surface.SetFont(V.LF.Small)
     local tw, th = surface.GetTextSize(text)
     local bw = tw + 16
     local bx = align == 1 and x - bw / 2 or (align == 2 and x - bw or x)
-    draw.RoundedBox(4, bx, y, bw, th + 6, colour) -- P6: rounded pill, 1 px coloured rim
-    draw.RoundedBox(4, bx + 1, y + 1, bw - 2, th + 4, V.TagFill)
-    draw.SimpleText(text, "ZCKC.LifeSmall", bx + 8, y + 3, colour)
+    draw.RoundedBox(T.radius.chip, bx, y, bw, th + 6, colour) -- 1 px coloured rim
+    draw.RoundedBox(T.radius.chip, bx + 1, y + 1, bw - 2, th + 4, V.Alpha(T.chip, 235))
+    draw.SimpleText(text, V.LF.Small, bx + 8, y + 3, colour)
     return bw
-end
-
--- Key hints as keycaps: {{"G", "Report this hit"}, ...}. centre = lay the row out around x.
-local function keyRow(hints, x, y, centre)
-    surface.SetFont("ZCKC.LifeSmall")
-    if V.KeyGen ~= V.FontGen then V.KeyGen, V.KeyTh = V.FontGen, select(2, surface.GetTextSize("G")) end
-    local th = V.KeyTh
-    local gap, total = 18, 0
-    for _, hint in ipairs(hints) do
-        if hint.gen ~= V.FontGen then -- P7: measured once per font generation, not every frame
-            hint.gen, hint.kw, hint.lw = V.FontGen, surface.GetTextSize(hint[1]) + 10, surface.GetTextSize(hint[2])
-        end
-        total = total + hint.kw + 6 + hint.lw + gap
-    end
-    if centre then x = x - (total - gap) / 2 end
-    for _, hint in ipairs(hints) do
-        draw.RoundedBox(4, x, y, hint.kw, th + 4, DIM) draw.RoundedBox(4, x + 1, y + 1, hint.kw - 2, th + 2, V.TagFill) -- P6: rounded keycap
-        draw.SimpleText(hint[1], "ZCKC.LifeSmall", x + hint.kw / 2, y + 2, TEXT, TEXT_ALIGN_CENTER)
-        draw.SimpleText(hint[2], "ZCKC.LifeSmall", x + hint.kw + 6, y + 2, DIM)
-        x = x + hint.kw + 6 + hint.lw + gap
-    end
 end
 
 local function weaponName(class) return (string.gsub(class or "unknown weapon", "^weapon_", "")) end
 
 local function drawWaiting(w, seq)
+    local T = V.Theme()
     local ease = V.Ease((RealTime() - L.shownAt) / 0.2) -- P6: 0.4 s linear -> 0.2 s eased
     surface.SetAlphaMultiplier(ease)
     if L.waitGen ~= V.FontGen then -- P7: formatted and measured once
         L.waitGen = V.FontGen
         L.waitText = string.format("Your death replay is starting (%d moment%s)", #seq.instances, #seq.instances == 1 and "" or "s")
-        surface.SetFont("ZCKC.LifeBody")
+        surface.SetFont(V.LF.Body)
         L.waitW, L.waitH = surface.GetTextSize(L.waitText)
     end
     local text, tw, th = L.waitText, L.waitW, L.waitH
-    local pw = math.max(tw + 40, ScreenScale(150))
+    local size = math.floor(ScreenScale(8))
+    local pw = math.max(tw + 40, ScreenScale(150), (V.Hints.wait.total or 0) + 40)
     local x, y = w / 2 - pw / 2, ScreenScale(8)
-    panel(x, y, pw, th * 2 + 26, EDGE)
-    draw.SimpleText(text, "ZCKC.LifeBody", w / 2, y + 8, TEXT, TEXT_ALIGN_CENTER)
-    keyRow(V.Hints.wait, w / 2, y + th + 14, true)
-    tagBox("BETA", x + pw, y + th * 2 + 30, DIM, 2) -- the offer can be skipped, so the notice has to live here too
+    local ph = th + 14 + size + 12
+    panel(x, y, pw, ph, T.main)
+    draw.SimpleText(text, V.LF.Body, w / 2, y + 8, T.text, TEXT_ALIGN_CENTER)
+    V.ClaimHints(L, V.Hints.wait, w / 2, y + th + 14, TEXT_ALIGN_CENTER, size, ease)
+    tagBox("BETA", x + pw, y + ph + 4, T.muted, 2) -- the offer can be skipped, so the notice has to live here too
+    L.noteY = y + ph + ScreenScale(16) -- the note sits below the banner and its tag
     surface.SetAlphaMultiplier(1)
 end
 
 local function drawOver(w, h, seq)
+    local T = V.Theme()
     local reported = 0
     for _ in pairs(L.reported or {}) do reported = reported + 1 end
     if L.overFor ~= reported then -- P7: the summary is rebuilt only when a report lands, not every frame
@@ -387,89 +370,93 @@ local function drawOver(w, h, seq)
             .. (reported > 0 and string.format("   ·   %d reported", reported) or "")
     end
     local y = h * 0.4
-    tagBox("BETA", w / 2, y - ScreenScale(11), DIM, 1)
-    draw.SimpleText("That was every hit you took this life", "ZCKC.LifeHead", w / 2, y, TEXT, TEXT_ALIGN_CENTER)
+    tagBox("BETA", w / 2, y - ScreenScale(11), T.muted, 1)
+    draw.SimpleText("That was every hit you took this life", V.LF.Head, w / 2, y, T.text, TEXT_ALIGN_CENTER)
     local _, hh = surface.GetTextSize("A")
-    draw.SimpleText(L.overLine, "ZCKC.LifeBody", w / 2, y + hh + 6, DIM, TEXT_ALIGN_CENTER)
-    keyRow(L.saved and V.Hints.overSaved or V.Hints.over, w / 2, y + hh * 2 + 22, true)
+    draw.SimpleText(L.overLine, V.LF.Body, w / 2, y + hh + 6, T.muted, TEXT_ALIGN_CENTER)
+    V.ClaimHints(L, L.saved and V.Hints.overSaved or V.Hints.over, w / 2, y + hh * 2 + 18, TEXT_ALIGN_CENTER, math.floor(ScreenScale(8)))
     local bw = ScreenScale(70)
     local left = math.Clamp(1 - (RealTime() - L.overAt) / 8, 0, 1)
-    surface.SetDrawColor(60, 60, 60, 255) surface.DrawRect(w / 2 - bw / 2, y + hh * 3 + 34, bw, 2)
-    surface.SetDrawColor(TEXT) surface.DrawRect(w / 2 - bw / 2, y + hh * 3 + 34, bw * left, 2)
-    draw.SimpleText("Returning to spectating", "ZCKC.LifeSmall", w / 2, y + hh * 3 + 42, DIM, TEXT_ALIGN_CENTER)
+    surface.SetDrawColor(V.Alpha(T.white, 40)) surface.DrawRect(w / 2 - bw / 2, y + hh * 3 + 34, bw, 2)
+    surface.SetDrawColor(T.text) surface.DrawRect(w / 2 - bw / 2, y + hh * 3 + 34, bw * left, 2)
+    draw.SimpleText("Returning to spectating", V.LF.Small, w / 2, y + hh * 3 + 42, T.muted, TEXT_ALIGN_CENTER)
 end
 
 -- The round highlight: who, with what, how many - and a strip with a red mark at every kill.
 local function drawHighlight(w, h, seq)
     local inst = L.inst
     if V.Cinema and V.Cinema.Enabled:GetBool() then return V.Cinema.DrawHighlight(w, h, L, weaponName(inst.wep)) end
+    local T = V.Theme()
     local pad, top, bottom = ScreenScale(10), ScreenScale(24), ScreenScale(22)
-    surface.SetDrawColor(PANEL) surface.DrawRect(0, 0, w, top) surface.DrawRect(0, h - bottom, w, bottom)
-    surface.SetDrawColor(EDGE) surface.DrawRect(0, top, w, 2) surface.DrawRect(0, h - bottom - 2, w, 2)
-    draw.SimpleText("HIGHLIGHT OF THE ROUND", "ZCKC.LifeSmall", pad, ScreenScale(3), DIM)
+    surface.SetDrawColor(T.glass) surface.DrawRect(0, 0, w, top) surface.DrawRect(0, h - bottom, w, bottom)
+    surface.SetDrawColor(T.main) surface.DrawRect(0, top, w, 2) surface.DrawRect(0, h - bottom - 2, w, 2)
+    draw.SimpleText("HIGHLIGHT OF THE ROUND", V.LF.Small, pad, ScreenScale(3), T.muted)
     if L.hlGen ~= V.FontGen or L.hlFor ~= inst then -- P7: names, widths and the kill tag built once per instance
         L.hlGen, L.hlFor = V.FontGen, inst
         local kills = tonumber(seq.kills) or 1
         L.hlStar, L.hlWep = tostring(seq.star or inst.attacker), weaponName(inst.wep)
         L.hlKills = kills == 1 and ((seq.heads or 0) > 0 and "HEADSHOT KILL" or "1 KILL") or kills .. " KILLS"
-        surface.SetFont("ZCKC.LifeHead")
+        surface.SetFont(V.LF.Head)
         L.hlStarW = surface.GetTextSize(L.hlStar)
     end
-    draw.SimpleText(L.hlStar, "ZCKC.LifeHead", pad, ScreenScale(9), TEXT)
-    draw.SimpleText(L.hlWep, "ZCKC.LifeBody", pad + L.hlStarW + 14, ScreenScale(12), DIM)
-    local killW = tagBox(L.hlKills, w - pad, ScreenScale(4), RED, 2)
-    tagBox("BETA", w - pad - killW - 6, ScreenScale(4), DIM, 2)
-    draw.SimpleText(V.RateText(L.rate), "ZCKC.LifeSmall", w - pad, ScreenScale(15), DIM, TEXT_ALIGN_RIGHT)
+    draw.SimpleText(L.hlStar, V.LF.Head, pad, ScreenScale(9), T.text)
+    draw.SimpleText(L.hlWep, V.LF.Body, pad + L.hlStarW + 14, ScreenScale(12), T.muted)
+    local killW = tagBox(L.hlKills, w - pad, ScreenScale(4), T.accent, 2)
+    tagBox("BETA", w - pad - killW - 6, ScreenScale(4), T.muted, 2)
+    draw.SimpleText(V.RateText(L.rate), V.LF.Small, w - pad, ScreenScale(15), T.muted, TEXT_ALIGN_RIGHT)
     local span = math.max(L.clip.last - L.clip.first, 1)
     local sx, sy, sw = pad, h - bottom + ScreenScale(5), w - pad * 2
-    surface.SetDrawColor(60, 60, 60, 255) surface.DrawRect(sx, sy, sw, 3)
-    surface.SetDrawColor(TEXT) surface.DrawRect(sx, sy, sw * math.Clamp((L.cs - L.clip.first) / span, 0, 1), 3)
-    surface.SetDrawColor(RED)
+    surface.SetDrawColor(V.Alpha(T.white, 40)) surface.DrawRect(sx, sy, sw, 3)
+    surface.SetDrawColor(T.text) surface.DrawRect(sx, sy, sw * math.Clamp((L.cs - L.clip.first) / span, 0, 1), 3)
+    surface.SetDrawColor(T.accent)
     for _, e in ipairs(L.clip.events) do
         if e[2] == 3 and e[3] == L.clip.pov then surface.DrawRect(sx + sw * math.Clamp((e[1] - L.clip.first) / span, 0, 1) - 1, sy - 3, 2, 9) end -- 3 = death
     end
-    keyRow(V.Hints.highlight, pad, h - ScreenScale(10))
+    V.ClaimHints(L, V.Hints.highlight, pad, h - ScreenScale(10), TEXT_ALIGN_LEFT, math.floor(ScreenScale(8)))
 end
 
+-- The bullet camera's plain HUD (no cinematic director): U4 theme glass card with an edge-red accent.
 function V.DrawBulletHUD(w, h)
     if V.Ballistics and V.Ballistics.Draw(w, h, L) then return end
     local b = L and L.bullet
     if b and b.cinematic and V.Cinema then return V.Cinema.DrawHUD(w, h, L) end
     local alpha = V.BulletWeight(b)
     if alpha <= 0 then return end
+    local T = V.Theme()
     local bw, bh = math.min(ScreenScale(116), w - 32), ScreenScale(24)
     local x, y = (w - bw) / 2, h - ScreenScale(66)
-    surface.SetDrawColor(9, 15, 22, 210 * alpha) surface.DrawRect(x, y, bw, bh)
-    surface.SetDrawColor(80, 199, 231, 210 * alpha) surface.DrawRect(x, y, 2, bh)
+    draw.RoundedBox(T.radius.card, x, y, bw, bh, V.Alpha(T.glassHi, T.glassHi.a * alpha))
+    surface.SetDrawColor(V.Alpha(T.accent, 230 * alpha)) surface.DrawRect(x, y, 2, bh)
     local title = b.landed and (b.body and "RECORDED WOUND TRACE" or "IMPACT") or "BULLET TIME"
     local detail = b.landed and (b.body and "Simulation entry to trace end" or "Recorded impact point") or "Following the recorded shot"
-    draw.SimpleText(title, "ZCKC.LifeSmall", w / 2, y + ScreenScale(3), Color(229, 239, 247, 255 * alpha), TEXT_ALIGN_CENTER)
-    draw.SimpleText(detail, "ZCKC.LifeSmall", w / 2, y + ScreenScale(12), Color(151, 185, 201, 255 * alpha), TEXT_ALIGN_CENTER)
-    surface.SetDrawColor(90, 211, 239, 230 * alpha)
+    draw.SimpleText(title, V.LF.Small, w / 2, y + ScreenScale(3), V.Alpha(T.text, 255 * alpha), TEXT_ALIGN_CENTER)
+    draw.SimpleText(detail, V.LF.Small, w / 2, y + ScreenScale(12), V.Alpha(T.muted, 255 * alpha), TEXT_ALIGN_CENTER)
+    surface.SetDrawColor(V.Alpha(T.accent, 230 * alpha))
     surface.DrawRect(x, y + bh - 2, bw * (b.landed and (b.body and b.bodyP or 1) or b.p), 2)
 end
 
 local function drawPlaying(w, h, seq)
     if L.highlight then return drawHighlight(w, h, seq) end
+    local T = V.Theme()
     local inst = L.inst
     local pad, top, bottom = ScreenScale(10), ScreenScale(24), ScreenScale(34)
-    surface.SetDrawColor(PANEL) surface.DrawRect(0, 0, w, top) surface.DrawRect(0, h - bottom, w, bottom)
-    surface.SetDrawColor(EDGE) surface.DrawRect(0, top, w, 2) surface.DrawRect(0, h - bottom - 2, w, 2)
+    surface.SetDrawColor(T.glass) surface.DrawRect(0, 0, w, top) surface.DrawRect(0, h - bottom, w, bottom)
+    surface.SetDrawColor(T.main) surface.DrawRect(0, top, w, 2) surface.DrawRect(0, h - bottom - 2, w, 2)
     if L.hudFor ~= L.index or L.hudGen ~= V.FontGen then -- P7: built once per hit, not every frame
         L.hudFor, L.hudGen = L.index, V.FontGen
         L.hudTop = string.format("Hit %d of %d   ·   %.0fs before your death", L.index, #seq.instances, inst.ago or 0)
         L.hudWho = string.format("Through %s's eyes", tostring(inst.attacker))
         L.hudWep = string.format("%s   ·   %d hit%s, %s dmg", weaponName(inst.wep), inst.hits or 0, inst.hits == 1 and "" or "s", tostring(inst.dmg or 0))
-        surface.SetFont("ZCKC.LifeHead")
+        surface.SetFont(V.LF.Head)
         L.hudWhoW = surface.GetTextSize(L.hudWho)
     end
-    draw.SimpleText(L.hudTop, "ZCKC.LifeSmall", pad, ScreenScale(3), DIM)
-    draw.SimpleText(L.hudWho, "ZCKC.LifeHead", pad, ScreenScale(9), TEXT)
-    draw.SimpleText(L.hudWep, "ZCKC.LifeBody", pad + L.hudWhoW + 14, ScreenScale(12), DIM)
-    local tagW = tagBox(TAGS[inst.tag] or "", w - pad, ScreenScale(4), inst.reportable and RED or AMBER, 2)
-    tagBox("BETA", w - pad - tagW - 6, ScreenScale(4), DIM, 2) -- quiet, but always there while a killcam is on screen
-    draw.SimpleText(V.RateText(L.rate), "ZCKC.LifeSmall", w - pad, ScreenScale(15), DIM, TEXT_ALIGN_RIGHT)
-    if not L.clip.pov then draw.SimpleText("The attacker left before this could be captured from their side", "ZCKC.LifeSmall", w / 2, top + 8, AMBER, TEXT_ALIGN_CENTER) end
+    draw.SimpleText(L.hudTop, V.LF.Small, pad, ScreenScale(3), T.muted)
+    draw.SimpleText(L.hudWho, V.LF.Head, pad, ScreenScale(9), T.text)
+    draw.SimpleText(L.hudWep, V.LF.Body, pad + L.hudWhoW + 14, ScreenScale(12), T.muted)
+    local tagW = tagBox(TAGS[inst.tag] or "", w - pad, ScreenScale(4), inst.reportable and T.accent or T.amber, 2)
+    tagBox("BETA", w - pad - tagW - 6, ScreenScale(4), T.muted, 2) -- quiet, but always there while a killcam is on screen
+    draw.SimpleText(V.RateText(L.rate), V.LF.Small, w - pad, ScreenScale(15), T.muted, TEXT_ALIGN_RIGHT)
+    if not L.clip.pov then draw.SimpleText("The attacker left before this could be captured from their side", V.LF.Small, w / 2, top + 8, T.amber, TEXT_ALIGN_CENTER) end
     -- the strip is the progress bar: one cell per hit, the playing one fills as it runs
     local n = #seq.instances
     local cell = math.min((w - pad * 2) / n, ScreenScale(90))
@@ -478,24 +465,24 @@ local function drawPlaying(w, h, seq)
     for i, it in ipairs(seq.instances) do
         local x = pad + (i - 1) * cell
         local done = L.reported and L.reported[i]
-        surface.SetDrawColor(60, 60, 60, 255) surface.DrawRect(x, sy, cell - 6, 3)
-        if i < L.index then surface.SetDrawColor(done and GREEN or DIM) surface.DrawRect(x, sy, cell - 6, 3)
+        surface.SetDrawColor(V.Alpha(T.white, 40)) surface.DrawRect(x, sy, cell - 6, 3)
+        if i < L.index then surface.SetDrawColor(done and T.green or T.muted) surface.DrawRect(x, sy, cell - 6, 3)
         elseif i == L.index then
-            surface.SetDrawColor(TEXT) surface.DrawRect(x, sy, (cell - 6) * frac, 3)
-            surface.SetDrawColor(RED) surface.DrawRect(x + (cell - 6) * ((0 - L.clip.first) / (L.clip.last - L.clip.first)), sy - 3, 2, 9) -- the hit
+            surface.SetDrawColor(T.text) surface.DrawRect(x, sy, (cell - 6) * frac, 3)
+            surface.SetDrawColor(T.accent) surface.DrawRect(x + (cell - 6) * ((0 - L.clip.first) / (L.clip.last - L.clip.first)), sy - 3, 2, 9) -- the hit
         end
         if not it.zcName then it.zcName, it.zcDmg = tostring(it.attacker), tostring(it.dmg or 0) .. " dmg" end -- P7: once per hit
         local status = done and "reported" or (i == L.index and "playing" or (not it.reportable and "can't report" or it.zcDmg))
-        draw.SimpleText(it.zcName, "ZCKC.LifeSmall", x, sy + 6, i == L.index and TEXT or DIM)
-        draw.SimpleText(status, "ZCKC.LifeSmall", x, sy + 6 + ScreenScale(6), done and GREEN or DIM)
+        draw.SimpleText(it.zcName, V.LF.Small, x, sy + 6, i == L.index and T.text or T.muted)
+        draw.SimpleText(status, V.LF.Small, x, sy + 6 + ScreenScale(6), done and T.green or T.muted)
     end
     local offer = inst.reportable and not (L.reported and L.reported[L.index])
-    keyRow(V.Hints.play[1 + (offer and 1 or 0) + (L.saved and 2 or 0)], pad, h - ScreenScale(10)) -- P7: constant rows
+    V.ClaimHints(L, V.Hints.play[1 + (offer and 1 or 0) + (L.saved and 2 or 0)], pad, h - ScreenScale(10), TEXT_ALIGN_LEFT, math.floor(ScreenScale(8))) -- P7: constant rows
     if (L.hitFlash or 0) > 0 then -- you were hit: red at the edges and the number
         local a = L.hitFlash
-        surface.SetDrawColor(155, 0, 0, 90 * a)
+        surface.SetDrawColor(V.Alpha(T.main, 90 * a))
         surface.DrawRect(0, top + 2, ScreenScale(8), h - top - bottom - 4) surface.DrawRect(w - ScreenScale(8), top + 2, ScreenScale(8), h - top - bottom - 4)
-        draw.SimpleTextOutlined(string.format("-%s  %s", tostring(L.hitDmg or "?"), V.HitGroupName and V.HitGroupName(L.hitGroup) or ""), "ZCKC.LifeHead", w / 2, h * 0.62 - (1 - a) * 24, Color(255, 90, 90, 255 * a), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, 1, Color(0, 0, 0, 200 * a))
+        draw.SimpleTextOutlined(string.format("-%s  %s", tostring(L.hitDmg or "?"), V.HitGroupName and V.HitGroupName(L.hitGroup) or ""), V.LF.Head, w / 2, h * 0.62 - (1 - a) * 24, V.Alpha(T.kill, 255 * a), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, 1, V.Alpha(color_black, 200 * a))
     end
 end
 
@@ -504,7 +491,9 @@ local function drawCard(w, h, seq)
     local it = card and seq.instances[card]
     if not it or L.pending then return end -- only once the scene behind it has been switched
     if L.highlight and V.Cinema and V.Cinema.Enabled:GetBool() then return V.Cinema.DrawCard(w, h, L, weaponName(it.wep)) end
-    surface.SetAlphaMultiplier(math.Clamp((L.curtain - 0.5) * 2, 0, 1))
+    local T = V.Theme()
+    local a = math.Clamp((L.curtain - 0.5) * 2, 0, 1)
+    surface.SetAlphaMultiplier(a)
     local y = h * 0.4
     if L.highlight then
         if L.cardFor ~= it then -- P7: the card's lines are built once per card
@@ -512,11 +501,11 @@ local function drawCard(w, h, seq)
             L.cardFor, L.cardName = it, tostring(seq.star or it.attacker)
             L.cardLine = string.format("%s   ·   %d kill%s   ·   %s", weaponName(it.wep), kills, kills == 1 and "" or "s", table.concat(seq.victims or {}, ", "))
         end
-        draw.SimpleText("HIGHLIGHT OF THE ROUND", "ZCKC.LifeSmall", w / 2, y, DIM, TEXT_ALIGN_CENTER)
-        surface.SetDrawColor(EDGE) surface.DrawRect(w / 2 - ScreenScale(12), y + ScreenScale(8), ScreenScale(24), 2)
-        draw.SimpleText(L.cardName, "ZCKC.LifeTitle", w / 2, y + ScreenScale(11), TEXT, TEXT_ALIGN_CENTER)
-        draw.SimpleText(L.cardLine, "ZCKC.LifeBody", w / 2, y + ScreenScale(29), DIM, TEXT_ALIGN_CENTER)
-        keyRow(V.Hints.skip, w / 2, h - ScreenScale(24), true)
+        draw.SimpleText("HIGHLIGHT OF THE ROUND", V.LF.Small, w / 2, y, T.muted, TEXT_ALIGN_CENTER)
+        surface.SetDrawColor(T.main) surface.DrawRect(w / 2 - ScreenScale(12), y + ScreenScale(8), ScreenScale(24), 2)
+        draw.SimpleText(L.cardName, V.LF.Title, w / 2, y + ScreenScale(11), T.text, TEXT_ALIGN_CENTER)
+        draw.SimpleText(L.cardLine, V.LF.Body, w / 2, y + ScreenScale(29), T.muted, TEXT_ALIGN_CENTER)
+        V.ClaimHints(L, V.Hints.highlight, w / 2, h - ScreenScale(24), TEXT_ALIGN_CENTER, math.floor(ScreenScale(8)), a)
         surface.SetAlphaMultiplier(1)
         return
     end
@@ -527,12 +516,12 @@ local function drawCard(w, h, seq)
         L.cardLine = string.format("%s   ·   %s damage   ·   %.0fs before your death", weaponName(it.wep), tostring(it.dmg or 0), it.ago or 0)
         L.cardTag = (TAGS[it.tag] or "") .. (it.reportable and "   ·   reportable" or "")
     end
-    draw.SimpleText(L.cardTop, "ZCKC.LifeSmall", w / 2, y, DIM, TEXT_ALIGN_CENTER)
-    surface.SetDrawColor(EDGE) surface.DrawRect(w / 2 - ScreenScale(12), y + ScreenScale(8), ScreenScale(24), 2)
-    draw.SimpleText(L.cardName, "ZCKC.LifeTitle", w / 2, y + ScreenScale(11), TEXT, TEXT_ALIGN_CENTER)
-    draw.SimpleText(L.cardLine, "ZCKC.LifeBody", w / 2, y + ScreenScale(29), DIM, TEXT_ALIGN_CENTER)
-    tagBox(L.cardTag, w / 2, y + ScreenScale(39), it.reportable and RED or AMBER, 1)
-    keyRow(V.Hints.skip, w / 2, h - ScreenScale(24), true)
+    draw.SimpleText(L.cardTop, V.LF.Small, w / 2, y, T.muted, TEXT_ALIGN_CENTER)
+    surface.SetDrawColor(T.main) surface.DrawRect(w / 2 - ScreenScale(12), y + ScreenScale(8), ScreenScale(24), 2)
+    draw.SimpleText(L.cardName, V.LF.Title, w / 2, y + ScreenScale(11), T.text, TEXT_ALIGN_CENTER)
+    draw.SimpleText(L.cardLine, V.LF.Body, w / 2, y + ScreenScale(29), T.muted, TEXT_ALIGN_CENTER)
+    tagBox(L.cardTag, w / 2, y + ScreenScale(39), it.reportable and T.accent or T.amber, 1)
+    V.ClaimHints(L, V.Hints.card, w / 2, h - ScreenScale(24), TEXT_ALIGN_CENTER, math.floor(ScreenScale(8)), a)
     surface.SetAlphaMultiplier(1)
 end
 
@@ -541,9 +530,10 @@ function drawOverlay()
     local w, h = ScrW(), ScrH()
     local seq = L.seq
     L.shownAt = L.shownAt or RealTime()
+    L.hintRow, L.noteY = nil, nil -- U4: each stage claims its one hint row below; the last claim is drawn at the end
     if L.over then
         -- P6: the end card sits on a dimmed view of the live spectator camera (was opaque black, up to 8 s)
-        if L.highlight then surface.SetDrawColor(0, 0, 0, 255 * V.Ease(L.curtain)) else surface.SetDrawColor(V.DimFill) end
+        if L.highlight then surface.SetDrawColor(0, 0, 0, 255 * V.Ease(L.curtain)) else surface.SetDrawColor(V.Alpha(V.Theme().glass, 200)) end
         surface.DrawRect(0, 0, w, h)
         if not L.highlight then drawOver(w, h, seq) end
     elseif L.waiting then
@@ -558,12 +548,13 @@ function drawOverlay()
     if not L.over and (L.curtain or 0) > 0 then
         -- P6: eased; full black only while the scene is being switched under it, then a card sits on an 82% dim of the
         -- new instance's first frame instead of on black
-        surface.SetDrawColor(0, 0, 0, 255 * V.Ease(L.curtain) * ((L.card and not L.pending) and 0.82 or 1)) surface.DrawRect(0, 0, w, h)
+        local cover = V.Ease(L.curtain) * ((L.card and not L.pending) and 0.82 or 1)
+        surface.SetDrawColor(0, 0, 0, 255 * cover) surface.DrawRect(0, 0, w, h)
+        L.hintA = (L.hintA or 1) * (1 - cover) -- a row claimed under the curtain dims with it (a card's row replaces it)
         drawCard(w, h, seq)
     end
-    if L.note and RealTime() < (L.noteUntil or 0) then
-        draw.SimpleTextOutlined(L.note, "ZCKC.LifeBody", w / 2, ScreenScale(34), GREEN, TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP, 1, color_black)
-    end
+    if L.hintRow then V.HintRow(L.hintRow, L.hintX, L.hintY, L.hintAlign, L.hintSize, L.hintA) end
+    V.DrawNote(w / 2, math.max(ScreenScale(34), L.noteY or 0), TEXT_ALIGN_CENTER) -- U4: the viewer's one note
 end
 
 hook.Add("HUDPaint", "ZCKillcam.Life", function()
@@ -572,15 +563,19 @@ hook.Add("HUDPaint", "ZCKillcam.Life", function()
         -- P6 2026-09-24: was opaque black until the replay arrived (up to 5 s). Now the live view dims in over 0.2 s
         -- and a pill says what is coming. The gamemode HUD stays hidden, as before.
         local a = V.Ease((RealTime() - (deathPendingUntil - 5)) / 0.2)
-        surface.SetDrawColor(20, 17, 17, 200 * a) surface.DrawRect(0, 0, ScrW(), ScrH())
+        local T = V.Theme()
+        surface.SetDrawColor(V.Alpha(T.glass, 200 * a)) surface.DrawRect(0, 0, ScrW(), ScrH())
         surface.SetAlphaMultiplier(a)
-        tagBox("REPLAY INCOMING", ScrW() / 2, ScreenScale(12), TEXT, 1)
+        tagBox("REPLAY INCOMING", ScrW() / 2, ScreenScale(12), T.text, 1)
         surface.SetAlphaMultiplier(1)
         return true
     end
     if not L then -- the fade back into spectating, after the replay has let go (never over a living player)
         local a = 1 - V.Ease((RealTime() - outroAt) / 0.2) -- P6: 0.45 s linear -> 0.2 s eased
         if a > 0 and IsValid(LocalPlayer()) and (outroLive or not LocalPlayer():Alive()) then surface.SetDrawColor(0, 0, 0, 255 * a) surface.DrawRect(0, 0, ScrW(), ScrH()) end
+        -- U4: a note the replay raised ("Killcams off ...", "Saved ...") stays up its full time after the replay let go
+        local n = V.NoteState
+        if n and n.life and not V.TacticalOpen() and not (V.Round and V.Round.open) then V.DrawNote(ScrW() / 2, ScreenScale(34), TEXT_ALIGN_CENTER) end
         return
     end
     -- While the replay owns the frame it draws the overlay itself (see RenderScene) and the gamemode's HUD is off.

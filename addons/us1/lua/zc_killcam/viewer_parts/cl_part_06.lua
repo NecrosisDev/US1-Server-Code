@@ -496,11 +496,29 @@ local function leave()
     through(0, 0.2, stop)
 end
 
--- The player's own switch, reachable from the killcam itself as well as Settings > Gameplay. Same convar either way.
+-- The player's own switch, reachable from the killcam itself as well as Settings › Replays & killcam. Same convar
+-- either way. U4: N is destructive, so it takes a second press within 2 s (V.Life.ConfirmOff).
 local function optOut()
+    V.offArmedAt = nil
     RunConsoleCommand("zc_killcam_show", "0")
-    say("Killcams are off for you. Settings > Gameplay turns them back on (or: zc_killcam_show 1).")
+    say("Killcams off · Settings › Replays & killcam turns them back on", "ok")
     return leave()
+end
+-- True on the press that confirms; the first press only says what a second one will do.
+function V.Life.ConfirmOff()
+    local now = RealTime()
+    if V.offArmedAt and now - V.offArmedAt <= 2 then return true end
+    V.offArmedAt = now
+    say("Press N again to turn killcams off", "confirm")
+    return false
+end
+-- S on the end card: share this life (ZCGoobApps.Share.Open; V.Share says so when sharing is not there). The end
+-- card waits while the sheet is up, as it does for a report being written.
+function V.Life.Share()
+    if not L or L.highlight or not L.seq then return end
+    local last = L.seq.instances[#L.seq.instances]
+    local who = last and last.attacker and tostring(last.attacker) or nil
+    L.sharing = V.Share({kind = "life", seq = L.id, title = who and ("Killed by " .. who) or "My death replay"}) ~= nil
 end
 local function curtain()
     if L.pending and V.UIActive() then -- P3 seam (review): a curtain queued a frame before the panel claimed the screen
@@ -762,25 +780,28 @@ local function lifeThink()
     if L.highlight and RealTime() > (L.deadline or 0) then return leave() end -- fade out like every other ending, never snap
     local typing = vgui.GetKeyboardFocus() ~= nil or gui.IsConsoleVisible() or gui.IsGameUIVisible()
     local r, f, space, tab, q = pressed(KEY_G), pressed(KEY_V), pressed(KEY_SPACE), pressed(KEY_B), pressed(KEY_Q)
-    local off = pressed(KEY_N)
-    if V.UIActive() or V.UISide() then r, f, space, tab, q, off = false, false, false, false, false, false end -- P3 seam: the panel owns input; a living player's keys are their own
+    local off, share = pressed(KEY_N), pressed(KEY_S)
+    if V.UIActive() or V.UISide() then r, f, space, tab, q, off, share = false, false, false, false, false, false, false end -- P3 seam: the panel owns input; a living player's keys are their own
     if not curtain() then return end
     if L.leaving then return end
     if space and L.card and not L.pending and L.curtainTo == 1 then L.cardUntil, space = 0, false end
+    -- U4 keys, one meaning in every stage: Q back to spectating, Space skip / next (here: start now), N off on a second
+    -- press (V.Life.ConfirmOff), S share on the end card.
     if L.waiting then -- the blackout and input/voice lock stay owned until the replay starts
         if L.highlight then
             if RealTime() >= L.startAt then pcall(endMenu, false) go(1) end
             return
         end
-        if off then return optOut() end -- reachable WITHOUT sitting through a replay first, which is the point of it
+        if off and V.Life.ConfirmOff() then return optOut() end -- reachable WITHOUT sitting through a replay first, which is the point of it
         if q then return leave() end
-        if RealTime() >= L.startAt then go(1) end
+        if space or RealTime() >= L.startAt then go(1) end
         return
     end
     if not typing then
-        -- Opting out. Offered on the END CARD only, never mid-replay: a single key that silently switches a feature off
-        -- must not be something you can fat-finger while watching. It sets the same convar the settings menu does.
-        if off and (L.over or L.highlight) then return optOut() end
+        -- Opting out. Offered on the END CARD only, never mid-replay: a key that switches a feature off must not be
+        -- something you can fat-finger while watching, and it takes a second press. It sets the settings menu's convar.
+        if off and (L.over or L.highlight) and V.Life.ConfirmOff() then return optOut() end
+        if share and L.over and not L.highlight and not L.dialog then V.Life.Share() end
         if q or (L.highlight and space) then return leave() end
         if L.highlight then tab, f, r, space = false, false, false, false end -- nothing to save, report or step through
         if tab and V.OpenSequence then local id, seq = L.id, L.seq stop(true) return V.OpenSequence(id, seq) end
@@ -793,8 +814,10 @@ local function lifeThink()
         if space and not L.over then return go(L.index + 1) end
     end
     if L.over then
-        -- a report being written holds the end card: leaving would remove the dialog and drop the text unsent
-        if L.dialog then L.overAt = RealTime() return end
+        -- a report being written holds the end card: leaving would remove the dialog and drop the text unsent; so does
+        -- a share sheet (U4) until it closes
+        if L.dialog or (L.sharing and V.ShareUp()) then L.overAt = RealTime() return end
+        L.sharing = nil
         if L.highlight or RealTime() - L.overAt > 8 then leave() end
         return
     end
