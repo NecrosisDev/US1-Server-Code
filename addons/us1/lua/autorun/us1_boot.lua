@@ -20,3 +20,14 @@ include("us1/core/sh_core.lua")
 load("us1/core/sv_net.lua", "sv")
 
 US1.LoadModules("us1/modules")
+
+-- Which release the server is running: tools/server/us1_update.sh writes data/us1_version.txt (RELEASE.json) on each
+-- install. Absent on a hand-deployed server; then nothing is printed.
+if SERVER then
+    local raw = file.Read("us1_version.txt", "DATA")
+    local info = raw and util.JSONToTable(raw)
+    if istable(info) and isstring(info.main) then
+        US1.Release = info
+        MsgN("[US1] running release " .. string.sub(info.main, 1, 7) .. (isstring(info.built) and (" built " .. info.built) or ""))
+    end
+end

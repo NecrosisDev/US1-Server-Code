@@ -286,7 +286,12 @@ From WP-0.3 on, also `python3 -m unittest tests.test_lua_harness` (the stub harn
 - Accept: the virtual Lua file set equals dist's (`dist/garrysmod/addons/*/lua` plus stock files); **zero** virtual
   paths provided by two different places; zero stock or vendor-external files deleted.
 
-**WP-1.3 GATE 1: the cutover** (owner, quiet window). Checklist in section 6.3.
+**Status 2026-09-26:** built as the auto-update path (owner: update from `main` at every restart, layout B).
+`tools/cutover.py` (`--plan`, `--rehearse`: 0 missing, 0 provided twice), `tools/release.py`,
+`.github/workflows/release.yml`, `tools/server/us1_update.sh`; tests `tests/test_cutover.py`, `tests/test_updater.py`.
+The procedure is `docs/DEPLOY.md`.
+
+**WP-1.3 GATE 1: the cutover** (owner, quiet window). Checklist in section 6.3. Use `docs/DEPLOY.md` step 5: the cutover now ends with the first auto-update run.
 
 **WP-1.4 Restructured drops** (files: `tools/drop.py`, `manifests/live.json`, tests)
 - After GATE 1: set `layout` to `restructured`, `deployed_commit` to the cutover commit. Add the restructured mode
