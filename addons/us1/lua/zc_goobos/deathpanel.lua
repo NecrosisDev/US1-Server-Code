@@ -149,6 +149,9 @@ function DP.ApplyGuiltRows(rows)
     -- silently (killer left, report cooldown, refund not saved, case locked) and then the card lied and could not retry.
     local sent = DP.GuiltSent
     if not sent then return end
+    -- a reply already on its way when the action left was built before the server applied it: only the reply to the
+    -- 0.3 s follow-up request may reconcile (final review 2026-09-26)
+    if RealTime() - (sent.at or 0) < 0.25 then return end
     DP.GuiltSent = nil
     for _, row in ipairs(DP.GuiltRows) do
         if row.caseid == sent.caseid and row.steamid64 == sent.steamid64 then
@@ -189,7 +192,7 @@ local function installGuiltWrap()
         DP.GuiltNetWrap = function(len)
             -- GuiltQuietUntil: the reply to an action sent from this panel can land after the panel closed (respawn, Q,
             -- end card); it must not open the stock guilt popup over live play.
-            if DP.WantGuilt or RealTime() < (DP.GuiltQuietUntil or 0) then
+            if DP.WantGuilt or (DP.GuiltSent and RealTime() < (DP.GuiltQuietUntil or 0)) then
                 local raw = net.ReadString()
                 local ok, data = pcall(util.JSONToTable, raw, false, true)
                 DP.ApplyGuiltRows(ok and data or {})
@@ -212,7 +215,7 @@ local function sendGuiltAction(row, action)
     net.WriteString(action)
     net.SendToServer()
     DP.GuiltDecided = action
-    DP.GuiltSent = {caseid = row.caseid, steamid64 = row.steamid64, action = action}
+    DP.GuiltSent = {caseid = row.caseid, steamid64 = row.steamid64, action = action, at = RealTime()}
     DP.GuiltQuietUntil = RealTime() + 3
     timer.Simple(0.3, requestGuiltRows)
 end

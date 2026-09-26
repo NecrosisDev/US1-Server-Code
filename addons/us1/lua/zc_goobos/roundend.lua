@@ -75,7 +75,7 @@ end
 local keysDown = {}
 
 local function resetRoundState()
-    RE.Summary, RE.CopsSummary, RE.Prevote, RE.PrevoteAskedAt, RE.MapSummary = nil, nil, nil, nil, nil
+    RE.Summary, RE.CopsSummary, RE.Prevote, RE.PrevoteAskedAt, RE.MapSummary, RE.PrevoteAnswered = nil, nil, nil, nil, nil, nil
     -- A mode vote that started before the round formally ended is still running: keep it.
     if not RE.ModeVote.active then RE.ModeVote = freshModeVote() end
     -- The final ballot opens server-side in the same tick as ZB_EndRound (zc_vote_manager Integration 7), so it can
@@ -436,6 +436,7 @@ net.Receive("zc_map_prevote_state", function()
     -- Broadcasts after a change carry an empty yourVote: keep the one the reply to our ask gave us.
     if yourVote ~= "" or pool then RE.Prevote.yourVote = yourVote end
     if pool then RE.Prevote.pool = pool end
+    if pool or yourVote ~= "" or (RE.PrevoteAskedAt and RealTime() - RE.PrevoteAskedAt < 3) then RE.PrevoteAnswered = true end
 end)
 
 -- The whole map's numbers (zc_round_summary.lua rs2: sent with the last round summary before a map vote).
@@ -1653,7 +1654,8 @@ local function thinkPanel(panel)
 
     -- A broadcast (someone else pre-voting) can create RE.Prevote with only the ranking before this client ever asked;
     -- keep asking every 3 s until the personal reply (pool, yourVote, canChange) is in.
-    if (not RE.Prevote or not RE.Prevote.pool) and RealTime() - (RE.PrevoteAskedAt or -60) >= 3 then askPrevote() end
+    -- no pool at all (final ballot, prevote closed) answers p = 0: once answered, stop asking (final review 2026-09-26)
+    if not RE.PrevoteAnswered and (not RE.Prevote or not RE.Prevote.pool) and RealTime() - (RE.PrevoteAskedAt or -60) >= 3 then askPrevote() end
 
     local want = wantsCursor()
     -- The screen clicker is one global switch: the death panel stepping aside (or SolidMapVote's own close) can turn it
