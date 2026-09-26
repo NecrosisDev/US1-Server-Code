@@ -53,6 +53,31 @@ class CheckTests(unittest.TestCase):
             self.assertEqual(len(check.check_secrets([f])), 1)
 
 
+def killcam_viewer_sha256(root=ROOT):
+    """SHA-256 of the killcam viewer as the client assembles it (cl_viewer.lua): each viewer_parts file returns a Lua long
+    string minus its first character; Lua drops a newline right after the opening bracket and turns CRLF into LF."""
+    import hashlib, re
+    out = []
+    for i in range(1, 10):
+        s = (root / f"addons/us1/lua/zc_killcam/viewer_parts/cl_part_{i:02d}.lua").read_bytes().decode("utf8")
+        m = re.match(r"return string\.sub\(\[(=*)\[(.*)\]\1\], 2\)\s*$", s, re.S)
+        body = m.group(2)
+        if body[:2] in ("\r\n", "\n\r"):
+            body = body[2:]
+        elif body[:1] in ("\r", "\n"):
+            body = body[1:]
+        out.append(re.sub(r"\r\n|\n\r|\r", "\n", body)[1:])
+    return hashlib.sha256("".join(out).encode()).hexdigest()
+
+
+class KillcamDeliveryTests(unittest.TestCase):
+    def test_viewer_version_matches_parts(self):
+        """Editing a viewer_parts file without updating VERSION makes every client refuse the killcam viewer."""
+        digest = killcam_viewer_sha256()
+        for f in ["addons/us1/lua/zc_killcam/cl_viewer.lua", "addons/us1/lua/autorun/server/zc_killcam_viewer_delivery.lua"]:
+            self.assertIn(f'local VERSION="{digest}"', (ROOT / f).read_text(), f)
+
+
 class LayoutTests(unittest.TestCase):
     def test_no_legacy_tree(self):
         self.assertFalse((ROOT / "garrysmod").exists())
