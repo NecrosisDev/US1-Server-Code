@@ -130,9 +130,11 @@ hook.Add("PostDrawOpaqueRenderables", "ZCKillcam.Life", function(_, sky)
                 -- Deliberate diagnostic overlay, bounded to this recorded wound segment. Normal
                 -- depth-tested flight above; only this body inspection can show through the body.
                 local finish = LerpVector(b.bodyP, b.body.first, b.body.last)
-                render.DrawLine(b.body.first, finish, Color(90, 220, 255, 235 * fade), false)
-                render.DrawWireframeSphere(b.body.first, 1.2, 8, 6, Color(255, 210, 150, 230 * fade), true)
-                render.DrawWireframeSphere(finish, 1.4, 8, 6, Color(100, 225, 255, 230 * fade), true)
+                -- wound_fx: a faint red wisp and soft glows, not a neon line between two wire spheres
+                if V.Wound then V.Wound.Wisp(b.body.first, finish, b.t, 0.4, b.side, b.up, 0.5, 0.9, 0.3, V.Wound.Red, 120 * fade) end
+                render.SetMaterial(V.BulletGlow)
+                render.DrawSprite(b.body.first, 2.4, 2.4, Color(255, 200, 170, 180 * fade))
+                render.DrawSprite(finish, 2.8, 2.8, Color(255, 110, 90, 180 * fade))
             end
         end
     end

@@ -281,17 +281,8 @@ do
         -- Blood is cosmetic and requires the recorded organism corridor plus an
         -- owned victim. No guessed surface normal, sparks or explosion.
         if reduced or not b.body or not V.Gore or not V.Gore.Enabled:GetBool() or not V.Cinema.Target(state,b) then return end
-        local time = age * 0.18
-        render.SetMaterial(S.Metal)
-        for i = 1, 16 do
-            local a = i * 2.399963
-            local radial = b.side * math.cos(a) + b.up * math.sin(a)
-            local velocity = radial * (7 + i*1.1) - b.dir * (6 + i*1.6)
-            local point = b.to + velocity * time + Vector(0,0,-95*time*time)
-            local tail = point - velocity * math.min(time,0.02)
-            local bright = i % 3 == 0 and 1.35 or 1
-            render.DrawBeam(tail,point,0.09+i*0.011,0,1,Color(118*light.x*bright,10*light.y,8*light.z,215*fade))
-        end
+        -- wound_fx: back-spatter as soft blood droplets on arcs, not solid-colour streaks
+        V.Wound.Spray(b.to, -b.dir, b.side, b.up, age, 18, 6, 7, fade, light)
         -- A brief mist at the wound: three soft dark blooms that drift out and thin.
         if V.Gore.Blood then
             render.SetMaterial(V.Gore.Blood)
@@ -306,16 +297,8 @@ do
         -- along the round's line from the recorded trace end.
         local v2 = b.body.v2
         if v2 and v2.reason == "exited" and b.body.last and age <= 0.8 then
-            local et = math.max(0, age - 0.12) * 0.2
             local efade = fade * (1 - age / 0.8)
-            render.SetMaterial(S.Metal)
-            for i = 1, 7 do
-                local a = i * 2.399963
-                local radial = b.side * math.cos(a) + b.up * math.sin(a)
-                local velocity = radial * (3 + i*0.8) + b.dir * (14 + i*2.2)
-                local point = b.body.last + velocity * et + Vector(0,0,-95*et*et)
-                render.DrawBeam(point - velocity * math.min(et,0.02), point, 0.08+i*0.01, 0, 1, Color(104*light.x,9*light.y,7*light.z,200*efade))
-            end
+            V.Wound.Spray(b.body.last, b.dir, b.side, b.up, math.max(0, age - 0.12) * 1.1, 12, 14, 3, efade, light)
         end
     end
     function S.Trace(b,alpha)
@@ -323,22 +306,19 @@ do
         if not b.body then return end
         local reveal = V.BulletEase((b.t - 1.41) / 0.30) * alpha
         if reveal <= 0 then return end
-        -- A thin reached-only diagnostic, not a luminous bore or an anatomical exit.
-        local delta = b.body.last - b.body.first
-        local count = math.min(24, math.max(1,math.ceil(b.body.span / 2)))
-        for i = 0, count - 1 do
-            local first, last = i/count, math.min((i+0.55)/count,b.bodyP)
-            if first < last then render.DrawLine(b.body.first+delta*first,b.body.first+delta*last,Color(215,197,166,155*reveal),false) end
-        end
+        -- Only a wound trace (no recorded corridor): the reached part as a faint red wisp and a soft glow at its end.
         local at = LerpVector(b.bodyP,b.body.first,b.body.last)
-        render.DrawLine(at-b.side*.65,at+b.side*.65,Color(237,215,181,195*reveal),false)
-        render.DrawLine(at-b.up*.65,at+b.up*.65,Color(237,215,181,195*reveal),false)
+        local d = S.Diameter(b)
+        V.Wound.Wisp(b.body.first, at, b.t, 0.4, b.side, b.up, d * 1.3, d * 2.2, d * 0.5, V.Wound.Red, 110 * reveal)
+        render.SetMaterial(V.Wound.GlowNoZ)
+        render.DrawSprite(at, 2.4, 2.4, Color(255, 120, 100, 150 * reveal))
     end
     function S.Draw(state,b)
         if not S.Active() then return false end
         if not b or not b.at or b.done then return true end
         local alpha = V.BulletWeight(b)
         if alpha <= 0 then return true end
+        if V.Wound then V.Wound.Wake(b, alpha) end -- wound_fx: the translucent wake, in flight and briefly after contact
         if not b.landed then
             S.Projectile(b,b.at,alpha)
         else
@@ -475,8 +455,9 @@ do
     -- through the body once the round reaches them; the one the round is inside breathes; a box holding a lodge or a
     -- fragment mark keeps a red core. Nothing here runs without the organism module on the client.
     D.Organs = CreateClientConVar("zc_killcam_organs", "1", true, false, "Replay: show the organs the recorded round crossed")
-    D.Tissue = {flesh=Color(154,143,134), organ=Color(227,154,107), lung=Color(110,211,230), dense=Color(224,85,79),
-        vessel=Color(255,59,59), bone=Color(221,235,255), armor=Color(247,199,115)}
+    -- wound_fx: tissue tones, not diagnostic neon - pink lung, dark liver-red solid organs, pale bone
+    D.Tissue = {flesh=Color(196,128,116), organ=Color(206,96,86), lung=Color(236,150,162), dense=Color(150,38,38),
+        vessel=Color(255,52,52), bone=Color(236,226,206), armor=Color(247,199,115)}
     local function pointInBox(ax, x, y, z)
         local px, py, pz = x - ax[10], y - ax[11], z - ax[12]
         for a = 0, 2 do
@@ -576,15 +557,8 @@ do
                 local inside = reached < h.exit and (b.bodyP or 0) < 0.995
                 local breathe = (inside and not reduced) and (0.75 + math.sin(b.t * 9) * 0.25) or 1
                 local heat = 0.35 + 0.65 * math.min(1, h.deposit * 4)
-                local drawShape = istable(hg) and istable(hg.organism) and hg.organism.DrawOrganShape
-                if isfunction(drawShape) then -- organs2: the organ's own shape
-                    drawShape(h.box, Color(c.r, c.g, c.b, (28 + 70 * heat) * breathe * reveal), true)
-                    drawShape(h.box, Color(c.r, c.g, c.b, (90 + 100 * heat) * reveal))
-                    render.SetColorMaterial()
-                else
-                    render.DrawBox(h.box[1], h.box[2], h.box[3], h.box[4], Color(c.r, c.g, c.b, (28 + 70 * heat) * breathe * reveal))
-                    render.DrawWireframeBox(h.box[1], h.box[2], h.box[3], h.box[4], Color(c.r, c.g, c.b, (90 + 100 * heat) * reveal), false)
-                end
+                -- wound_fx: the organ's own shape as a soft solid (no wireframe: that was the admin hitbox debug view)
+                V.Wound.OrganSolid(h.box, Color(c.r, c.g, c.b, (40 + 80 * heat) * breathe * reveal))
                 if h.lodged or h.fragment then
                     render.DrawBox(h.box[1], h.box[2], h.box[3] * 0.4, h.box[4] * 0.4, Color(255, 105, 111, 120 * reveal))
                 end
@@ -643,38 +617,24 @@ do
         local reveal=V.BulletEase((b.t-start)/.16)*alpha
         if reveal<=0 then return true end
         local progress = b.bodyP or 0
-        local point, direction, depth=D.At(body,progress)
-        direction=direction or b.dir
+        local point=D.At(body,progress)
         local reached=body.span*progress
         local reduced = V.Cinema.Reduced:GetBool()
         local v2 = body.v2
-        -- 2026-09-24 (owner: "improve the penetration"): the corridor is a lit bore that cools as the round loses
-        -- energy (the recorded v2 energy sets how cold the far end is; 0.35 when no v2), with a depth-free core so the
-        -- path reads through the body from any angle - part 07's rule: flight respects walls, the wound diagnostic
-        -- ignores depth. The head is a glow with a short comet tail; marks are glows with a thin ring; a deflection
-        -- shows the kink between the recorded segments; a fragment throws splinters. Same data, same timing.
+        -- The wound reads through the body from any angle (part 07's rule: flight respects walls, the wound view ignores
+        -- depth). Same recorded data and timing as before; the look is wound_fx (V.Wound, below).
         D.Glow = D.Glow or Material("sprites/light_glow02_add_noz")
-        local energyEnd = v2 and v2.energy or 0.35
-        local span = math.max(body.span, 0.001)
-        local coreWidth=math.Clamp(V.ShotVisual.Diameter(b)*1.8,0.8,1.8)
-        D.DrawOrgans(b, reveal, reached, reduced) -- under the bore: the boxes the round has reached so far
-        render.SetMaterial(V.Cinema.Beam)
-        for i=2,#body.path do
-            if body.distances[i-1]>=reached then break end
-            local last=body.distances[i]<=reached and body.path[i] or point
-            local heat0 = 1-(1-energyEnd)*(body.distances[i-1]/span)
-            local heat1 = 1-(1-energyEnd)*(math.min(body.distances[i],reached)/span)
-            render.DrawBeam(body.path[i-1],last,coreWidth*3.2*heat0,0,1,Color(69,180,208,70*reveal*heat0))
-            render.DrawBeam(body.path[i-1],last,coreWidth*(0.6+0.5*heat1),0,1,Color(187+60*heat1,240,241,225*reveal))
-            render.DrawLine(body.path[i-1],last,Color(200,246,255,150*reveal*heat1),true)
-        end
+        D.DrawOrgans(b, reveal, reached, reduced) -- under the channel: the organs the round has reached so far
+        -- wound_fx: the permanent channel as a faint red wisp, the temporary cavity as pulsing flesh orbs sized by the
+        -- energy deposited and the tissue it is in, and the recorded fragments as small gibs (V.Wound, below).
+        V.Wound.Channel(b, body, reached, point, reveal)
+        V.Wound.Cavity(b, body, reached, reveal, reduced)
+        V.Wound.Fragments(b, body, reveal, reduced)
         if progress < 0.995 then
             render.SetMaterial(D.Glow)
             local pulse = reduced and 1 or (1 + math.sin(b.t*22)*0.12)
-            render.DrawSprite(point, 3.2*pulse, 3.2*pulse, Color(255,250,235,235*reveal))
-            render.DrawSprite(point, 7*pulse, 7*pulse, Color(140,220,245,90*reveal))
-            render.SetMaterial(V.Cinema.Beam)
-            render.DrawBeam(point-direction*math.min(4, depth or 0),point,coreWidth*1.6,0,1,Color(255,244,220,200*reveal))
+            render.DrawSprite(point, 3.2*pulse, 3.2*pulse, Color(255,236,220,220*reveal))
+            render.DrawSprite(point, 7*pulse, 7*pulse, Color(255,110,90,70*reveal))
         end
         if v2 then
             for _,mark in ipairs(v2.events) do
@@ -685,57 +645,314 @@ do
                     local age = math.Clamp((reached - mark.distance) / 6, 0, 1)
                     local pulse = mark.kind == "fragment" and (1.08 + math.sin(b.t*10)*0.08) or 1
                     local pop = reduced and 1 or (1 + 0.9*(1-age))
+                    -- wound_fx: a mark is a soft glow that pops as the round reaches it (no wire sphere); fragments fly as
+                    -- gibs (V.Wound.Fragments) and a deflection shows in the channel's own kink
                     render.SetMaterial(D.Glow)
-                    render.DrawSprite(mark.pos, style.radius*2.6*pop, style.radius*2.6*pop, Color(c.r,c.g,c.b,200*reveal))
-                    render.DrawSprite(mark.pos, style.radius*1.1, style.radius*1.1, Color(255,255,255,170*reveal))
-                    render.DrawWireframeSphere(mark.pos,style.radius*pulse,10,8,Color(c.r,c.g,c.b,120*reveal),false)
-                    if mark.kind == "fragment" and not reduced then
-                        for k=1,5 do
-                            local a = k*1.2566
-                            local spread = ((b.side*math.cos(a)+b.up*math.sin(a))*0.55 + direction*0.8):GetNormalized()
-                            render.DrawLine(mark.pos, mark.pos+spread*(2.5+age*3), Color(c.r,c.g,c.b,190*reveal*(1-age*0.5)), true)
-                        end
-                    elseif mark.kind == "deflect" then
-                        local at, dirAt = D.At(body, math.Clamp(mark.distance/span,0,1))
-                        local before = D.At(body, math.Clamp((mark.distance-0.5)/span,0,1))
-                        if at and dirAt and before then
-                            local incoming = mark.distance > 0.5 and (before - at) or -direction
-                            if incoming:LengthSqr() > 0.0001 then render.DrawLine(at, at + incoming:GetNormalized()*3, Color(c.r,c.g,c.b,220*reveal), true) end
-                            render.DrawLine(at, at + dirAt*3, Color(255,255,255,220*reveal), true)
-                        end
-                    end
+                    render.DrawSprite(mark.pos, style.radius*2.2*pop*pulse, style.radius*2.2*pop*pulse, Color(c.r,c.g,c.b,150*reveal*(1-age*0.5)))
+                    render.DrawSprite(mark.pos, style.radius*0.8, style.radius*0.8, Color(255,255,255,120*reveal*(1-age*0.6)))
                 end
             end
         end
-        -- The recorded v2 marks distinguish entry, armor, deflection, expansion, fragments and the terminal event.
-        local radius=math.Clamp(V.ShotVisual.Diameter(b)*.65,.16,.65)
-        local side=direction:Cross(Vector(0,0,1))
-        if side:LengthSqr()<.01 then side=direction:Cross(Vector(1,0,0)) end
-        side:Normalize()
-        local up=side:Cross(direction):GetNormalized()
-        local tail=point-direction*math.min(radius*4,depth or 0)
-        local colour=Color(187,240,241,235*reveal)
-        local rim={tail+side*radius,tail+up*radius,tail-side*radius,tail-up*radius}
-        for i=1,4 do
-            render.DrawLine(point,rim[i],colour,true)
-            render.DrawLine(rim[i],rim[i%4+1],colour,true)
-        end
         local stopped = (b.bodyP or 0)>=1 and (body.outcome==1 or (v2 ~= nil and v2.reason=="lodged"))
         if stopped then
-            -- The stop: a slow-breathing glow where the round came to rest, and the fixed cross marker through the beat.
+            -- The stop: a slow-breathing glow where the round came to rest.
             render.SetMaterial(D.Glow)
             local breathe = reduced and 1 or (1 + math.sin(b.t*4)*0.18)
             render.DrawSprite(point, 4.5*breathe, 4.5*breathe, Color(255,105,111,150*reveal))
-            render.DrawLine(point-side*1.4,point+side*1.4,colour,true)
-            render.DrawLine(point-up*1.4,point+up*1.4,colour,true)
         elseif (b.bodyP or 0)>=1 and v2 ~= nil and v2.reason=="exited" then
             render.SetMaterial(D.Glow)
-            render.DrawSprite(point, 5, 5, Color(120,224,205,140*reveal))
+            render.DrawSprite(point, 5, 5, Color(255,120,100,140*reveal)) -- the exit wound
         end
         return true
     end
 end
 -- END PENETRATION VIEW
+
+-- BEGIN WOUND FX (wound_fx_20260926). Owner: "transparent, wispy trails, not debug-looking solid-color trails ... small
+-- gibs for the fragments, and a bright red, fleshy orb to emulate cavitation ... pay attention to ballistics and the
+-- organism". Everything here is driven by the recorded round and the server's own tissue model: the diameter
+-- (V.ShotVisual.Diameter), the v2 energy the round kept, whether and where it expanded, where it fragmented and where
+-- each fragment stopped (v2 marks), and the organ boxes the corridor crossed with the energy left in each (D.Hits, the
+-- same sh_ballistics_v2 tissue classes the server walked). Scoped: the assembled viewer sits at LuaJIT's 200-local limit.
+do
+    local W = {}
+    V.Wound = W
+    W.Trail = Material("trails/smoke")
+    W.GlowNoZ = Material("sprites/light_glow02_add_noz")
+    W.Flesh = CreateMaterial("zckc_cavity_v1", "UnlitGeneric", {["$basetexture"] = "vgui/white", ["$translucent"] = 1,
+        ["$vertexcolor"] = 1, ["$vertexalpha"] = 1, ["$nocull"] = 1})
+    local fleshTexture = Material("models/flesh"):GetTexture("$basetexture")
+    if fleshTexture then W.Flesh:SetTexture("$basetexture", fleshTexture) end
+    W.Vapour, W.Red = Color(226, 231, 238), Color(122, 18, 16)
+    -- Temporary-cavity response per tissue class (V2.Classify): elastic, low-density lung stretches and springs back;
+    -- the solid organs (heart, liver, spleen, kidneys: "dense") are inelastic and tear; bone fractures instead of
+    -- stretching; armor does not cavitate.
+    W.Stretch = {flesh = 1.0, organ = 1.0, vessel = 0.9, dense = 1.35, lung = 0.55, bone = 0.2, armor = 0}
+    -- Fragment stand-ins by what the round broke on: bone chips off a bone box, metal off a plate, flesh otherwise.
+    W.GibSet = {
+        bone = {"models/gibs/hgibs_rib.mdl", "models/gibs/hgibs_scapula.mdl", "models/gibs/hgibs_spine.mdl"},
+        armor = {"models/gibs/metal_gib4.mdl", "models/gibs/metal_gib5.mdl", "models/gibs/metal_gib2.mdl"},
+        flesh = {"models/gibs/antlion_gib_small_1.mdl", "models/gibs/antlion_gib_small_2.mdl"},
+    }
+    W.GibTint = {bone = {0.93, 0.88, 0.80}, armor = {0.62, 0.64, 0.68}, flesh = {0.78, 0.22, 0.18}}
+    W.Mtx = Matrix()
+    local tint = Color(0, 0, 0, 0) -- one colour, refilled per vertex: these run every frame of the shot
+    local function fill(c, r, g, b, a) c.r, c.g, c.b, c.a = r, g, b, math.Clamp(a, 0, 255) return c end
+
+    -- A translucent, turbulent ribbon from `tail` to `tip`: two soft layers of the smoke trail texture whose
+    -- centreline drifts sideways (more towards the tail, where the air or tissue has had longer to move) and whose
+    -- opacity rises towards the tip. Never a solid colour, never a hard line.
+    function W.Wisp(tail, tip, t, seed, side, up, tipW, tailW, spread, col, alpha)
+        if alpha <= 0.5 then return end
+        local delta = tip - tail
+        local len = delta:Length()
+        if len < 0.05 then return end
+        local n = math.Clamp(math.ceil(len / 3), 3, 32)
+        render.SetMaterial(W.Trail)
+        for layer = 1, 2 do
+            local wide = layer == 1
+            render.StartBeam(n + 1)
+            for i = 0, n do
+                local f = i / n
+                local s = f * len
+                local drift = (1 - f) * spread * (wide and 1 or 0.55)
+                local a = math.sin(s * 0.41 + t * 1.9 + seed + layer)
+                local c = math.cos(s * 0.29 - t * 1.4 + seed * 1.7 + layer * 2)
+                local p = tail + delta * f + side * (a * drift) + up * (c * drift)
+                local width = Lerp(f, tailW, tipW) * (wide and 1 or 0.4)
+                render.AddBeam(p, width, s / 20 - t * 0.5 + seed, fill(tint, col.r, col.g, col.b, alpha * (wide and 0.5 or 1) * (f ^ 0.8)))
+            end
+            render.EndBeam()
+        end
+    end
+
+    -- The round's wake in the air: short, pale, widening and drifting behind it, lingering briefly after contact.
+    function W.Wake(b, alpha)
+        local age = b.landed and math.max(0, b.t - 1.25) or 0
+        local linger = 1 - math.Clamp(age / 0.9, 0, 1)
+        if linger <= 0 then return end
+        local d = V.ShotVisual.Diameter(b)
+        local tip = b.landed and b.to or b.at
+        local length = math.min(b.landed and b.span or b.span * (b.p or 0), 72)
+        if length < 0.5 then return end
+        W.Wisp(tip - b.dir * length, tip, b.t, 1.3, b.side, b.up, d * 1.6, d * 8 + age * 6, 0.9 + age * 3, W.Vapour, 70 * alpha * linger)
+    end
+
+    -- Where the recorded round expanded (a v2 "expand" mark), as a distance along the corridor; nil for FMJ/AP.
+    local function expandAt(body)
+        if body.expandAt ~= nil then return body.expandAt or nil end
+        body.expandAt = false
+        for _, m in ipairs(body.v2 and body.v2.events or {}) do
+            if m.kind == "expand" then body.expandAt = m.distance break end
+        end
+        return body.expandAt or nil
+    end
+
+    -- Peak temporary-cavity radius at distance x along the corridor. The energy the round deposits per unit length
+    -- there (the organ box it is in: D.Hits deposit / its depth; else the corridor's average loss) sets the size, the
+    -- energy it still carries scales it, the tissue class says how far that tissue stretches, and an expanded round
+    -- (recorded "expand" mark behind x) throws a wider cavity. World units; the game's 52.5 units per metre.
+    function W.CavityRadius(body, x, d)
+        local span = math.max(body.span, 0.001)
+        local energyEnd = body.v2 and body.v2.energy or 0.35
+        local eIn = 1 - (1 - energyEnd) * math.Clamp(x / span, 0, 1)
+        local class, rate = "flesh", (1 - energyEnd) / span
+        for _, h in ipairs(body.organs or {}) do
+            if x >= h.enter and x <= h.exit then
+                class, rate = h.class, h.deposit / math.max(h.exit - h.enter, 0.5)
+                if h.class ~= "bone" then break end -- a soft organ inside a bone box is what stretches
+            end
+        end
+        local grow = W.Stretch[class] or 1
+        local ex = expandAt(body)
+        if ex and x >= ex then grow = grow * 1.6 end
+        return math.Clamp(d * (6 + 30 * math.Clamp(rate * 5, 0, 1)) * grow * (0.45 + 0.55 * eIn), 0, 7), class
+    end
+
+    -- Seconds since the round passed distance x (the corridor reveal runs over `duration` from `start`).
+    local function sincePassed(b, body, x)
+        local start, duration = b.cinematic and 1.41 or 1.30, b.cinematic and 0.95 or 0.45
+        local span = math.max(body.span, 0.001)
+        return ((b.bodyP or 0) - x / span) * duration + math.max(0, b.t - (start + duration))
+    end
+
+    -- The permanent wound channel: a faint dark-red wisp along the recorded path, as far as the round has reached.
+    function W.Channel(b, body, reached, point, alpha)
+        local d = V.ShotVisual.Diameter(b)
+        for i = 2, #body.path do
+            if body.distances[i - 1] >= reached then break end
+            local last = body.distances[i] <= reached and body.path[i] or point
+            W.Wisp(body.path[i - 1], last, b.t, i * 0.7, b.side, b.up, d * 1.3, d * 2.2, d * 0.6, W.Red, 120 * alpha)
+        end
+    end
+
+    -- The temporary cavity: bright red, fleshy orbs along the reached corridor. Each swells as the round passes (the
+    -- cavity opens just behind the tip), collapses and pulses a few times, and settles towards the permanent channel.
+    -- Reduced motion: one steady, smaller orb per sample, no pulsing.
+    function W.Cavity(b, body, reached, alpha, reduced)
+        local d = V.ShotVisual.Diameter(b)
+        local stepLen = math.max(1.4, body.span / 14)
+        cam.IgnoreZ(true)
+        render.SetMaterial(W.Flesh)
+        local glows = {}
+        local x = 0
+        while x <= reached and x <= body.span do
+            local rmax, class = W.CavityRadius(body, x, d)
+            if rmax > 0.05 then
+                local age = sincePassed(b, body, x)
+                local r, fade
+                if reduced then
+                    r, fade = rmax * 0.55, 0.8
+                else
+                    local rise = math.Clamp(age / 0.08, 0, 1)
+                    local settle = math.max(0, age - 0.08)
+                    local pulse = math.abs(math.cos(settle * 16)) ^ 0.6
+                    r = rmax * math.sin(rise * math.pi / 2) * (0.18 + 0.82 * math.exp(-settle / 0.28) * pulse)
+                    fade = 0.35 + 0.65 * math.exp(-settle / 0.5)
+                end
+                if r > 0.05 then
+                    local at = V.Penetration.At(body, math.Clamp(x / math.max(body.span, 0.001), 0, 1))
+                    if at then
+                        local dense = class == "dense" and 1 or 0
+                        render.DrawSphere(at, r, 14, 10, fill(tint, 255, 58 - 18 * dense, 46 - 14 * dense, 150 * fade * alpha))
+                        glows[#glows + 1] = {at, r, fade}
+                    end
+                end
+            end
+            x = x + stepLen
+        end
+        render.SetMaterial(W.GlowNoZ)
+        for _, g in ipairs(glows) do
+            render.DrawSprite(g[1], g[2] * 3.4, g[2] * 3.4, fill(tint, 255, 36, 24, 70 * g[3] * alpha))
+        end
+        cam.IgnoreZ(false)
+    end
+
+    local function pickModel(class, k)
+        local set = W.GibSet[class] or W.GibSet.bone
+        local G = V.Gore
+        if not G or not isfunction(G.Model) then return end
+        for j = 0, #set - 1 do
+            local path = set[(k + j - 1) % #set + 1]
+            local m = G.Model("wfx:" .. path, path)
+            if IsValid(m) then return m, false end
+        end
+        return G.Model("wfx:fallback", G.GibModel), true
+    end
+
+    -- Fragment paths from the recorded v2 marks: they leave from the "fragment" mark (the bone or plate the round
+    -- broke on) and end at that fragment's own terminal mark (lodge / exit / limit, tagged with its index). A fragment
+    -- with no recorded end is shown heading 20-45 degrees off the round's line (sh_ballistics_v2 fragAngleMin/Span)
+    -- for a distance set by the energy the round kept. Built once per bullet.
+    function W.FragmentPaths(b, body)
+        if body.fragPaths ~= nil then return body.fragPaths end
+        body.fragPaths = false
+        local v2 = body.v2
+        if not v2 or v2.fragments <= 0 then return false end
+        local spawn, ends = nil, {}
+        for _, m in ipairs(v2.events) do
+            if m.kind == "fragment" and not spawn then spawn = m elseif m.fragment and m.kind ~= "fragment" then ends[m.fragment] = m end
+        end
+        if not spawn then return false end
+        local class = "bone"
+        for _, h in ipairs(body.organs or {}) do
+            if spawn.distance >= h.enter - 0.5 and spawn.distance <= h.exit + 0.5 and (h.class == "bone" or h.class == "armor") then class = h.class break end
+        end
+        local paths = {}
+        for k = 1, math.min(v2.fragments, 8) do
+            local stop = ends[k]
+            local to = stop and stop.pos
+            if not to then
+                local off = math.rad(20 + 25 * ((k * 0.618034) % 1))
+                local around = k * 2.399963
+                local dir = b.dir * math.cos(off) + (b.side * math.cos(around) + b.up * math.sin(around)) * math.sin(off)
+                to = spawn.pos + dir * (3 + 6 * v2.energy)
+            end
+            paths[k] = {from = spawn.pos, to = to, dist = spawn.distance, class = class, k = k}
+        end
+        body.fragPaths = paths
+        return paths
+    end
+
+    -- Small gibs on those paths: they start as the round reaches the break, decelerate through tissue (ease-out) and
+    -- tumble less as they slow, each leaving a thin blood wisp behind it.
+    function W.Fragments(b, body, alpha, reduced)
+        local paths = W.FragmentPaths(b, body)
+        if not paths then return end
+        local d = V.ShotVisual.Diameter(b)
+        cam.IgnoreZ(true)
+        for _, f in ipairs(paths) do
+            local age = sincePassed(b, body, f.dist)
+            if age > 0 then
+                local q = 1 - (1 - math.Clamp(age / 0.35, 0, 1)) ^ 3
+                local at = LerpVector(q, f.from, f.to)
+                local model, fallback = pickModel(f.class, f.k)
+                if IsValid(model) then
+                    local spin = reduced and 0 or (1 - q) * age * 720
+                    model:SetPos(at)
+                    model:SetAngles(Angle(f.k * 47 + spin, f.k * 91 + spin * 0.7, f.k * 23))
+                    model:SetModelScale(fallback and 0.05 or (0.06 + 0.02 * (f.k % 3)))
+                    if fallback then model:SetSubMaterial(0, "models/flesh") end
+                    local c = W.GibTint[f.class] or W.GibTint.bone
+                    render.SetColorModulation(c[1], c[2], c[3])
+                    render.SetBlend(math.Clamp(alpha, 0, 1))
+                    model:SetupBones() model:DrawModel()
+                    render.SetBlend(1)
+                    render.SetColorModulation(1, 1, 1)
+                end
+                W.Wisp(f.from, at, b.t, f.k * 1.9, b.side, b.up, d * 0.5, d * 0.9, d * 0.3, W.Red, 110 * alpha)
+            end
+        end
+        cam.IgnoreZ(false)
+    end
+
+    -- Blood thrown from a wound: droplets on ballistic arcs (the replay's -95 u/s^2 presentation gravity), soft blood
+    -- sprites only. `forward` is the speed along `dir` (back towards the shooter at the entry, on along the line at an
+    -- exit), `spread` the radial speed.
+    function W.Spray(origin, dir, side, up, age, count, forward, spread, alpha, light)
+        local G = V.Gore
+        if not G or not G.Blood or alpha <= 0 then return end
+        render.SetMaterial(G.Blood)
+        local time = age * 0.18
+        for i = 1, count do
+            local a = i * 2.399963
+            local radial = side * math.cos(a) + up * math.sin(a)
+            local velocity = radial * (spread + i * 0.9) + dir * (forward + i * 1.4)
+            local p = origin + velocity * time + Vector(0, 0, -95 * time * time)
+            local size = 0.35 + (i % 4) * 0.18
+            render.DrawSprite(p, size, size, fill(tint, 112 * light.x, 9 * light.y, 7 * light.z, 210 * alpha * (1 - i / (count + 4))))
+        end
+    end
+
+    -- Organs as soft solid shapes (their own ellipsoid / capsule / box from sh_hitboxorgans), never wireframes.
+    function W.OrganSolid(box, col)
+        render.SetColorMaterial()
+        local s = box.v2shape
+        if s ~= "ellipsoid" and s ~= "capsule" then render.DrawBox(box[1], box[2], box[3], box[4], col) return end
+        local half = (box[4] - box[3]) / 2
+        local centre = LocalToWorld((box[3] + box[4]) / 2, angle_zero, box[1], box[2])
+        if s == "ellipsoid" then
+            W.Mtx:Identity() W.Mtx:Translate(centre) W.Mtx:Rotate(box[2]) W.Mtx:Scale(half)
+            cam.PushModelMatrix(W.Mtx)
+            render.DrawSphere(vector_origin, 1, 16, 12, col)
+            cam.PopModelMatrix()
+            return
+        end
+        local f, r, u = box[2]:Forward(), -box[2]:Right(), box[2]:Up()
+        local axis, rad, h
+        if half.x >= half.y and half.x >= half.z then axis, rad, h = f, math.max(half.y, half.z), half.x
+        elseif half.y >= half.z then axis, rad, h = r, math.max(half.x, half.z), half.y
+        else axis, rad, h = u, math.max(half.x, half.y), half.z end
+        h = math.max(h - rad, 0)
+        render.DrawSphere(centre - axis * h, rad, 12, 8, col)
+        render.DrawSphere(centre + axis * h, rad, 12, 8, col)
+        local mid = Vector(rad, rad, rad)
+        if axis == f then mid.x = h elseif axis == r then mid.y = h else mid.z = h end
+        render.DrawBox(centre, box[2], -mid, mid, col)
+    end
+end
+-- END WOUND FX
+
 
 
 

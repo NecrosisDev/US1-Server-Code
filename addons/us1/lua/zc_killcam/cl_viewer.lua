@@ -1,6 +1,6 @@
 -- Small native entry point. Existing clients can fetch missing parts after a live update.
 if not CLIENT then return end
-local VERSION="b0b37c4755aa1357ba3165fbb91c95fafd89b49ee3c8bd742cc6338232d481ef"
+local VERSION="a960b2349b80747f188fe05f54b9a34060f8cbaf7da93c024c07cd2e3613e64c"
 local function ack(ok,detail)
     local function send()
         if util.NetworkStringToID("ZCKCViewerAck")==0 then return false end
