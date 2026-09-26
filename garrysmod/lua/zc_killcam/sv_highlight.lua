@@ -11,7 +11,7 @@ assert(K.Cut and K.SendBlob and K.Life, "clips, net and life sequence must load 
 
 K.Highlight = K.Highlight or {}
 local H = K.Highlight
-H.Version = "20260924.hl8"
+H.Version = "20260926.hl9"
 
 -- PROVISIONAL(2026-09-21, window and weights are first guesses; tune from the per-round pick line in the server log, ratify-by: 2026-10-05)
 local PRE, POST, MAX_LEN, RADIUS = 4, 1.5, 8, 1200 -- seconds before the first kill, after the last, longest window; who is in the scene
@@ -60,6 +60,9 @@ local BLIND, BOT, CLUTCH = 0.25, 0.35, 0.5
 -- ends by showing the whole server a highlight reel of it, captioned as the best moment of the round. That is the
 -- server celebrating the offence. It is discounted to near nothing instead; the clip is still CUT and still
 -- reportable through the normal death replay, it just stops competing to be the reel.
+-- Only an UNPROVOKED one (sv_intent.lua, 2026-09-26): an innocent who is shot first and wins the fight, or who drops
+-- somebody opening fire on a third player, is the kind of play the owner wants MORE of, and burying it as an offence
+-- told the server the opposite. Those score like any other kill.
 local RDM = 0.1
 local function isBot(slot)
     local who = K.Identity(slot)
@@ -78,8 +81,18 @@ end
 
 -- Scores the events between t0 and t1. Returns the score, the star's slot and what they did. No star, no highlight:
 -- a moment needs somebody who got a kill in it.
+-- Whether a's wrongful-looking attack on b was a's own doing. A kill between them this round was judged when it
+-- happened (K.KillIntent); an exchange with no kill in it is judged as it stands at the window's end. With no intent
+-- layer loaded the answer is "yes", which is exactly the behaviour before it existed.
+local function unprovokedAt(a, b, t)
+    local wa, wb = K.Identity(a), K.Identity(b)
+    if not (wa and wb and K.KillIntent and K.Intent and K.Intent.Judge) then return true end
+    return (K.KillIntent(wa.uid, wb.uid) or K.Intent.Judge(wa.uid, wb.uid, t)) == "unprovoked"
+end
+
 function H.Score(t0, t1)
     local by, taken, lastGroup, lastClear, seen, people = {}, {}, {}, {}, {}, 0
+    local function unprovoked(a, b) return unprovokedAt(a, b, t1) end
     -- Only traitor modes have "innocent" and "traitor" at all; everywhere else every frag would read as friendly
     -- fire (K.TraitorRound, sv_clips.lua). Read once for the whole window, not per event.
     local traitorRound = K.TraitorRound and K.TraitorRound() or false
@@ -98,6 +111,7 @@ function H.Score(t0, t1)
             else
                 -- "ivi" alone. "ivt" is the hero play and "tvt" is the game working; only innocent-on-innocent is the offence.
                 m = K.InstanceTag(true, isTraitor(a), isTraitor(b)) == "ivi" and RDM or 1
+                if m < 1 and not unprovoked(a, b) then m = 1 end
             end
             row[b] = m
         end
@@ -109,28 +123,44 @@ function H.Score(t0, t1)
         if not seen[a] then seen[a] = true people = people + 1 end
         if not seen[b] then seen[b] = true people = people + 1 end
         local s = by[a]
-        if not s then s = {kills = 0, heads = 0, dmg = 0, shown = 0, victims = {}} by[a] = s end
-        local look = (clear and 1 or BLIND) * (isBot(b) and BOT or 1) * worthShowing(a, b)
+        if not s then s = {kills = 0, lawful = 0, heads = 0, dmg = 0, shown = 0, victims = {}, payShown = 0, payHeads = 0, payDmg = 0} by[a] = s end
+        local show = worthShowing(a, b)
+        -- What the faucet pays on: the same weights with an unprovoked teamkill worth NOTHING rather than a tenth.
+        -- The reel keeps its tenth (a clip must still be cuttable and reportable); an economy has no reason to pay
+        -- anything at all for the act players are banned for.
+        local pays = show < 1 and 0 or 1
+        local look = (clear and 1 or BLIND) * (isBot(b) and BOT or 1)
         if kind == EV_HIT then
             local take = math.min(dmg, DMG_CAP - (taken[b] or 0)) -- a victim is only worth so much, however long they are shot at
-            if take > 0 then taken[b] = (taken[b] or 0) + take s.dmg = s.dmg + take * look end
+            if take > 0 then
+                taken[b] = (taken[b] or 0) + take
+                s.dmg = s.dmg + take * look * show
+                s.payDmg = s.payDmg + take * look * pays
+            end
             lastGroup[b], lastClear[b] = hitgroup, clear
             s.wep = wep
         elseif kind == EV_DEATH then
             s.kills, s.peak = s.kills + 1, t
+            if show >= 1 then s.lawful = s.lawful + 1 end
             -- `shown` is the kill count the SCORE uses: a kill the camera cannot show is most of a kill missing.
-            local show = worthShowing(a, b)
-            s.shown = s.shown + (lastClear[b] == false and BLIND or 1) * (isBot(b) and BOT or 1) * show
+            local seenKill = (lastClear[b] == false and BLIND or 1) * (isBot(b) and BOT or 1)
+            s.shown = s.shown + seenKill * show
+            s.payShown = s.payShown + seenKill * pays
             s.victims[#s.victims + 1] = b
-            if lastGroup[b] == HEADSHOT then s.heads = s.heads + (lastClear[b] == false and BLIND or 1) * show end
+            if lastGroup[b] == HEADSHOT then
+                local seenHead = lastClear[b] == false and BLIND or 1
+                s.heads = s.heads + seenHead * show
+                s.payHeads = s.payHeads + seenHead * pays
+            end
         end
     end)
     local total, star, starWorth = 0, nil, 0
     for slot, s in pairs(by) do
         local worth = s.shown * KILL + s.heads * HEAD + s.dmg
-        -- Kept on the row so a payer (sv_points.lua) reads the SAME number the reel was picked by,
+        -- Kept on the row so a payer (sv_points.lua) reads the SAME weights the reel was picked by,
         -- rather than keeping a second copy of this formula that can drift away from this one.
         s.worth = worth
+        s.pay = s.payShown * KILL + s.payHeads * HEAD + s.payDmg
         total = total + worth
         if s.kills > 0 and (worth > starWorth or (worth == starWorth and slot < star)) then star, starWorth = slot, worth end
     end
@@ -140,7 +170,10 @@ function H.Score(t0, t1)
     local clutch = math.min(taken[star] or 0, DMG_CAP) * CLUTCH
     -- `by` is returned as a fifth value so a payer can reach every participant's worth, not just the
     -- star's. Purely additive: the four callers ahead of it are unchanged.
-    return total + (s.kills - 1) * MULTI + math.max(people - 2, 0) * CROWD + clutch, star, s, seen, by
+    -- The multi-kill bonus counts LAWFUL kills only. Counted on every kill, it handed an RDMer who dropped three
+    -- teammates +120 on top of the discounted kills - enough to clear the floor and beat a clean single kill, which
+    -- put the spree back on every screen as the round's best moment and undid the discount above.
+    return total + math.max(s.lawful - 1, 0) * MULTI + math.max(people - 2, 0) * CROWD + clutch, star, s, seen, by
 end
 
 local best, burst, last -- this round's best cut; the burst of kills being waited out; the last round's packed highlight
@@ -428,13 +461,18 @@ local function isMelee(wep)
 end
 -- The killing blow's weapon for every death in [t0, t1]; the newest melee one wins (funniest is "most recent",
 -- there being no better ordering available). Mirrors H.Score's own (t0, t1) window shape.
+-- An unprovoked teamkill is never the funny moment (2026-09-26): with nothing clearing the floor, the fallback used to
+-- pick ANY melee kill, so an innocent axing an innocent was shown to the whole server as the round's comic relief.
 function H.Funny(t0, t1)
     local lastWep, pick = {}, nil
+    local traitorRound = K.TraitorRound and K.TraitorRound() or false
     K.EachEvent(t0, t1, function(t, kind, a, b, _, _, wep)
         if kind == EV_HIT and wep and wep > 0 then lastWep[b] = wep end
         if kind == EV_DEATH and a and a > 0 then
             local w = lastWep[b]
-            if isMelee(w) and (not pick or t > pick.t) then pick = {t = t, star = a, victim = b, wep = w} end
+            local wrong = traitorRound and K.Identity(a) and K.Identity(b) and K.InstanceTag(true, isTraitor(a), isTraitor(b)) == "ivi"
+                and unprovokedAt(a, b, t)
+            if isMelee(w) and not wrong and (not pick or t > pick.t) then pick = {t = t, star = a, victim = b, wep = w} end
         end
     end)
     return pick

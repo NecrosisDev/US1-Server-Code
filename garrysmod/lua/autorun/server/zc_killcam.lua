@@ -4,6 +4,7 @@ include("zc_killcam/sv_recorder.lua")
 include("zc_killcam/sv_clips.lua")
 include("zc_killcam/sv_net.lua")
 include("zc_killcam/sv_life.lua")
+include("zc_killcam/sv_intent.lua") -- before the highlight, karma and points: all three read who started a fight
 include("zc_killcam/sv_highlight.lua")
 include("zc_killcam/sv_karma.lua")
 include("zc_killcam/sv_tape.lua")

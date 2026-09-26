@@ -11,8 +11,10 @@
 -- could SHOW: a kill through a wall is worth a quarter, a bot is worth about a third, and an innocent killing an
 -- innocent in a traitor round is worth a tenth. Those discounts exist to stop the round-end reel celebrating an
 -- RDMer, and they do exactly as much good pointed at an economy -- a faucet fed by raw kills pays best for the
--- kill-on-sight play the owner wants less of. Nothing here re-derives any of that; it reads `s.worth`, the same
--- number the reel is picked by.
+-- kill-on-sight play the owner wants less of. Nothing here re-derives any of that; it reads `s.pay`, worked out by
+-- the same function with the same weights as the `s.worth` the reel is picked by. The one difference: an UNPROVOKED
+-- teamkill pays nothing here, where the reel still gives it a tenth (2026-09-26). Self-defence and stopping an
+-- attacker pay in full (sv_intent.lua), so shooting back is never the expensive choice.
 --
 -- THIS FILE PAYS NOBODY UNTIL IT IS SWITCHED ON. Default is 1: it does the whole calculation and writes the line
 -- to the server log, and calls nothing that touches a balance. That is the house pattern (sv_karma.lua, ChatGuard)
@@ -23,7 +25,7 @@ assert(K.Highlight and K.Highlight.Score, "sv_highlight.lua must load first")
 
 K.Points = K.Points or {}
 local P = K.Points
-P.Version = "20260922.pts1"
+P.Version = "20260926.pts2"
 
 local H = K.Highlight
 
@@ -38,6 +40,9 @@ local HEAL = CreateConVar("zc_killcam_points_heal", "25", FCVAR_ARCHIVE, "ZPoint
 local CAP = CreateConVar("zc_killcam_points_cap", "150", FCVAR_ARCHIVE, "Most ZPoints one player can earn in one round (0 = uncapped)")
 local HEALCAP = CreateConVar("zc_killcam_points_healcap", "6", FCVAR_ARCHIVE, "Most PAID heals one player can bank in a round")
 local HEALCD = CreateConVar("zc_killcam_points_healcd", "60", FCVAR_ARCHIVE, "Seconds before the same healer/patient pair pays again")
+-- PROVISIONAL(2026-09-26, two minutes is long enough that "shoot a friend, bandage the friend" never pays and short
+-- enough that an accident early in the round does not stop a player being paid for helping later; ratify-by: 2026-10-26)
+local HEALHURT = CreateConVar("zc_killcam_points_healhurt", "120", FCVAR_ARCHIVE, "A heal does not pay if the healer hurt the patient within this many seconds")
 
 local stats = P.stats or {rounds = 0, bursts = 0, overlaps = 0, heals = 0, healsRefused = 0, paid = 0, players = 0, capped = 0, errors = 0, last = "nothing yet"}
 P.stats = stats
@@ -91,7 +96,7 @@ hook.Add("ZCKillcam_Burst", "ZCKillcam.Points", function(by, t0, t1, star, score
     lastT1 = math.max(lastT1, t1)
 
     for slot, s in pairs(by) do
-        local worth = s.worth
+        local worth = s.pay
         -- Only ever a number the scorer itself worked out. If a future sv_highlight stops setting it, this pays
         -- nothing rather than guessing with a stale copy of the formula.
         if isnumber(worth) and worth > 0 then
@@ -125,6 +130,14 @@ hook.Add("ZCity_MedicineUsed", "ZCKillcam.Points", function(healer, target, heal
     if not hsid or not psid or hsid == psid then return end
 
     local e = row(hsid, healer.PlayerName and healer:PlayerName() or healer:Nick())
+
+    -- Fixing damage you did yourself is not helping, and without this it is the cheapest farm on the server: wing a
+    -- friend, bandage them, repeat. The heal still WORKS - only the payout is withheld - and it is counted, so a
+    -- high number reads as somebody trying rather than vanishing.
+    if K.HurtRecently and K.HurtRecently(healer, patient, HEALHURT:GetInt()) then
+        stats.healsSelfInflicted = (stats.healsSelfInflicted or 0) + 1
+        return
+    end
 
     -- Two players taking turns bandaging each other is the obvious way to print money, so a pair pays once per
     -- cooldown and a healer banks only so many in a round. Refusals are counted, not silent: a high number here
@@ -204,9 +217,9 @@ end)
 
 concommand.Add("zc_killcam_points_stats", function(p)
     if IsValid(p) and not p:IsAdmin() then return end
-    local line = string.format("[Killcam] points %s mode=%d rate=%d heal=%d cap=%d | rounds=%d bursts=%d overlaps=%d heals=%d refused=%d capped=%d paid=%d ZP to %d | last: %s",
+    local line = string.format("[Killcam] points %s mode=%d rate=%d heal=%d cap=%d | rounds=%d bursts=%d overlaps=%d heals=%d refused=%d own-damage=%d capped=%d paid=%d ZP to %d | last: %s",
         P.Version, mode:GetInt(), RATE:GetInt(), HEAL:GetInt(), CAP:GetInt(), stats.rounds, stats.bursts, stats.overlaps,
-        stats.heals, stats.healsRefused, stats.capped, stats.paid, stats.players, stats.last)
+        stats.heals, stats.healsRefused, stats.healsSelfInflicted or 0, stats.capped, stats.paid, stats.players, stats.last)
     if IsValid(p) then p:PrintMessage(HUD_PRINTCONSOLE, line) else print(line) end
 end)
 
