@@ -245,7 +245,7 @@ end
 -- The life's length in seconds: the ledger's time alive, never shorter than the engagement.
 local function lifeSpan()
     local life = DP.H2H and DP.H2H.victim and DP.H2H.victim.life
-    return math.max(num(life and life.alive), engagementSeconds() or 0, 1)
+    return math.max(num(life and life.alive), num(DP.H2H and DP.H2H.span), engagementSeconds() or 0, 1)
 end
 
 -- The fatal hit's hit group: the ledger's organ name, else the region the clip's last hit entered, else the hit group.
@@ -334,16 +334,28 @@ local function buildTimeline()
             end
         end
     end
+    -- 2026-09-26: zc_killcam/sv_timeline.lua ships the log (owner: "transparent karma ledger, per-life, per-player"),
+    -- adding kinds "bad" (counted against you), "good", "flag" (counts only if a fight follows) and "death", plus
+    -- `mine` (you did it) and `tag` (whether it counted, and why). The logged lines are also listed in words below.
     local log = DP.H2H and DP.H2H.timeline
+    local said, logged = false, {}
     if istable(log) then
         for _, e in ipairs(log) do
             if istable(e) and isnumber(e.t) then
                 local t = math.Clamp(e.t, 0, span)
-                add({t = t, kind = isstring(e.kind) and e.kind or "other", text = before(span, t) .. " · " .. tostring(e.text or e.kind or "")})
+                local kind = isstring(e.kind) and e.kind or "other"
+                local tag = isstring(e.tag) and e.tag or nil
+                local m = {t = t, kind = kind, mine = e.mine, tag = tag, line = tostring(e.text or e.kind or ""),
+                    text = before(span, t) .. " · " .. tostring(e.text or e.kind or "") .. (tag and (" · " .. tag) or "")}
+                add(m)
+                logged[#logged + 1] = m
+                if kind == "death" then said = true end
             end
         end
     end
-    add({t = span, kind = "death", text = "0.0 s · Death"})
+    if not said then add({t = span, kind = "death", text = "0.0 s · Death"}) end
+    table.sort(logged, function(a, b) return a.t < b.t end)
+    DP.TimelineLog = logged
     table.sort(marks, function(a, b)
         if a.t ~= b.t then return a.t < b.t end
         if (a.kind == "death") ~= (b.kind == "death") then return b.kind == "death" end
@@ -355,10 +367,10 @@ local function buildTimeline()
 end
 
 local function markColor(kind)
-    if kind == "hit" or kind == "taken" then return T.kill end
+    if kind == "hit" or kind == "taken" or kind == "bad" then return T.kill end
     if kind == "death" then return T.death end
     if kind == "kill" then return T.gold end
-    if kind == "heal" or kind == "dealt" then return T.green end
+    if kind == "heal" or kind == "dealt" or kind == "good" then return T.green end
     return T.muted
 end
 
@@ -535,6 +547,13 @@ end
 -- above it, the death closes it. Hover a mark for its one tooltip; click a hit to replay it; click or drag anywhere
 -- else to scrub; the left of the scrub head is what the body card shows.
 local TL_H = 98
+-- How many logged karma lines the card lists under the axis (the newest; the Karma app - !karma - has them all).
+local TIMELINE_ROWS = 5
+local function timelineRows() return istable(DP.TimelineLog) and math.min(#DP.TimelineLog, TIMELINE_ROWS) or 0 end
+local function timelineH()
+    local rows = timelineRows()
+    return u(TL_H) + (rows > 0 and (rows * u(17) + u(22)) or 0)
+end
 local function buildTimelineCard(parent)
     local card = K.Panel(parent)
     card:SetMouseInputEnabled(true)
@@ -571,6 +590,8 @@ local function buildTimelineCard(parent)
                 local lit = m.t <= at + 0.001
                 draw.RoundedBox(1, ex - 1, ry + u(2), u(2), tall, lit and T.kill or K.Alpha(T.kill, 90))
                 if playing and m.inst == playing then draw.RoundedBox(1, ex - 1, ry + u(4) + tall, u(2), u(2), T.gold) end
+            elseif m.mine == false then
+                draw.RoundedBox(1, ex - 1, ry + u(2), u(2), u(10), markColor(m.kind))
             else
                 draw.RoundedBox(1, ex - 1, ry - u(12), u(2), u(10), markColor(m.kind))
             end
@@ -588,6 +609,24 @@ local function buildTimelineCard(parent)
             local bx = math.Clamp(best.x - bw / 2, u(8), w - bw - u(8))
             draw.RoundedBox(T.radius.chip, bx, u(26), bw, u(20), K.Alpha(T.ink, 240))
             text(best.text, 11, 600, bx + u(8), u(36), markColor(best.kind), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+        end
+        -- The logged karma lines in words: time, what happened, and whether it counted (the tag, right-aligned).
+        local log = DP.TimelineLog
+        if istable(log) and #log > 0 then
+            local first = math.max(1, #log - TIMELINE_ROWS + 1)
+            local y, tagW = u(TL_H) - u(4), u(190)
+            for i = first, #log do
+                local e = log[i]
+                local color = markColor(e.kind)
+                draw.RoundedBox(1, x0, y + u(4), u(3), u(8), color)
+                text(K.Clock(e.t), 10, 600, x0 + u(8), y, T.muted)
+                text(fit(e.line, 11, 600, x1 - x0 - tagW - u(52)), 11, 600, x0 + u(44), y, T.text)
+                if e.tag then text(fit(e.tag, 10, 500, tagW), 10, 500, x1, y + u(1), K.Alpha(color, 220), TEXT_ALIGN_RIGHT) end
+                y = y + u(17)
+            end
+            local foot = DP.H2H and DP.H2H.held and "Verdicts that would reveal a role are shown when the round ends   ·   !karma for every life"
+                or ((#log > TIMELINE_ROWS and (#log - TIMELINE_ROWS) .. " earlier   ·   " or "") .. "!karma for every life")
+            text(foot, 9, 500, w / 2, h - u(12), K.Alpha(T.muted, 160), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
         end
     end
     card.OnMousePressed = function(s, code)
@@ -995,9 +1034,9 @@ local function layout()
     local insetH = math.min(math.floor(centerW * 9 / 16), math.floor(centerH * 0.58))
     place(DP.inset, centerX, 0, centerW, insetH)
     local cy = insetH + u(12)
-    local hasTimeline = istable(DP.Marks) and #DP.Marks > 1
+    local hasTimeline = (istable(DP.Marks) and #DP.Marks > 1) or timelineRows() > 0
     DP.tradeCard:SetVisible(hasTimeline and true or false)
-    if hasTimeline then place(DP.tradeCard, centerX, cy, centerW, u(TL_H)) cy = cy + u(TL_H) + u(10) end
+    if hasTimeline then local tlH = timelineH() place(DP.tradeCard, centerX, cy, centerW, tlH) cy = cy + tlH + u(10) end
     local hasLife = DP.H2H and DP.H2H.victim and DP.H2H.victim.life ~= nil
     local cmpH = centerH - cy
     local showCompare = hasLife and cmpH >= u(34) + u(22) * 2
@@ -1082,6 +1121,7 @@ local function refreshFrame()
         if DP.Open and DB and DB.Release then DB.Release() end
         DP.Open, DP.WantGuilt, DP.GuiltDecided, DP.OverAt = false, false, nil, nil
         DP.Marks, DP.TimelineSpan, DP.TimelineKey, DP.Damage, DP.Cause, DP.CauseKey = nil, nil, nil, nil, nil, nil
+        DP.TimelineLog = nil
         DP.ScrubT, DP.ScrubManual, DP.Dragging, DP.HoverKeys, DP.NArmedAt, DP.DebriefAskAt = nil, nil, false, nil, nil, nil
         DP.SpaceSince, DP.SpaceHeld = nil, nil
         if IsValid(DP.root) then DP.root:SetVisible(false) end

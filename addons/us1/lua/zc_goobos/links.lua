@@ -47,7 +47,8 @@ L.Apps = {
     {id = "messages", title = "Messages", words = {"messages"}},
     {id = "camera", title = "Camera", words = {"camera"}},
     {id = "voice", title = "Voice", words = {"voice"}},
-    {id = "donate", title = "Donate", words = {"donate"}}
+    {id = "donate", title = "Donate", words = {"donate"}},
+    {id = "karma", title = "Karma", words = {"karma", "timeline"}}
 }
 L.ByWord = {}
 for _, app in ipairs(L.Apps) do
