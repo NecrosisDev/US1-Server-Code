@@ -88,3 +88,8 @@
 # Reviewed repository documentation and addon inventory (not asset payloads).
 !/docs/*.md
 !/manifests/addon-packages.json
+!/manifests/consolidation-audit.json
+
+# Generated releases are not source; a Lua extension must not re-include them.
+/build/
+/dist/

@@ -4,8 +4,11 @@ Status: planned, not deployed or published. Archive extraction is still pending.
 
 ## Repository contract
 
-Keep editable source in this repository, preserving each addon's internal paths.
-Keep each addon in its own folder; do not flatten unrelated addons into one Lua tree.
+This section describes raw import and staging, not permanent release boundaries.
+Preserve each addon's internal paths and identity while importing and comparing it.
+Then consolidate compatible systems into the curated US1 code addon as described
+in [the consolidation plan](CONSOLIDATION_PLAN.md). Separate input folders do not
+require separate final addons; retain separation only for a documented reason.
 The two local GMA addons should become `garrysmod/addons/zcity_drones_compat/`
 and `garrysmod/addons/zcity_pillpack_compat/`. Workshop code should initially live
 under `vendor/workshop/<workshop-id>/`; legacy UGC packages without a verified

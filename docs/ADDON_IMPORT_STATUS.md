@@ -12,6 +12,11 @@
 - Saved package paths, sizes, modification times, proposed code locations and
   explicit pending statuses in `../manifests/addon-packages.json`.
 - Recorded the content separation and migration gates in `CONTENT_PACK_PLAN.md`.
+- Clarified the consolidated release target in `CONSOLIDATION_PLAN.md`; raw addon
+  separation is an import boundary, not a requirement for separate final releases.
+- Audited 2,590 local Lua files: 33 byte-identical groups across 85 files, recorded
+  in `../manifests/consolidation-audit.json`. These are review candidates only;
+  no source files were merged, moved or deleted. Archive extraction remains pending.
 
 ## Blocked / incomplete
 

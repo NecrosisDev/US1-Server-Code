@@ -1,6 +1,11 @@
 # US1 server source
 
-Source-only import of the server's `garrysmod/` directory.
+Source-only working import of the server's `garrysmod/` directory.
+
+The goal is an organized, consolidated US1 code addon with separate content packs
+and explicit dependencies, followed by a tested release. The raw import is an
+intermediate input, not the final layout or a folder to upload wholesale.
+See the [consolidation plan](docs/CONSOLIDATION_PLAN.md).
 
 ## Contents
 

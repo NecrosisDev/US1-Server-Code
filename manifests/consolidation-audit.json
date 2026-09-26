@@ -1,0 +1,914 @@
+{
+  "schema_version": 1,
+  "audited_commit": "e66fc3626ec1ef79b0242738be45d32b5b87bedf",
+  "audited_garrysmod_tree": "09cf20b614ec0e3578a6e40d1898017a38bcc5f3",
+  "scope": "Tracked loose Lua source in the existing local, credential-redacted import only",
+  "summary": {
+    "lua_files_audited": 2590,
+    "lua_bytes": 21407351,
+    "addon_root_same_path_groups": 0,
+    "same_path_different_bytes_groups": 0,
+    "same_path_same_bytes_groups": 0,
+    "identical_content_groups": 33,
+    "files_in_identical_content_groups": 85,
+    "case_variant_virtual_paths": 0
+  },
+  "lua_files_by_origin": {
+    "addon:admin_max_karma": 3,
+    "addon:advdupe2": 16,
+    "addon:bigsay": 2,
+    "addon:cops_gangsters": 7,
+    "addon:crash_menu": 2,
+    "addon:eprotect-keep-exploiterscheaters-at-bay-v1.5.35": 26,
+    "addon:extra_context": 1,
+    "addon:fearbot_clean": 4,
+    "addon:fiberwire_extras": 1,
+    "addon:giveup_button": 2,
+    "addon:hurt_grab": 1,
+    "addon:indicators": 1,
+    "addon:kick_catch": 1,
+    "addon:kill_zones": 2,
+    "addon:ko_reaper": 1,
+    "addon:make_torso": 1,
+    "addon:persistent_gags_and_mutes": 2,
+    "addon:restart_warning": 4,
+    "addon:roundstart_grace": 2,
+    "addon:scoreboard": 14,
+    "addon:stamina_bar": 1,
+    "addon:super_crusher": 2,
+    "addon:ulib": 26,
+    "addon:ulx": 42,
+    "addon:ulx_cmdlog": 6,
+    "addon:ulx_zchat_bridge": 1,
+    "addon:void_cleanup": 1,
+    "addon:zc_beartrap_rarity": 2,
+    "addon:zc_crosshair": 3,
+    "addon:zc_endmenu_fix": 2,
+    "addon:zc_gcsmooth": 1,
+    "addon:zc_gfz_loot": 1,
+    "addon:zc_hmcd_mutators": 27,
+    "addon:zc_homelander_complete": 13,
+    "addon:zc_hydroxocobalamin": 2,
+    "addon:zc_juggernaut": 2,
+    "addon:zc_micbox": 2,
+    "addon:zc_perf": 5,
+    "addon:zc_selfmenu": 2,
+    "addon:zc_shovel_spear": 1,
+    "addon:zc_solidmapvote": 17,
+    "addon:zc_spikewatch": 1,
+    "addon:zc_spit": 1,
+    "addon:zc_traitor_population": 1,
+    "addon:zc_ui_lifecycle_fix": 2,
+    "addon:zc_watchdog": 20,
+    "addon:zc_wfa_tpik_fix": 3,
+    "addon:zc_wildwest_karma": 1,
+    "addon:zcity": 910,
+    "addon:zcity_hostage": 22,
+    "addon:zcity_stealth": 25,
+    "addon:zcity_traitor_picker": 8,
+    "gamemode:base": 48,
+    "gamemode:sandbox": 130,
+    "gamemode:terrortown": 142,
+    "root:lua": 1024
+  },
+  "same_virtual_path_groups": [],
+  "identical_content_groups": [
+    {
+      "sha256": "2ac70358e50bc272566fb36b65c0047767cc7eadfed09e21fe1185157f9fb38c",
+      "size": 7983,
+      "files": [
+        {
+          "path": "garrysmod/lua/zc_urine_visual_20260919t010507z/autorun/server/zc_poop.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_urine_visual_20260919t010507z/autorun/server/zc_poop.lua",
+          "size": 7983,
+          "sha256": "2ac70358e50bc272566fb36b65c0047767cc7eadfed09e21fe1185157f9fb38c"
+        },
+        {
+          "path": "garrysmod/lua/zc_waste_stage_20260918t233404z/autorun/server/zc_poop.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_waste_stage_20260918t233404z/autorun/server/zc_poop.lua",
+          "size": 7983,
+          "sha256": "2ac70358e50bc272566fb36b65c0047767cc7eadfed09e21fe1185157f9fb38c"
+        }
+      ],
+      "deletion_approved": false
+    },
+    {
+      "sha256": "3c3f64ed2a622554fb240e53afb885853a485dd8a45ef9d328538ebe1e38becc",
+      "size": 8052,
+      "files": [
+        {
+          "path": "garrysmod/lua/autorun/zc_fart_puff.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/autorun/zc_fart_puff.lua",
+          "size": 8052,
+          "sha256": "3c3f64ed2a622554fb240e53afb885853a485dd8a45ef9d328538ebe1e38becc"
+        },
+        {
+          "path": "garrysmod/lua/zc_splat_stage_20260919t035103z/autorun/zc_fart_puff.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_splat_stage_20260919t035103z/autorun/zc_fart_puff.lua",
+          "size": 8052,
+          "sha256": "3c3f64ed2a622554fb240e53afb885853a485dd8a45ef9d328538ebe1e38becc"
+        }
+      ],
+      "deletion_approved": false
+    },
+    {
+      "sha256": "442e63a3b29030ad66956aedbf5a437ec37cc217ab8cf5e530042549362803df",
+      "size": 11891,
+      "files": [
+        {
+          "path": "garrysmod/addons/zcity/lua/homigrad/libraries/core/sh_networking.lua",
+          "owner": "addon:zcity",
+          "virtual_lua_path": "lua/homigrad/libraries/core/sh_networking.lua",
+          "size": 11891,
+          "sha256": "442e63a3b29030ad66956aedbf5a437ec37cc217ab8cf5e530042549362803df"
+        },
+        {
+          "path": "garrysmod/lua/zc_incident_20260919/networking_modules_candidate.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_incident_20260919/networking_modules_candidate.lua",
+          "size": 11891,
+          "sha256": "442e63a3b29030ad66956aedbf5a437ec37cc217ab8cf5e530042549362803df"
+        }
+      ],
+      "deletion_approved": false
+    },
+    {
+      "sha256": "4c184f71c6facc41d79093f77d78ff35e1b6074c06096f5238fa220de0a33e40",
+      "size": 14490,
+      "files": [
+        {
+          "path": "garrysmod/addons/zcity/lua/entities/ent_hg_grenade/init.lua",
+          "owner": "addon:zcity",
+          "virtual_lua_path": "lua/entities/ent_hg_grenade/init.lua",
+          "size": 14490,
+          "sha256": "4c184f71c6facc41d79093f77d78ff35e1b6074c06096f5238fa220de0a33e40"
+        },
+        {
+          "path": "garrysmod/lua/zc_perf2_20260919t122952z/candidate/garrysmod/addons/zcity/lua/entities/ent_hg_grenade/init.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_perf2_20260919t122952z/candidate/garrysmod/addons/zcity/lua/entities/ent_hg_grenade/init.lua",
+          "size": 14490,
+          "sha256": "4c184f71c6facc41d79093f77d78ff35e1b6074c06096f5238fa220de0a33e40"
+        }
+      ],
+      "deletion_approved": false
+    },
+    {
+      "sha256": "5398e55e225a9b1f1aa486ac0a9ae93afca54dc9b62f28c4a751242bcff6bd4a",
+      "size": 32968,
+      "files": [
+        {
+          "path": "garrysmod/addons/zc_homelander_complete/lua/autorun/server/sv_zc_tempv.lua",
+          "owner": "addon:zc_homelander_complete",
+          "virtual_lua_path": "lua/autorun/server/sv_zc_tempv.lua",
+          "size": 32968,
+          "sha256": "5398e55e225a9b1f1aa486ac0a9ae93afca54dc9b62f28c4a751242bcff6bd4a"
+        },
+        {
+          "path": "garrysmod/addons/zc_homelander_complete/lua/sv_zc_tempv.lua",
+          "owner": "addon:zc_homelander_complete",
+          "virtual_lua_path": "lua/sv_zc_tempv.lua",
+          "size": 32968,
+          "sha256": "5398e55e225a9b1f1aa486ac0a9ae93afca54dc9b62f28c4a751242bcff6bd4a"
+        }
+      ],
+      "deletion_approved": false
+    },
+    {
+      "sha256": "559cc601964295718b213b2f22d4574fe363727ec6d1badb82c755357e4047ef",
+      "size": 9657,
+      "files": [
+        {
+          "path": "garrysmod/lua/zc_perf2_20260919t122952z/test_sticky_regression.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_perf2_20260919t122952z/test_sticky_regression.lua",
+          "size": 9657,
+          "sha256": "559cc601964295718b213b2f22d4574fe363727ec6d1badb82c755357e4047ef"
+        },
+        {
+          "path": "garrysmod/lua/zc_sticky_stage_20260919t033648z/test_sticky_native.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_sticky_stage_20260919t033648z/test_sticky_native.lua",
+          "size": 9657,
+          "sha256": "559cc601964295718b213b2f22d4574fe363727ec6d1badb82c755357e4047ef"
+        }
+      ],
+      "deletion_approved": false
+    },
+    {
+      "sha256": "64201a319916582e48bd57ecdeef3e41655b99efe4a26329ea9b94420fe74773",
+      "size": 615,
+      "files": [
+        {
+          "path": "garrysmod/lua/zc_urine_visual_20260919t010507z/rollback.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_urine_visual_20260919t010507z/rollback.lua",
+          "size": 615,
+          "sha256": "64201a319916582e48bd57ecdeef3e41655b99efe4a26329ea9b94420fe74773"
+        },
+        {
+          "path": "garrysmod/lua/zc_urine_visual_rollback_20260919t010507z.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_urine_visual_rollback_20260919t010507z.lua",
+          "size": 615,
+          "sha256": "64201a319916582e48bd57ecdeef3e41655b99efe4a26329ea9b94420fe74773"
+        }
+      ],
+      "deletion_approved": false
+    },
+    {
+      "sha256": "7ff6d80466a73db38569eadbd8404ae350a1b72670831ff193c02f7bc30aaba6",
+      "size": 4223,
+      "files": [
+        {
+          "path": "garrysmod/lua/autorun/client/zc_urine_visuals.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/autorun/client/zc_urine_visuals.lua",
+          "size": 4223,
+          "sha256": "7ff6d80466a73db38569eadbd8404ae350a1b72670831ff193c02f7bc30aaba6"
+        },
+        {
+          "path": "garrysmod/lua/zc_urine_visual_20260919t010507z/autorun/client/zc_urine_visuals.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_urine_visual_20260919t010507z/autorun/client/zc_urine_visuals.lua",
+          "size": 4223,
+          "sha256": "7ff6d80466a73db38569eadbd8404ae350a1b72670831ff193c02f7bc30aaba6"
+        }
+      ],
+      "deletion_approved": false
+    },
+    {
+      "sha256": "879fa0155b451120110d5a0170c8eab1312441cf35073431a5c2863855dbb9c5",
+      "size": 8059,
+      "files": [
+        {
+          "path": "garrysmod/addons/zcity/lua/weapons/weapon_tranquilizer.lua",
+          "owner": "addon:zcity",
+          "virtual_lua_path": "lua/weapons/weapon_tranquilizer.lua",
+          "size": 8059,
+          "sha256": "879fa0155b451120110d5a0170c8eab1312441cf35073431a5c2863855dbb9c5"
+        },
+        {
+          "path": "garrysmod/lua/zc_tranq_validation_20260919t132421z/tranq_file.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_tranq_validation_20260919t132421z/tranq_file.lua",
+          "size": 8059,
+          "sha256": "879fa0155b451120110d5a0170c8eab1312441cf35073431a5c2863855dbb9c5"
+        }
+      ],
+      "deletion_approved": false
+    },
+    {
+      "sha256": "8bf1e137ac43445c709a93c6990617318f88aaa32303f2ddfec54e78545a4b56",
+      "size": 13912,
+      "files": [
+        {
+          "path": "garrysmod/addons/zcity/lua/weapons/weapon_ducttape.lua",
+          "owner": "addon:zcity",
+          "virtual_lua_path": "lua/weapons/weapon_ducttape.lua",
+          "size": 13912,
+          "sha256": "8bf1e137ac43445c709a93c6990617318f88aaa32303f2ddfec54e78545a4b56"
+        },
+        {
+          "path": "garrysmod/lua/zc_tape_repair_20260919t153737z/candidate.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_tape_repair_20260919t153737z/candidate.lua",
+          "size": 13912,
+          "sha256": "8bf1e137ac43445c709a93c6990617318f88aaa32303f2ddfec54e78545a4b56"
+        }
+      ],
+      "deletion_approved": false
+    },
+    {
+      "sha256": "8c562ee6f86266be5b3c2c0f6bc46f2781076a49cf5840a6db0bc0af6bea3a09",
+      "size": 1513,
+      "files": [
+        {
+          "path": "garrysmod/lua/zc_urine_visual_20260919t010507z/activate.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_urine_visual_20260919t010507z/activate.lua",
+          "size": 1513,
+          "sha256": "8c562ee6f86266be5b3c2c0f6bc46f2781076a49cf5840a6db0bc0af6bea3a09"
+        },
+        {
+          "path": "garrysmod/lua/zc_urine_visual_activate_20260919t010507z.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_urine_visual_activate_20260919t010507z.lua",
+          "size": 1513,
+          "sha256": "8c562ee6f86266be5b3c2c0f6bc46f2781076a49cf5840a6db0bc0af6bea3a09"
+        }
+      ],
+      "deletion_approved": false
+    },
+    {
+      "sha256": "8e3f6a686445335d93d798dcb216f6c4338d1adec3d019a6f8dd3e4eaa9ab46e",
+      "size": 8063,
+      "files": [
+        {
+          "path": "garrysmod/lua/zc_urine_visual_20260919t010507z/autorun/server/zc_poop_involuntary.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_urine_visual_20260919t010507z/autorun/server/zc_poop_involuntary.lua",
+          "size": 8063,
+          "sha256": "8e3f6a686445335d93d798dcb216f6c4338d1adec3d019a6f8dd3e4eaa9ab46e"
+        },
+        {
+          "path": "garrysmod/lua/zc_waste_stage_20260918t233404z/autorun/server/zc_poop_involuntary.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_waste_stage_20260918t233404z/autorun/server/zc_poop_involuntary.lua",
+          "size": 8063,
+          "sha256": "8e3f6a686445335d93d798dcb216f6c4338d1adec3d019a6f8dd3e4eaa9ab46e"
+        }
+      ],
+      "deletion_approved": false
+    },
+    {
+      "sha256": "8e8535b4c5620e148ed243700a434def30e0b780c47c56a4d4de06b44ae97b39",
+      "size": 59,
+      "files": [
+        {
+          "path": "garrysmod/addons/zcity/lua/homigrad/roleplus/cl_plugin.lua",
+          "owner": "addon:zcity",
+          "virtual_lua_path": "lua/homigrad/roleplus/cl_plugin.lua",
+          "size": 59,
+          "sha256": "8e8535b4c5620e148ed243700a434def30e0b780c47c56a4d4de06b44ae97b39"
+        },
+        {
+          "path": "garrysmod/addons/zcity/lua/homigrad/roleplus/sv_plugin.lua",
+          "owner": "addon:zcity",
+          "virtual_lua_path": "lua/homigrad/roleplus/sv_plugin.lua",
+          "size": 59,
+          "sha256": "8e8535b4c5620e148ed243700a434def30e0b780c47c56a4d4de06b44ae97b39"
+        }
+      ],
+      "deletion_approved": false
+    },
+    {
+      "sha256": "9663c46a8c40cec274b1ffc426cc19557fe9aada983e5d69ee2bb86aa2f9f450",
+      "size": 62,
+      "files": [
+        {
+          "path": "garrysmod/lua/autorun/server/zc_chat_settings_preview_restore.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/autorun/server/zc_chat_settings_preview_restore.lua",
+          "size": 62,
+          "sha256": "9663c46a8c40cec274b1ffc426cc19557fe9aada983e5d69ee2bb86aa2f9f450"
+        },
+        {
+          "path": "garrysmod/lua/autorun/server/zc_scoreboard_successor_preview.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/autorun/server/zc_scoreboard_successor_preview.lua",
+          "size": 62,
+          "sha256": "9663c46a8c40cec274b1ffc426cc19557fe9aada983e5d69ee2bb86aa2f9f450"
+        }
+      ],
+      "deletion_approved": false
+    },
+    {
+      "sha256": "9b01675748674195f5a824e81da80077739760b16ceb186e4efb49fcf1fce93f",
+      "size": 2888,
+      "files": [
+        {
+          "path": "garrysmod/addons/ulx/lua/ulx/cl_lib.lua",
+          "owner": "addon:ulx",
+          "virtual_lua_path": "lua/ulx/cl_lib.lua",
+          "size": 2888,
+          "sha256": "9b01675748674195f5a824e81da80077739760b16ceb186e4efb49fcf1fce93f"
+        },
+        {
+          "path": "garrysmod/lua/zc_chat_preview/cl_ulx_lib.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_chat_preview/cl_ulx_lib.lua",
+          "size": 2888,
+          "sha256": "9b01675748674195f5a824e81da80077739760b16ceb186e4efb49fcf1fce93f"
+        }
+      ],
+      "deletion_approved": false
+    },
+    {
+      "sha256": "a12cd99313c0186e1dc14a25bad297b0c5f4fa10824c42a1c9027456ee5aa393",
+      "size": 4149,
+      "files": [
+        {
+          "path": "garrysmod/lua/zc_incident_20260919/replication_20260919T231039Z.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_incident_20260919/replication_20260919T231039Z.lua",
+          "size": 4149,
+          "sha256": "a12cd99313c0186e1dc14a25bad297b0c5f4fa10824c42a1c9027456ee5aa393"
+        },
+        {
+          "path": "garrysmod/lua/zc_incident_20260919/replication_20260919T231212Z.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_incident_20260919/replication_20260919T231212Z.lua",
+          "size": 4149,
+          "sha256": "a12cd99313c0186e1dc14a25bad297b0c5f4fa10824c42a1c9027456ee5aa393"
+        },
+        {
+          "path": "garrysmod/lua/zc_incident_20260919/replication_20260919T231513Z.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_incident_20260919/replication_20260919T231513Z.lua",
+          "size": 4149,
+          "sha256": "a12cd99313c0186e1dc14a25bad297b0c5f4fa10824c42a1c9027456ee5aa393"
+        },
+        {
+          "path": "garrysmod/lua/zc_incident_20260919/replication_20260919T233921Z.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_incident_20260919/replication_20260919T233921Z.lua",
+          "size": 4149,
+          "sha256": "a12cd99313c0186e1dc14a25bad297b0c5f4fa10824c42a1c9027456ee5aa393"
+        },
+        {
+          "path": "garrysmod/lua/zc_incident_20260919/replication_20260919T234844Z.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_incident_20260919/replication_20260919T234844Z.lua",
+          "size": 4149,
+          "sha256": "a12cd99313c0186e1dc14a25bad297b0c5f4fa10824c42a1c9027456ee5aa393"
+        },
+        {
+          "path": "garrysmod/lua/zc_incident_20260919/replication_20260919T235716Z.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_incident_20260919/replication_20260919T235716Z.lua",
+          "size": 4149,
+          "sha256": "a12cd99313c0186e1dc14a25bad297b0c5f4fa10824c42a1c9027456ee5aa393"
+        },
+        {
+          "path": "garrysmod/lua/zc_incident_20260919/replication_20260920T000129Z.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_incident_20260919/replication_20260920T000129Z.lua",
+          "size": 4149,
+          "sha256": "a12cd99313c0186e1dc14a25bad297b0c5f4fa10824c42a1c9027456ee5aa393"
+        }
+      ],
+      "deletion_approved": false
+    },
+    {
+      "sha256": "a245774d26518d3efa01bbe2e6f00324a5684be98b4461aad9d922325e0c3ec8",
+      "size": 58,
+      "files": [
+        {
+          "path": "garrysmod/addons/zcity/lua/homigrad/phys_silk/cl_plugin.lua",
+          "owner": "addon:zcity",
+          "virtual_lua_path": "lua/homigrad/phys_silk/cl_plugin.lua",
+          "size": 58,
+          "sha256": "a245774d26518d3efa01bbe2e6f00324a5684be98b4461aad9d922325e0c3ec8"
+        },
+        {
+          "path": "garrysmod/addons/zcity/lua/homigrad/phys_silk/sv_plugin.lua",
+          "owner": "addon:zcity",
+          "virtual_lua_path": "lua/homigrad/phys_silk/sv_plugin.lua",
+          "size": 58,
+          "sha256": "a245774d26518d3efa01bbe2e6f00324a5684be98b4461aad9d922325e0c3ec8"
+        }
+      ],
+      "deletion_approved": false
+    },
+    {
+      "sha256": "a2b704004f84370f2f9335daed723a8f219529bcfb1fa6e67dd96ad73c784ddc",
+      "size": 8079,
+      "files": [
+        {
+          "path": "garrysmod/lua/autorun/server/zc_poop.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/autorun/server/zc_poop.lua",
+          "size": 8079,
+          "sha256": "a2b704004f84370f2f9335daed723a8f219529bcfb1fa6e67dd96ad73c784ddc"
+        },
+        {
+          "path": "garrysmod/lua/zc_priority_20260919t025322z/autorun/server/zc_poop.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_priority_20260919t025322z/autorun/server/zc_poop.lua",
+          "size": 8079,
+          "sha256": "a2b704004f84370f2f9335daed723a8f219529bcfb1fa6e67dd96ad73c784ddc"
+        }
+      ],
+      "deletion_approved": false
+    },
+    {
+      "sha256": "b0a2eedb9a7b404e0588ea01b228e85ac6e2cf19f81b44ade790784772db4858",
+      "size": 97178,
+      "files": [
+        {
+          "path": "garrysmod/lua/autorun/server/sv_pat_guilt_overhaul.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/autorun/server/sv_pat_guilt_overhaul.lua",
+          "size": 97178,
+          "sha256": "b0a2eedb9a7b404e0588ea01b228e85ac6e2cf19f81b44ade790784772db4858"
+        },
+        {
+          "path": "garrysmod/lua/zc_guilt_justice/legacy_server.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_guilt_justice/legacy_server.lua",
+          "size": 97178,
+          "sha256": "b0a2eedb9a7b404e0588ea01b228e85ac6e2cf19f81b44ade790784772db4858"
+        }
+      ],
+      "deletion_approved": false
+    },
+    {
+      "sha256": "b0e1cd463f86e03743a3083ba573bf2092f8f28eede9085e9767e77639cc8286",
+      "size": 13052,
+      "files": [
+        {
+          "path": "garrysmod/lua/autorun/server/zc_urine.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/autorun/server/zc_urine.lua",
+          "size": 13052,
+          "sha256": "b0e1cd463f86e03743a3083ba573bf2092f8f28eede9085e9767e77639cc8286"
+        },
+        {
+          "path": "garrysmod/lua/zc_perf2_20260919t122952z/candidate/garrysmod/lua/autorun/server/zc_urine.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_perf2_20260919t122952z/candidate/garrysmod/lua/autorun/server/zc_urine.lua",
+          "size": 13052,
+          "sha256": "b0e1cd463f86e03743a3083ba573bf2092f8f28eede9085e9767e77639cc8286"
+        }
+      ],
+      "deletion_approved": false
+    },
+    {
+      "sha256": "b1c0339f297473a95394fffb49d8c02015d0ba25c5eeb8bc3adc22263ea03038",
+      "size": 4406,
+      "files": [
+        {
+          "path": "garrysmod/lua/zc_urine_material_20260918t235348z/zc_urine_visuals.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_urine_material_20260918t235348z/zc_urine_visuals.lua",
+          "size": 4406,
+          "sha256": "b1c0339f297473a95394fffb49d8c02015d0ba25c5eeb8bc3adc22263ea03038"
+        },
+        {
+          "path": "garrysmod/lua/zc_waste_midround_20260919t000035z/autorun/client/zc_urine_visuals.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_waste_midround_20260919t000035z/autorun/client/zc_urine_visuals.lua",
+          "size": 4406,
+          "sha256": "b1c0339f297473a95394fffb49d8c02015d0ba25c5eeb8bc3adc22263ea03038"
+        }
+      ],
+      "deletion_approved": false
+    },
+    {
+      "sha256": "b2818a7b62bc14d828fdfc11b778ae52cf85c941b4720af66037be08c7d058bb",
+      "size": 3842,
+      "files": [
+        {
+          "path": "garrysmod/lua/autorun/client/zc_poop_visuals.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/autorun/client/zc_poop_visuals.lua",
+          "size": 3842,
+          "sha256": "b2818a7b62bc14d828fdfc11b778ae52cf85c941b4720af66037be08c7d058bb"
+        },
+        {
+          "path": "garrysmod/lua/zc_waste_admin_collision_20260919t001443z/autorun/client/zc_poop_visuals.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_waste_admin_collision_20260919t001443z/autorun/client/zc_poop_visuals.lua",
+          "size": 3842,
+          "sha256": "b2818a7b62bc14d828fdfc11b778ae52cf85c941b4720af66037be08c7d058bb"
+        },
+        {
+          "path": "garrysmod/lua/zc_waste_midround_20260919t000035z/autorun/client/zc_poop_visuals.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_waste_midround_20260919t000035z/autorun/client/zc_poop_visuals.lua",
+          "size": 3842,
+          "sha256": "b2818a7b62bc14d828fdfc11b778ae52cf85c941b4720af66037be08c7d058bb"
+        }
+      ],
+      "deletion_approved": false
+    },
+    {
+      "sha256": "b2b88eb96b79b83a463be52ebdde95a7d2d894f6ec6612741b8bc6da147c4fb8",
+      "size": 3274,
+      "files": [
+        {
+          "path": "garrysmod/lua/zc_scoreboard_preview/sv_restore.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_scoreboard_preview/sv_restore.lua",
+          "size": 3274,
+          "sha256": "b2b88eb96b79b83a463be52ebdde95a7d2d894f6ec6612741b8bc6da147c4fb8"
+        },
+        {
+          "path": "garrysmod/lua/zc_scoreboard_successor_preview.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_scoreboard_successor_preview.lua",
+          "size": 3274,
+          "sha256": "b2b88eb96b79b83a463be52ebdde95a7d2d894f6ec6612741b8bc6da147c4fb8"
+        }
+      ],
+      "deletion_approved": false
+    },
+    {
+      "sha256": "b2c2d4e45c92b96c8c72a149542e31db9484946724bfc064279b6e9dc5e60721",
+      "size": 20508,
+      "files": [
+        {
+          "path": "garrysmod/addons/zcity/lua/weapons/weapon_hg_grenade_tpik.lua",
+          "owner": "addon:zcity",
+          "virtual_lua_path": "lua/weapons/weapon_hg_grenade_tpik.lua",
+          "size": 20508,
+          "sha256": "b2c2d4e45c92b96c8c72a149542e31db9484946724bfc064279b6e9dc5e60721"
+        },
+        {
+          "path": "garrysmod/lua/zc_perf_repair_20260919t041714z/candidate/garrysmod/addons/zcity/lua/weapons/weapon_hg_grenade_tpik.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_perf_repair_20260919t041714z/candidate/garrysmod/addons/zcity/lua/weapons/weapon_hg_grenade_tpik.lua",
+          "size": 20508,
+          "sha256": "b2c2d4e45c92b96c8c72a149542e31db9484946724bfc064279b6e9dc5e60721"
+        },
+        {
+          "path": "garrysmod/lua/zc_tick_trial_20260919t013709z/weapon_hg_grenade_tpik.candidate.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_tick_trial_20260919t013709z/weapon_hg_grenade_tpik.candidate.lua",
+          "size": 20508,
+          "sha256": "b2c2d4e45c92b96c8c72a149542e31db9484946724bfc064279b6e9dc5e60721"
+        }
+      ],
+      "deletion_approved": false
+    },
+    {
+      "sha256": "b86513fd3aaf14b52ce734eaa288f702370629839ac362805996feece96a4284",
+      "size": 3174,
+      "files": [
+        {
+          "path": "garrysmod/lua/zc_incident_20260919/methods_20260919t233046z.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_incident_20260919/methods_20260919t233046z.lua",
+          "size": 3174,
+          "sha256": "b86513fd3aaf14b52ce734eaa288f702370629839ac362805996feece96a4284"
+        },
+        {
+          "path": "garrysmod/lua/zc_incident_20260919/methods_20260919t233120z.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_incident_20260919/methods_20260919t233120z.lua",
+          "size": 3174,
+          "sha256": "b86513fd3aaf14b52ce734eaa288f702370629839ac362805996feece96a4284"
+        }
+      ],
+      "deletion_approved": false
+    },
+    {
+      "sha256": "c6bd243c71026785bcb6611a494dd45d83790f037ee98e9172ac02f7870530a7",
+      "size": 1547,
+      "files": [
+        {
+          "path": "garrysmod/lua/autorun/client/zc_poop_smear.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/autorun/client/zc_poop_smear.lua",
+          "size": 1547,
+          "sha256": "c6bd243c71026785bcb6611a494dd45d83790f037ee98e9172ac02f7870530a7"
+        },
+        {
+          "path": "garrysmod/lua/zc_urine_visual_20260919t010507z/autorun/client/zc_poop_smear.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_urine_visual_20260919t010507z/autorun/client/zc_poop_smear.lua",
+          "size": 1547,
+          "sha256": "c6bd243c71026785bcb6611a494dd45d83790f037ee98e9172ac02f7870530a7"
+        },
+        {
+          "path": "garrysmod/lua/zc_waste_admin_collision_20260919t001443z/autorun/client/zc_poop_smear.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_waste_admin_collision_20260919t001443z/autorun/client/zc_poop_smear.lua",
+          "size": 1547,
+          "sha256": "c6bd243c71026785bcb6611a494dd45d83790f037ee98e9172ac02f7870530a7"
+        },
+        {
+          "path": "garrysmod/lua/zc_waste_midround_20260919t000035z/autorun/client/zc_poop_smear.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_waste_midround_20260919t000035z/autorun/client/zc_poop_smear.lua",
+          "size": 1547,
+          "sha256": "c6bd243c71026785bcb6611a494dd45d83790f037ee98e9172ac02f7870530a7"
+        },
+        {
+          "path": "garrysmod/lua/zc_waste_stage_20260918t233404z/autorun/client/zc_poop_smear.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_waste_stage_20260918t233404z/autorun/client/zc_poop_smear.lua",
+          "size": 1547,
+          "sha256": "c6bd243c71026785bcb6611a494dd45d83790f037ee98e9172ac02f7870530a7"
+        }
+      ],
+      "deletion_approved": false
+    },
+    {
+      "sha256": "d72f484803976d069fcf4c0b9481a5976121fad347db150cff15885fda2ba958",
+      "size": 66,
+      "files": [
+        {
+          "path": "garrysmod/addons/scoreboard/lua/autorun/server/sv_pat_mutation_bridge.lua",
+          "owner": "addon:scoreboard",
+          "virtual_lua_path": "lua/autorun/server/sv_pat_mutation_bridge.lua",
+          "size": 66,
+          "sha256": "d72f484803976d069fcf4c0b9481a5976121fad347db150cff15885fda2ba958"
+        },
+        {
+          "path": "garrysmod/addons/scoreboard/lua/autorun/server/sv_police_timer_bridge.lua",
+          "owner": "addon:scoreboard",
+          "virtual_lua_path": "lua/autorun/server/sv_police_timer_bridge.lua",
+          "size": 66,
+          "sha256": "d72f484803976d069fcf4c0b9481a5976121fad347db150cff15885fda2ba958"
+        }
+      ],
+      "deletion_approved": false
+    },
+    {
+      "sha256": "da481e468e913dbd4e3d5814b7c66d358d0b7a61da8028e0d0994f487fd73c2b",
+      "size": 63,
+      "files": [
+        {
+          "path": "garrysmod/addons/zcity/lua/entities/ent_airdrop/cl_init.lua",
+          "owner": "addon:zcity",
+          "virtual_lua_path": "lua/entities/ent_airdrop/cl_init.lua",
+          "size": 63,
+          "sha256": "da481e468e913dbd4e3d5814b7c66d358d0b7a61da8028e0d0994f487fd73c2b"
+        },
+        {
+          "path": "garrysmod/addons/zcity/lua/entities/ent_hg_bugbait/cl_init.lua",
+          "owner": "addon:zcity",
+          "virtual_lua_path": "lua/entities/ent_hg_bugbait/cl_init.lua",
+          "size": 63,
+          "sha256": "da481e468e913dbd4e3d5814b7c66d358d0b7a61da8028e0d0994f487fd73c2b"
+        },
+        {
+          "path": "garrysmod/addons/zcity/lua/entities/ent_hg_grenade_hl2grenade/cl_init.lua",
+          "owner": "addon:zcity",
+          "virtual_lua_path": "lua/entities/ent_hg_grenade_hl2grenade/cl_init.lua",
+          "size": 63,
+          "sha256": "da481e468e913dbd4e3d5814b7c66d358d0b7a61da8028e0d0994f487fd73c2b"
+        },
+        {
+          "path": "garrysmod/addons/zcity/lua/entities/ent_hg_grenade_impact/cl_init.lua",
+          "owner": "addon:zcity",
+          "virtual_lua_path": "lua/entities/ent_hg_grenade_impact/cl_init.lua",
+          "size": 63,
+          "sha256": "da481e468e913dbd4e3d5814b7c66d358d0b7a61da8028e0d0994f487fd73c2b"
+        },
+        {
+          "path": "garrysmod/addons/zcity/lua/entities/ent_hg_grenade_pipebomb/cl_init.lua",
+          "owner": "addon:zcity",
+          "virtual_lua_path": "lua/entities/ent_hg_grenade_pipebomb/cl_init.lua",
+          "size": 63,
+          "sha256": "da481e468e913dbd4e3d5814b7c66d358d0b7a61da8028e0d0994f487fd73c2b"
+        },
+        {
+          "path": "garrysmod/addons/zcity/lua/entities/ent_hg_jam/cl_init.lua",
+          "owner": "addon:zcity",
+          "virtual_lua_path": "lua/entities/ent_hg_jam/cl_init.lua",
+          "size": 63,
+          "sha256": "da481e468e913dbd4e3d5814b7c66d358d0b7a61da8028e0d0994f487fd73c2b"
+        },
+        {
+          "path": "garrysmod/addons/zcity/lua/entities/ent_hg_motiontracker/cl_init.lua",
+          "owner": "addon:zcity",
+          "virtual_lua_path": "lua/entities/ent_hg_motiontracker/cl_init.lua",
+          "size": 63,
+          "sha256": "da481e468e913dbd4e3d5814b7c66d358d0b7a61da8028e0d0994f487fd73c2b"
+        },
+        {
+          "path": "garrysmod/addons/zcity/lua/entities/ent_hg_smokenade/cl_init.lua",
+          "owner": "addon:zcity",
+          "virtual_lua_path": "lua/entities/ent_hg_smokenade/cl_init.lua",
+          "size": 63,
+          "sha256": "da481e468e913dbd4e3d5814b7c66d358d0b7a61da8028e0d0994f487fd73c2b"
+        },
+        {
+          "path": "garrysmod/addons/zcity/lua/entities/ent_hg_snowball/cl_init.lua",
+          "owner": "addon:zcity",
+          "virtual_lua_path": "lua/entities/ent_hg_snowball/cl_init.lua",
+          "size": 63,
+          "sha256": "da481e468e913dbd4e3d5814b7c66d358d0b7a61da8028e0d0994f487fd73c2b"
+        },
+        {
+          "path": "garrysmod/addons/zcity/lua/entities/firework_base/cl_init.lua",
+          "owner": "addon:zcity",
+          "virtual_lua_path": "lua/entities/firework_base/cl_init.lua",
+          "size": 63,
+          "sha256": "da481e468e913dbd4e3d5814b7c66d358d0b7a61da8028e0d0994f487fd73c2b"
+        }
+      ],
+      "deletion_approved": false
+    },
+    {
+      "sha256": "e098b2375d05b2e7308b2664e10669cd993b2f75d485aff88ce46c5ea9f5a2df",
+      "size": 11789,
+      "files": [
+        {
+          "path": "garrysmod/lua/zc_urine_visual_20260919t010507z/autorun/server/zc_poop_throw.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_urine_visual_20260919t010507z/autorun/server/zc_poop_throw.lua",
+          "size": 11789,
+          "sha256": "e098b2375d05b2e7308b2664e10669cd993b2f75d485aff88ce46c5ea9f5a2df"
+        },
+        {
+          "path": "garrysmod/lua/zc_waste_stage_20260918t233404z/autorun/server/zc_poop_throw.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_waste_stage_20260918t233404z/autorun/server/zc_poop_throw.lua",
+          "size": 11789,
+          "sha256": "e098b2375d05b2e7308b2664e10669cd993b2f75d485aff88ce46c5ea9f5a2df"
+        }
+      ],
+      "deletion_approved": false
+    },
+    {
+      "sha256": "e2552f7c5cbcedaf48e235015538354c48d3f6a0d9cd8158aa160c22c37ac6ca",
+      "size": 149,
+      "files": [
+        {
+          "path": "garrysmod/addons/zcity/lua/entities/hg_brassknuckles/cl_init.lua",
+          "owner": "addon:zcity",
+          "virtual_lua_path": "lua/entities/hg_brassknuckles/cl_init.lua",
+          "size": 149,
+          "sha256": "e2552f7c5cbcedaf48e235015538354c48d3f6a0d9cd8158aa160c22c37ac6ca"
+        },
+        {
+          "path": "garrysmod/addons/zcity/lua/entities/hg_sling/cl_init.lua",
+          "owner": "addon:zcity",
+          "virtual_lua_path": "lua/entities/hg_sling/cl_init.lua",
+          "size": 149,
+          "sha256": "e2552f7c5cbcedaf48e235015538354c48d3f6a0d9cd8158aa160c22c37ac6ca"
+        }
+      ],
+      "deletion_approved": false
+    },
+    {
+      "sha256": "e73b1a33563e8df50ba85e92cc4a7d5ef6daa588663072b78b7a199cd2dfd368",
+      "size": 3623,
+      "files": [
+        {
+          "path": "garrysmod/lua/zc_poop/content.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_poop/content.lua",
+          "size": 3623,
+          "sha256": "e73b1a33563e8df50ba85e92cc4a7d5ef6daa588663072b78b7a199cd2dfd368"
+        },
+        {
+          "path": "garrysmod/lua/zc_waste_admin_collision_20260919t001443z/zc_poop/content.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_waste_admin_collision_20260919t001443z/zc_poop/content.lua",
+          "size": 3623,
+          "sha256": "e73b1a33563e8df50ba85e92cc4a7d5ef6daa588663072b78b7a199cd2dfd368"
+        },
+        {
+          "path": "garrysmod/lua/zc_waste_midround_20260919t000035z/zc_poop/content.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_waste_midround_20260919t000035z/zc_poop/content.lua",
+          "size": 3623,
+          "sha256": "e73b1a33563e8df50ba85e92cc4a7d5ef6daa588663072b78b7a199cd2dfd368"
+        }
+      ],
+      "deletion_approved": false
+    },
+    {
+      "sha256": "e9eb5f4158c362eea9fcfafcb129c03cac585ff47daf0596c425c1106935f03e",
+      "size": 46761,
+      "files": [
+        {
+          "path": "garrysmod/addons/zcity/lua/homigrad/sh_luabullets.lua",
+          "owner": "addon:zcity",
+          "virtual_lua_path": "lua/homigrad/sh_luabullets.lua",
+          "size": 46761,
+          "sha256": "e9eb5f4158c362eea9fcfafcb129c03cac585ff47daf0596c425c1106935f03e"
+        },
+        {
+          "path": "garrysmod/lua/zc_bullet_audit_phase1/sh_luabullets.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_bullet_audit_phase1/sh_luabullets.lua",
+          "size": 46761,
+          "sha256": "e9eb5f4158c362eea9fcfafcb129c03cac585ff47daf0596c425c1106935f03e"
+        }
+      ],
+      "deletion_approved": false
+    },
+    {
+      "sha256": "f75514a719fed143dd2ff6bdc2188f4225ec0668e9f93056711b0710a13c1dac",
+      "size": 3371,
+      "files": [
+        {
+          "path": "garrysmod/lua/zc_incident_20260919/methods_20260919t233426z.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_incident_20260919/methods_20260919t233426z.lua",
+          "size": 3371,
+          "sha256": "f75514a719fed143dd2ff6bdc2188f4225ec0668e9f93056711b0710a13c1dac"
+        },
+        {
+          "path": "garrysmod/lua/zc_incident_20260919/methods_20260919t233834z.lua",
+          "owner": "root:lua",
+          "virtual_lua_path": "lua/zc_incident_20260919/methods_20260919t233834z.lua",
+          "size": 3371,
+          "sha256": "f75514a719fed143dd2ff6bdc2188f4225ec0668e9f93056711b0710a13c1dac"
+        }
+      ],
+      "deletion_approved": false
+    }
+  ],
+  "case_variant_groups": [],
+  "limitations": [
+    "No server access, archive access, or source execution performed by this audit.",
+    "The 153 inventoried GMA packages are not included; extraction remains pending.",
+    "Source origins are directory labels, not verified ownership or active-mount status.",
+    "Virtual-path check covers addon lua/ and root lua/ only; gamemode entity aliases, includes, hook names and other runtime overrides are not modeled.",
+    "Identical bytes at different paths do not prove that a file can be deleted; include paths, autorun entry points and runtime references require review.",
+    "Existing import redactions are retained; audit hashes describe local redacted files."
+  ],
+  "files_changed_or_deleted": 0,
+  "deployment_ready": false
+}
