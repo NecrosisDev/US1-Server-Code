@@ -1019,6 +1019,43 @@ function V.BookRender(s, began)
     if ms > s.max then s.max = ms end
     return ms
 end
+-- inset_bloom_20260926 (owner: "a superbright blur behind the killcam/highlight panel, over the Round End title"):
+-- V.RenderInset runs from a panel's Paint, i.e. mid-VGUI. The Z-City post-processing that the view render triggers
+-- (RenderScreenspaceEffects -> "Post Processing": berserk/noradrenaline/fear bloom, pain/brain toytown, colour modify,
+-- motion blur) works on the WHOLE framebuffer, so it bloomed and blurred every panel part painted before the inset
+-- (the title, the left column) and brightened the world behind. For the inset render those calls are no-ops; each
+-- muted call is counted in V.MutedPost (zc_killcam_impact_print prints them).
+local POST_FUNCS = {"DrawBloom", "DrawToyTown", "DrawMotionBlur", "DrawSunbeams", "DrawColorModify", "DrawSharpen", "DrawSobel", "DrawTexturize", "DrawMaterialOverlay"}
+V.MutedPost = V.MutedPost or {}
+local mutedFns = {}
+local function mutedFor(name)
+    local fn = mutedFns[name]
+    if not fn then
+        fn = function() V.MutedPost[name] = (V.MutedPost[name] or 0) + 1 end
+        mutedFns[name] = fn
+    end
+    return fn
+end
+function V.MutePostProcess()
+    local saved = {}
+    for i = 1, #POST_FUNCS do
+        local name = POST_FUNCS[i]
+        local fn = rawget(_G, name)
+        if isfunction(fn) and fn ~= mutedFns[name] then
+            saved[name] = fn
+            _G[name] = mutedFor(name)
+        end
+    end
+    return function()
+        for name, fn in pairs(saved) do _G[name] = fn end
+        if V.ImpactPrint and V.ImpactPrint:GetBool() and next(V.MutedPost) and RealTime() - (V.MutedSaidAt or -math.huge) > 10 then
+            V.MutedSaidAt = RealTime()
+            local parts = {}
+            for name, n in pairs(V.MutedPost) do parts[#parts + 1] = name .. "=" .. n end
+            MsgN("[Killcam] inset post-processing muted: " .. table.concat(parts, " "))
+        end
+    end
+end
 -- Renders the replay's current frame into a SCREEN-space rect (pixels; from a panel's Paint use its LocalToScreen),
 -- exactly as the fullscreen path does: same camera, ghosts, scope, cinematic cutaway, live entities hidden. Returns
 -- (true, ms) when it drew, false when there is nothing to draw (no replay, waiting, end card, or a render in progress).
@@ -1035,8 +1072,10 @@ function V.RenderInset(x, y, w, h)
         V.WithReplayScene(function() renderScope(looker, origin, angles, fov, L.cs) end)
     end
     local restoreCutaway = V.Cinema and V.Cinema.BeginCutaway(L)
+    local restorePost = V.MutePostProcess()
     local ok = V.WithReplayScene(function() render.RenderView({origin = origin, angles = angles, x = math.floor(x), y = math.floor(y), w = math.floor(w), h = math.floor(h), fov = fov, znear = 1,
         drawhud = false, drawviewmodel = false, drawmonitors = false, dopostprocess = false}) end)
+    restorePost()
     if restoreCutaway then restoreCutaway() end
     rendering = false
     return ok, V.BookRender(V.InsetStats, began)
