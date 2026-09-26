@@ -40,7 +40,11 @@ local CHIP_BG = Color(10, 9, 9)
 local DOCK_FILL = Color(T.ink.r, T.ink.g, T.ink.b, 150)
 local DOCK_EDGE = Color(T.edge.r, T.edge.g, T.edge.b, 120)
 local KEY_N_CODE = rawget(_G, "KEY_N") or 24
-local WAIT_KEYS = {KEY_SPACE, KEY_G, KEY_V, KEY_Q, KEY_F, KEY_N_CODE}
+-- 1-9 jump to that hit. Polled as raw keys like the rest: the killcam's own PlayerBindPress swallows every slot bind
+-- during a life replay, and hook order decides whether a bind handler would ever see them (review 2026-09-26).
+local HIT_KEYS = {}
+for n = 1, 9 do HIT_KEYS[n] = KEY_1 + n - 1 end
+local WAIT_KEYS = {KEY_SPACE, KEY_G, KEY_V, KEY_Q, KEY_F, KEY_N_CODE, unpack(HIT_KEYS)}
 -- Footer vocabulary from the canvas: Space skips a hit, holding it skips them all, 1-9 jump, G report, Q spectate.
 local KEY_HINTS = {{"Space", "Skip hit"}, {"Hold Space", "Skip all"}, {"1-9", "Jump to hit"}, {"G", "Report"}, {"Q", "Spectate"}}
 
@@ -168,7 +172,9 @@ local function installGuiltWrap()
     if isfunction(originalNet) and originalNet ~= DP.GuiltNetWrap then
         DP.GuiltNetOriginal = originalNet
         DP.GuiltNetWrap = function(len)
-            if DP.WantGuilt then
+            -- GuiltQuietUntil: the reply to an action sent from this panel can land after the panel closed (respawn, Q,
+            -- end card); it must not open the stock guilt popup over live play.
+            if DP.WantGuilt or RealTime() < (DP.GuiltQuietUntil or 0) then
                 local raw = net.ReadString()
                 local ok, data = pcall(util.JSONToTable, raw, false, true)
                 DP.ApplyGuiltRows(ok and data or {})
@@ -191,6 +197,7 @@ local function sendGuiltAction(row, action)
     net.WriteString(action)
     net.SendToServer()
     DP.GuiltDecided = action
+    DP.GuiltQuietUntil = RealTime() + 3
     timer.Simple(0.3, requestGuiltRows)
 end
 
@@ -919,9 +926,14 @@ local function refreshFrame()
     local t = enabled and P.Replay() or nil
     local me = LocalPlayer()
     local alive = IsValid(me) and me:Alive()
-    -- The round-end panel outranks this one: when the highlight takes the screen the death recap is over.
-    local roundEnd = A.RoundEnd and A.RoundEnd.Phase ~= nil
-    local wants = enabled and not alive and istable(t) and t.kind == "life" and not roundEnd
+    -- The round-end panel outranks this one once its PANEL is up. Not in its "winner" phase: that card is HUDPaint only,
+    -- and while a life replay still plays under a full claim the killcam blanks RenderScene, which skips HUDPaint, so
+    -- stepping aside then left the screen black for up to 3 s (review 2026-09-26).
+    local roundEnd = A.RoundEnd and A.RoundEnd.Phase == "panel"
+    -- The killcam only hands its screens over with zc_killcam_ui 1 (panels.lua sets it unless the player chose 0):
+    -- with 0 it draws its own replay and takes its own keys, and this panel would render the replay a second time.
+    local kcui = GetConVar("zc_killcam_ui")
+    local wants = enabled and kcui ~= nil and kcui:GetBool() and not alive and istable(t) and t.kind == "life" and not roundEnd
 
     if wants and not IsValid(DP.root) then buildPanel() end
     if not wants then
@@ -956,6 +968,7 @@ local function refreshFrame()
         DP.Open, DP.WantGuilt = true, true
         DP.OpenedAt, DP.BornAt = RealTime(), RealTime()
         DP.Note, DP.GuiltDecided = nil, nil
+        DP.GuiltRows = nil -- a previous death's rows must not match this killer before the fresh reply lands
         gui.EnableScreenClicker(true); DP.ScreenClicker = true
         requestGuiltRows()
         installNoteWrap()
@@ -1022,6 +1035,9 @@ local function refreshFrame()
     if P.Edge(keysDown, KEY_G) and DP.Inst and DP.Inst.reportable then P.Call("Report", t.index) end
     if P.Edge(keysDown, KEY_V) then P.Call("Save") end
     if P.Edge(keysDown, KEY_Q) then if t.phase == "over" then P.Call("Play") else P.Call("Skip") end end
+    for n = 1, math.min(t.count or 0, 9) do
+        if P.Edge(keysDown, HIT_KEYS[n]) then P.Call("Play", n) break end
+    end
     if P.Edge(keysDown, KEY_F) then
         if DP.GuiltRow and DP.GuiltRow.canForgive and not DP.GuiltDecided then sendGuiltAction(DP.GuiltRow, "forgive") else requestGuiltRows() end
     end
@@ -1035,10 +1051,5 @@ hook.Add("Think", "GoobOS.DeathPanel.Think", refreshFrame)
 
 P.Claim("death", function() return DP.Open == true end)
 
--- 1-9 jump straight to that hit while the recap is up (the slot binds are only taken while a handler says so).
-P.SetKeys("death.hit", function(n)
-    if not DP.Open or not DP.T then return false end
-    if n < 1 or n > (DP.T.count or 0) then return false end
-    P.Call("Play", n)
-    return true
-end)
+-- 1-9 (jump to a hit) are polled in refreshFrame with the other keys (HIT_KEYS). Drop a handler an older load registered.
+if istable(P.KeyHandlers) then P.KeyHandlers["death.hit"] = nil end
