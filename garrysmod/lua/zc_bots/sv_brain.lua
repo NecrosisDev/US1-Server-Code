@@ -1374,6 +1374,14 @@ function lib.Engage(bot, brain, now, skill, target, dist, behavior, buttons)
 	brain.lastSeenEntIndex = target:EntIndex()
 	brain.lastSeenTime = now
 
+	-- 2026-09-26 round director (sv_director.lua): in a choreographed
+	-- bot-vs-bot scene the aim point sits a few degrees off the target until
+	-- the director lets this bot's shots land.
+	local director = hg.botdriver.director
+	if director and director.AimFor then
+		visibleAim = director.AimFor(bot, brain, target, visibleAim, now) or visibleAim
+	end
+
 	-- HUMANIZE (2026-09-21): sv_aim.lua's per-tick motor model now owns the
 	-- aim-error tremor this block used to author directly (section A4: "fold
 	-- the existing aim-error/lead logic in lib.Engage into this model so
