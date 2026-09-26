@@ -25,20 +25,23 @@ for k, v in pairs({
 
 local T = A.Theme
 local goobGradientL = surface.GetTextureID("vgui/gradient-l")
-for name, spec in pairs({
-    Title = {24, 700},
-    Body = {15, 500},
-    Small = {13, 500},
-    Metric = {30, 600}
-}) do
-    surface.CreateFont("Goob" .. name, {
-        font = (spec[1] >= 24) and "Bahnschrift" or "Roboto",
-        size = spec[1],
-        weight = spec[2],
-        antialias = true,
-        extended = true
-    })
+-- UI cohesion (2026-09-26): the four Goob* fonts follow hg_font like every kit font (they were Bahnschrift from 24 px
+-- up and Roboto below, so A.Button / A.Entry / A.Label never changed with the font setting).
+local function goobFonts()
+    local cv = GetConVar("hg_font")
+    local face = cv and cv:GetString() or ""
+    if face == "" then face = "Bahnschrift" end
+    for name, spec in pairs({
+        Title = {24, 700},
+        Body = {15, 500},
+        Small = {13, 500},
+        Metric = {30, 600}
+    }) do
+        surface.CreateFont("Goob" .. name, {font = face, size = spec[1], weight = spec[2], antialias = true, extended = true})
+    end
 end
+goobFonts()
+cvars.AddChangeCallback("hg_font", goobFonts, "GoobOS.AppFonts")
 
 function A.Label(parent, text, font, color, height)
     local p = vgui.Create("DLabel", parent)

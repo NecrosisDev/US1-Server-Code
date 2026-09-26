@@ -101,19 +101,11 @@ end
 
 -- Small kit-styled button: T.main primary / T.card secondary, K.Hover wash, K.Font text (KIT_API: no
 -- surface.CreateFont, no per-Paint Color()). Docks TOP like the app's old chrome() buttons did.
+-- UI cohesion (2026-09-26): the shared K.Button; this wrapper keeps the file's call sites.
 local function kitButton(parent, text, callback, primary, danger)
-    local b = vgui.Create("DButton", parent)
-    b:SetText(""); b:Dock(TOP); b:DockMargin(0, 0, 0, 7); b:SetTall(36)
-    b.GoobLabel = text -- test/debug discoverability only; not read by any Paint/behaviour path
-    b.DoClick = callback or function() end
-    b.Think = function(s) s:SetEnabled(not C.Busy() and C.Available() and not C.blocked) end
-    b.Paint = function(s, w, h)
-        local hover = K.Hover(s)
-        draw.RoundedBox(4, 0, 0, w, h, primary and T.main or T.card)
-        if hover > 0.01 then draw.RoundedBox(4, 0, 0, w, h, K.Alpha(primary and T.white or T.main, (primary and 18 or 45) * hover)) end
-        K.Text(text, 15, 600, w / 2, h / 2, danger and T.red or (primary and T.white or T.text), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-    end
-    return b
+    return K.Button(parent, {label = text, click = callback, size = 15,
+        kind = danger and "danger" or (primary and "primary" or "secondary"),
+        enabled = function() return not C.Busy() and C.Available() and not C.blocked end})
 end
 
 local function build(root, phone)
@@ -206,11 +198,7 @@ local function build(root, phone)
         kitButton(sheet, "Report " .. kind, function() shade:Close(); report(kind, id) end)
         if mine then kitButton(sheet, "Remove " .. kind, function() shade:Close(); remove(kind, id) end, false, true) end
     end
-    local function watchClip(clipID)
-        if not isstring(clipID) or clipID == "" then return end
-        RunConsoleCommand("zc_killcam")
-        net.Start("zckc_clip"); net.WriteString(clipID); net.SendToServer()
-    end
+    local function watchClip(clipID) return A.Media and A.Media.OpenClip and A.Media.OpenClip(clipID) end
 
     -- ------------------------------------------------------------------------------------------
     -- Masthead + tabs

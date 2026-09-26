@@ -272,37 +272,16 @@ end
 
 -- kind: "primary" (red fill), "secondary" (card fill), "quiet" (text only), "danger" (quiet, red text).
 -- label/badge may be functions (re-read every frame). selected() draws the gold "on" state.
+-- UI cohesion (2026-09-26): painted by the shared K.Button. paintedOn keeps the last on/off state while a request is
+-- pending (no flicker); the click still checks the live enabled().
 local function button(parent, label, kind, enabled, click, badge, selected)
-    local b = vgui.Create("DButton", parent)
-    b:SetText("")
+    local b
+    b = K.Button(parent, {label = label, kind = kind, sub = badge, selected = selected, dock = false, size = 15,
+        enabled = enabled and function() return paintedOn(b, enabled) end})
     b.DoClick = function(s)
         if enabled and not enabled() then return end
         s.Flash = RealTime()
         click(s)
-    end
-    b.Paint = function(s, w, h)
-        local on = paintedOn(s, enabled)
-        local hover = K.Hover(s)
-        local sel = selected and selected()
-        if kind == "primary" then
-            draw.RoundedBox(4, 0, 0, w, h, on and T.main or K.Alpha(T.main, 70))
-        elseif kind == "secondary" then
-            draw.RoundedBox(4, 0, 0, w, h, sel and K.Alpha(T.gold, 40) or T.card)
-        end
-        if on and hover > 0.01 then draw.RoundedBox(4, 0, 0, w, h, K.Alpha(T.white, 12 * hover)) end
-        local flash = s.Flash and 1 - K.Progress(s.Flash, 0.2) or 0
-        if flash > 0 then draw.RoundedBox(4, 0, 0, w, h, K.Alpha(T.white, 40 * flash)) end
-        local text = isfunction(label) and label() or label
-        local sub = isfunction(badge) and badge() or badge
-        local color = kind == "primary" and T.white or kind == "danger" and T.red or kind == "quiet" and (hover > 0.5 and T.text or T.muted) or T.text
-        if sel then color = T.gold end
-        if not on then color = K.Alpha(T.muted, 150) end
-        if sub and w >= 150 then
-            K.Text(K.Fit(text, K.Font(15, 600), w - 90), 15, 600, 14, h / 2, color, LEFT, CENTER)
-            K.Text(sub, 13, 600, w - 14, h / 2, on and (kind == "primary" and K.Alpha(T.white, 190) or T.gold) or K.Alpha(T.muted, 150), RIGHT, CENTER)
-        else
-            K.Text(K.Fit(sub and text .. " " .. sub or text, K.Font(15, 600), w - 12), 15, 600, w / 2, h / 2, color, CENTER, CENTER)
-        end
     end
     return b
 end

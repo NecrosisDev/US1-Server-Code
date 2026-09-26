@@ -141,18 +141,10 @@ installWrap()
 hook.Add("InitPostEntity", "GoobOS.Replays.Wrap", installWrap)
 timer.Create("GoobOS.Replays.Wrap", 2, 0, installWrap)
 
--- "Watch": the killcam's own receivers do the rest; we never touch zckc_clip's response.
+-- "Watch": ZCGoobApps.Media.OpenClip (media.lua) is the one clip player; the killcam's own receivers do the rest.
 local function watchClip(id)
-    if not id then return end
     local media = ZCGoobApps.Media
-    if istable(media) and isfunction(media.OpenClip) then
-        media.OpenClip(id)
-        return
-    end
-    RunConsoleCommand("zc_killcam")
-    net.Start("zckc_clip")
-    net.WriteString(id)
-    net.SendToServer()
+    return istable(media) and isfunction(media.OpenClip) and media.OpenClip(id) or false
 end
 Rp.Watch = watchClip
 

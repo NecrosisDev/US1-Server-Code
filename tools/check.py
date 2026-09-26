@@ -7,6 +7,9 @@ Checks (each prints findings; any NEW finding fails):
   paths       physical "addons/<name>/" references to addons that no longer exist after the merge
   opsfiles    one-shot ops scripts (activate/probe/rollback/...) creeping back into the shipped addon
   hooks       the same hook.Add(event, id) registered from two different files (the later one silently wins)
+  theme       player-facing UI code painting its own colours or fonts instead of the GoobOS kit (ZCGoobApps.Theme /
+              K.Font): one finding per Color( literal, surface.CreateFont or hard-coded font family, numbered per file,
+              so removing one reads as "fixed" and adding one fails
 
 Pre-existing findings live in manifests/check-baseline.json so the gate only blocks regressions.
   --update-baseline   rewrite the baseline from the current tree (do this deliberately, in its own commit)
@@ -31,6 +34,13 @@ OPS_NAME = re.compile(r"(_activate|_probe|_preflight|_rollback|_rollout|_verify|
 HOOK_ADD = re.compile(r"""hook\.Add\(\s*["']([^"']+)["']\s*,\s*["']([^"']+)["']""")
 LOCATION = re.compile(r"line \d+, column \d+ - line \d+, column \d+: ")
 ADDON_PATH = re.compile(r"""addons/([A-Za-z0-9_\-\.]+)/""")
+# UI cohesion (2026-09-26): where player-facing UI lives, and the two files that ARE the theme.
+UI_GLOBS = ["zc_goobos/*.lua", "zc_killcam/viewer_parts/*.lua", "zc_killcam/cl_*.lua", "zc_observer/cl_*.lua",
+            "zc_scoreboard/*.lua", "autorun/client/*.lua"]
+THEME_FILES = {"zc_goobos/kit.lua", "zc_goobos/apps.lua"}
+THEME_PATTERNS = [("Color literal", re.compile(r"\bColor\(\s*\d")),
+                  ("CreateFont", re.compile(r"surface\.CreateFont\(")),
+                  ("font family", re.compile(r"""font\s*=\s*["'](Tahoma|Roboto|Arial|Verdana|Trebuchet)"""))]
 
 
 def lua_files(base):
@@ -104,6 +114,21 @@ def check_hooks(files):
     return sorted(f"{ev} / {hid}: {', '.join(sorted(fs))}" for (ev, hid), fs in owners.items() if len(fs) > 1)
 
 
+def check_theme():
+    base = US1 / "lua"
+    files = sorted({p for g in UI_GLOBS for p in base.glob(g) if p.is_file()})
+    out = []
+    for f in files:
+        name = f.relative_to(base).as_posix()
+        if name in THEME_FILES or f.name.startswith("sv_"):
+            continue
+        text = code_only(f.read_text(errors="replace"))
+        for label, pattern in THEME_PATTERNS:
+            for k in range(1, len(pattern.findall(text)) + 1):
+                out.append(f"{rel(f)}: {label} #{k}")
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--update-baseline", action="store_true")
@@ -121,6 +146,7 @@ def main():
         "paths": check_paths(files),
         "opsfiles": check_opsfiles(files),
         "hooks": check_hooks(files),
+        "theme": check_theme(),
     }
     if (ROOT / "garrysmod").exists():
         results["layout"] = ["garrysmod/ reappeared; code belongs in addons/us1 or patches/ (see docs/ARCHITECTURE.md)"]

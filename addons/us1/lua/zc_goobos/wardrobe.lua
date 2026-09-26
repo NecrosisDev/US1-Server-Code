@@ -214,28 +214,12 @@ end
 
 -- Full-width action button (Shuffle outfit, Add accessory, Save/Load/Delete a look, ...).
 -- opts = {glyph=, primary=bool, danger=bool}.
+-- UI cohesion (2026-09-26): the shared K.Button; this wrapper keeps the file's call sites.
 local function kitButton(parent, text, onClick, opts)
     opts = opts or {}
-    local b = vgui.Create("DButton", parent)
-    b:Dock(TOP)
+    local b = K.Button(parent, {label = text, click = onClick, glyph = opts.glyph, align = TEXT_ALIGN_LEFT,
+        kind = opts.danger and "danger" or (opts.primary and "primary" or "secondary")})
     b:DockMargin(0, 0, 0, 6)
-    b:SetTall(36)
-    b:SetText("")
-    b:SetCursor("hand")
-    b.DoClick = onClick or function() end
-    b.GoobLabel = text
-    b.Paint = function(s, w, h)
-        local hover = K.Hover(s)
-        draw.RoundedBox(4, 0, 0, w, h, opts.primary and T.main or T.card)
-        if hover > 0.01 then draw.RoundedBox(4, 0, 0, w, h, K.Alpha(T.white, opts.primary and 18 * hover or 14 * hover)) end
-        local color = opts.danger and T.red or (opts.primary and T.white or T.text)
-        local tx = 14
-        if opts.glyph then
-            K.Glyph(opts.glyph, 26, h / 2, 16, color)
-            tx = 42
-        end
-        K.Text(K.Fit(text, K.Font(14, 600), w - tx - 10), 14, 600, tx, h / 2, color, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-    end
     return b
 end
 

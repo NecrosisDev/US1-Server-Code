@@ -8,7 +8,7 @@ ZCGoobApps = ZCGoobApps or {}
 local A = ZCGoobApps
 local K = A.Kit or {}
 A.Kit = K
-K.Version = "20260924.kit1"
+K.Version = "20260926.kit2"
 
 -- Tokens. A.Theme keeps its live values (apps.lua); the kit only adds what the rework needs.
 A.Theme = A.Theme or {}
@@ -260,6 +260,194 @@ end
 K.HudStack = {stamina = 864, giveup = 870, status = 910, grace = 956}
 function K.HudY(slot)
     return math.floor(ScrH() * (K.HudStack[slot] or 540) / 1080 + 0.5)
+end
+
+-- UI cohesion pass (2026-09-26) -----------------------------------------------------------------
+-- One theme for every surface (owner decision 2026-09-26: ZCity red; cyan only as a DATA accent - trajectories, organ
+-- percentages, vitals - never as chrome). Tokens that five files used to copy by hand live here now.
+for key, value in pairs({
+    kill = Color(255, 90, 90), -- a kill mark / damage dealt to you
+    death = Color(70, 150, 220), -- your death mark
+    amber = Color(215, 153, 74), -- wounded / warning
+    healthy = Color(119, 157, 135),
+    chip = Color(10, 9, 9), -- chip and keycap backing
+    inset = Color(20, 17, 17, 255), -- behind a replay render
+    dim = Color(12, 10, 10, 215), -- over a replay render (loading, verdict)
+    data = Color(108, 223, 243), -- data accent (forensics only)
+}) do
+    if T[key] == nil then T[key] = value end
+end
+T.radius = T.radius or {card = 4, chip = 3, pill = 8}
+-- Tissue tints (the killcam's organ view, zc_killcam/viewer_parts/cl_part_02.lua D.Tissue): one table for the death
+-- panel's body view, the bullet camera and the damage inspector.
+T.tissue = T.tissue or {flesh = Color(196, 128, 116), organ = Color(206, 96, 86), lung = Color(236, 150, 162),
+    dense = Color(150, 38, 38), vessel = Color(255, 52, 52), bone = Color(236, 226, 206), armor = Color(247, 199, 115)}
+
+-- "m:ss" (0:08, 12:40). The one clock format on every GoobOS surface.
+function K.Clock(seconds)
+    seconds = tonumber(seconds)
+    if not seconds then return nil end
+    seconds = math.max(0, math.floor(seconds))
+    return string.format("%i:%02i", math.floor(seconds / 60), seconds % 60)
+end
+
+-- First letter of a name, upper-case, UTF-8 safe ("?" for none): initials avatars.
+function K.Initial(name)
+    name = tostring(name or "")
+    local cut = utf8.offset(name, 2)
+    local first = cut and string.sub(name, 1, cut - 1) or name
+    return first ~= "" and string.upper(first) or "?"
+end
+
+-- A painter set bound to one layout unit (P.Unit(): 1080p = 1). Full-screen panels set S.U once per layout pass and
+-- paint in 1080p numbers; every size below goes through S.u. Replaces the u/font/text/fit/measure/chip/keycap copies
+-- that deathpanel.lua and roundend.lua each carried.
+function K.Scaler(unit)
+    local S = {U = unit or 1}
+    function S.u(n) return math.floor(n * S.U + 0.5) end
+    function S.font(size, weight) return K.Font(math.max(8, S.u(size)), weight) end
+    function S.text(str, size, weight, x, y, color, ax, ay)
+        return draw.SimpleText(str, S.font(size, weight), x, y, color or T.text, ax or TEXT_ALIGN_LEFT, ay or TEXT_ALIGN_TOP)
+    end
+    function S.fit(str, size, weight, width) return K.Fit(str, S.font(size, weight), width) end
+    function S.measure(str, size, weight)
+        surface.SetFont(S.font(size, weight))
+        return surface.GetTextSize(str)
+    end
+    -- Chip: small caps label on a dark pill, 20 units tall. align = TEXT_ALIGN_LEFT (x = left edge, default),
+    -- _CENTER or _RIGHT. Returns the chip width.
+    function S.chip(label, x, y, color, bg, align)
+        local tw = S.measure(label, 10, 700) + S.u(14)
+        local bx = align == TEXT_ALIGN_RIGHT and x - tw or (align == TEXT_ALIGN_CENTER and x - tw / 2 or x)
+        draw.RoundedBox(T.radius.chip, bx, y, tw, S.u(20), bg or K.Alpha(T.chip, 200))
+        S.text(label, 10, 700, bx + tw / 2, y + S.u(10), color or T.text, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+        return tw
+    end
+    -- Keycap, 20 units tall, (x, y) = top-left. Returns the cap width.
+    function S.keycap(label, x, y, alpha)
+        return K.HudKey(label, x, y, S.u(20), alpha)
+    end
+    -- One hint row: {{"Space", "Skip"}, {"Q", "Spectate"}, ...} as keycap + verb pairs. align: LEFT (x = left edge),
+    -- CENTER or RIGHT. Returns the drawn width and a list of {x, w, index} spans for click zones.
+    local function capWidth(label) -- mirrors K.HudKey's own sizing at height u(20)
+        local size = S.u(20)
+        surface.SetFont(K.Font(math.max(10, math.floor(size * 0.58)), 700))
+        return math.max(size, surface.GetTextSize(label) + math.floor(size * 0.46))
+    end
+    function S.hintWidth(hints)
+        local w, gap = 0, S.u(16)
+        for i, h in ipairs(hints) do
+            local cap = h[1] and (capWidth(h[1]) + S.u(6)) or 0
+            w = w + cap + S.measure(h[2] or "", 11, 500) + (i < #hints and gap or 0)
+        end
+        return w
+    end
+    function S.hints(hints, x, y, align, alpha)
+        local total = S.hintWidth(hints)
+        if align == TEXT_ALIGN_CENTER then x = x - total / 2 elseif align == TEXT_ALIGN_RIGHT then x = x - total end
+        local spans, gap = {}, S.u(16)
+        for i, h in ipairs(hints) do
+            local x0 = x
+            if h[1] then x = x + S.keycap(h[1], x, y, alpha) + S.u(6) end
+            S.text(h[2] or "", 11, 500, x, y + S.u(10), K.Alpha(h.color or T.muted, 255 * (alpha or 1)), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+            x = x + S.measure(h[2] or "", 11, 500)
+            spans[i] = {x0, x - x0, i}
+            x = x + gap
+        end
+        return total, spans
+    end
+    return S
+end
+
+-- One button for every GoobOS surface. spec:
+--   label    string or function() -> string (re-read every frame)
+--   kind     "primary" (red fill) | "secondary" (card, default) | "ghost" (outline) | "quiet" (text) | "danger"
+--   click    function(button)          enabled  function() -> bool (greyed + inert when false)
+--   key      keycap label drawn at the left ("V", "Space")      glyph  K.Glyph name drawn at the left
+--   sub      string or function: a right-aligned secondary value (arcade stakes)
+--   selected function() -> bool (gold "on" state)                 align  TEXT_ALIGN_CENTER (default) or _LEFT
+--   size     label font size (default 14)   scaler  a K.Scaler (full-screen panels) - sizes then scale with it
+--   dock     false = free-positioned (caller sizes it); default docks TOP, 36 px tall, 7 px gap
+function K.Button(parent, spec)
+    spec = spec or {}
+    local S = spec.scaler
+    local function su(n) return S and S.u(n) or n end
+    local function sf(size, weight) return S and S.font(size, weight) or K.Font(size, weight) end
+    local b = vgui.Create("DButton", parent)
+    b:SetText("")
+    b:SetCursor("hand")
+    if spec.dock ~= false then
+        b:Dock(TOP)
+        b:DockMargin(0, 0, 0, 7)
+        b:SetTall(36)
+    end
+    b.Spec = spec
+    b.GoobLabel = isstring(spec.label) and spec.label or nil -- test/debug discoverability only
+    function b:IsOn() return not self.Spec.enabled or self.Spec.enabled() end
+    function b:LabelText()
+        local l = self.Label or self.Spec.label
+        return tostring((isfunction(l) and l() or l) or "")
+    end
+    b.DoClick = function(s)
+        if not s:IsOn() then return end
+        s.Flash = RealTime()
+        if s.Spec.click then s.Spec.click(s) end
+    end
+    b.Paint = function(s, w, h)
+        local sp = s.Spec
+        local kind = sp.kind or "secondary"
+        local on, hover, sel = s:IsOn(), K.Hover(s), sp.selected and sp.selected()
+        local r = T.radius.card
+        if kind == "primary" then
+            draw.RoundedBox(r, 0, 0, w, h, on and T.main or K.Alpha(T.main, 70))
+        elseif kind == "secondary" or kind == "danger" then
+            draw.RoundedBox(r, 0, 0, w, h, sel and K.Alpha(T.gold, 40) or T.card)
+        elseif kind == "ghost" then
+            draw.RoundedBox(r, 0, 0, w, h, K.Alpha(T.ink, 90))
+            surface.SetDrawColor(T.line)
+            surface.DrawOutlinedRect(0, 0, w, h, 1)
+        end
+        if on and hover > 0.01 then draw.RoundedBox(r, 0, 0, w, h, K.Alpha(T.white, (kind == "primary" and 20 or 13) * hover)) end
+        local flash = s.Flash and 1 - K.Progress(s.Flash, 0.2) or 0
+        if flash > 0 then draw.RoundedBox(r, 0, 0, w, h, K.Alpha(T.white, 40 * flash)) end
+        local color = kind == "primary" and T.white or (kind == "danger" and T.red) or (kind == "quiet" and (hover > 0.5 and T.text or T.muted)) or T.text
+        if sel then color = T.gold end
+        if not on then color = T.muted end
+        local size = sp.size or 14
+        local fnt = sf(size, 600)
+        local lx = su(10)
+        if sp.key then lx = lx + K.HudKey(sp.key, lx, h / 2 - su(9), su(18), on and 1 or 0.5) + su(8)
+        elseif sp.glyph then K.Glyph(sp.glyph, lx + su(8), h / 2, su(16), color) lx = lx + su(24) end
+        local sub = isfunction(sp.sub) and sp.sub() or sp.sub
+        local label = s:LabelText()
+        if sub and w >= su(150) then
+            draw.SimpleText(K.Fit(label, fnt, w - lx - su(80)), fnt, lx + su(4), h / 2, color, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+            draw.SimpleText(tostring(sub), sf(size - 1, 600), w - su(12), h / 2, on and (kind == "primary" and K.Alpha(T.white, 190) or T.gold) or T.muted, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
+        elseif sp.align == TEXT_ALIGN_LEFT or sp.key or sp.glyph then
+            local room = w - lx - su(10)
+            if sp.align ~= TEXT_ALIGN_LEFT then
+                surface.SetFont(fnt)
+                local tw = math.min(surface.GetTextSize(label), room)
+                draw.SimpleText(K.Fit(label, fnt, room), fnt, lx + (room - tw) / 2, h / 2, color, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+            else
+                draw.SimpleText(K.Fit(label, fnt, room), fnt, lx + su(4), h / 2, color, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+            end
+        else
+            draw.SimpleText(K.Fit(label, fnt, w - su(16)), fnt, w / 2, h / 2, color, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+        end
+    end
+    -- Natural width for free-positioned rows (never a fixed 140 px at any scale).
+    function b:Measure()
+        surface.SetFont(sf(self.Spec.size or 14, 600))
+        local tw = surface.GetTextSize(self:LabelText())
+        local extra = 0
+        if self.Spec.key then
+            surface.SetFont(K.Font(math.max(10, math.floor(su(18) * 0.58)), 700))
+            extra = math.max(su(18), surface.GetTextSize(self.Spec.key) + math.floor(su(18) * 0.46)) + su(8)
+        elseif self.Spec.glyph then extra = su(24) end
+        return tw + su(32) + extra
+    end
+    return b
 end
 
 -- Line glyphs on a 24-unit grid (the mockups' icons). l = open polyline, c = closed polyline,

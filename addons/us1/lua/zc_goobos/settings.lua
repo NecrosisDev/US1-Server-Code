@@ -330,10 +330,20 @@ local function build(root, phone)
             elseif kind == "choice" then
                 -- Owner 2026-09-24 (late): a segmented pick for small enums (meta[7] labels, value = index - 1)
                 local labels = istable(meta[7]) and meta[7] or {}
-                control = K.Segmented(row, labels, math.Clamp(cv:GetInt() + 1, 1, math.max(1, #labels)), function(index)
-                    RunConsoleCommand(name, tostring(index - 1))
+                -- meta[9]: explicit values per label (a float convar such as the voice duck); else index - 1
+                local values = istable(meta[9]) and meta[9] or nil
+                local function current()
+                    if not values then return math.Clamp(cv:GetInt() + 1, 1, math.max(1, #labels)) end
+                    local v, best, gap = cv:GetFloat(), 1, math.huge
+                    for i, x in ipairs(values) do
+                        if math.abs(x - v) < gap then best, gap = i, math.abs(x - v) end
+                    end
+                    return best
+                end
+                control = K.Segmented(row, labels, current(), function(index)
+                    RunConsoleCommand(name, tostring(values and values[index] or index - 1))
                 end)
-                control.Think = function(s) s.Selected = math.Clamp(cv:GetInt() + 1, 1, math.max(1, #labels)) end
+                control.Think = function(s) s.Selected = current() end
             else
                 control = vgui.Create("DTextEntry", row)
                 control:SetFont(K.Font(13, 500))
@@ -493,9 +503,23 @@ local function build(root, phone)
             end
 
             categories.GoobOS = categories.GoobOS or {}
-            for _, row in ipairs({{"zc_goobos_voice", "GoobOS voice display", "bool"}, {"zc_goobos_voice_hud", "Gameplay voice indicator", "bool"}, {"zc_goobos_voice_monitor", "Your voice orb", "bool"}, {"zc_goobos_voice_monitor_pos", "Voice orb position", "choice", {"Centre", "Top left", "Top right", "Bottom left", "Bottom right"}}, {"zc_goobos_voice_fx", "Electricity density", "choice", {"Auto", "Full"}}, {"zc_chat_inline_media", "Inline photos & videos", "bool"}, {"zc_chat_video_volume", "Video volume", "int"}, {"zc_chat_gifs", "Animated GIFs", "bool"}, {"zc_chat_videos", "Video players", "bool"}, {"zc_chat_timestamps", "Message timestamps", "bool"}, {"zc_chat_group", "Group consecutive messages", "bool"}, {"zc_chat_ping", "Mention sounds", "bool"}}) do
-                if GetConVar(row[1]) then categories.GoobOS[row[1]] = {"GoobOS", row[1], row[2], true, false, row[3], row[4]} end -- [7] = choice labels
+            for _, row in ipairs({{"zc_goobos_voice", "GoobOS voice display", "bool"}, {"zc_goobos_voice_hud", "Gameplay voice indicator", "bool"}, {"zc_goobos_voice_monitor", "Your voice orb", "bool"}, {"zc_goobos_voice_monitor_pos", "Voice orb position", "choice", {"Centre", "Top left", "Top right", "Bottom left", "Bottom right"}}, {"zc_goobos_voice_fx", "Electricity density", "choice", {"Auto", "Full"}}, {"zc_goobos_voice_lower", "Voice cards at the lower-right edge", "bool"}, {"zc_goobos_voice_electricity", "Electricity on voice cards", "bool"}, {"zc_goobos_voice_duck", "Other voices while an admin speaks", "choice", {"Muted", "Half", "Full"}, {0, 0.5, 1}}, {"zc_goobos_voice_cornerblend", "Voice avatars: blended corners (faster)", "bool"}, {"zc_chat_inline_media", "Inline photos & videos", "bool"}, {"zc_chat_video_volume", "Video volume", "int"}, {"zc_chat_gifs", "Animated GIFs", "bool"}, {"zc_chat_videos", "Video players", "bool"}, {"zc_chat_timestamps", "Message timestamps", "bool"}, {"zc_chat_group", "Group consecutive messages", "bool"}, {"zc_chat_ping", "Mention sounds", "bool"}}) do
+                if GetConVar(row[1]) then categories.GoobOS[row[1]] = {"GoobOS", row[1], row[2], true, false, row[3], row[4], nil, row[5]} end -- [7] = choice labels, [9] = choice values
             end
+            -- UI cohesion (2026-09-26): every replay / death-screen switch in one place. The killcam registers
+            -- zc_killcam_show under this category too (cl_part_03), so it is never listed twice.
+            local replayRows = {
+                {"zc_killcam_show", "Killcams: your death replay and the round's highlight", "bool"},
+                {"zc_killcam_ui", "GoobOS death and round-end screens", "bool"},
+                {"zc_goobos_roundend_side", "Round end layout", "choice", {"Full panel when dead", "Always the side card"}},
+                {"zc_killcam_organs", "Show the organs a bullet crossed", "bool"},
+            }
+            local replayCategory = "Replays & killcam"
+            categories[replayCategory] = categories[replayCategory] or {}
+            for i, row in ipairs(replayRows) do
+                if GetConVar(row[1]) then categories[replayCategory][row[1]] = {replayCategory, row[1], row[2], true, false, row[3], row[4], i} end
+            end
+            if categories.Gameplay then categories.Gameplay.zc_killcam_show = nil end
 
             for category, rows in SortedPairs(categories) do
                 local heading = false

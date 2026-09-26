@@ -239,23 +239,36 @@ local function openVideo(item)
     return true
 end
 
+-- UI cohesion (2026-09-26): the ONE way any GoobOS surface plays a stored killcam clip (Replays, CityLeak, chat links,
+-- the death panel). Replays used to call this before it existed and fell back to a copy of the same three lines;
+-- CityLeak had its own copy. Exactly what the killcam records menu does (cl_part_03.lua:100-230, cl_part_02.lua:583):
+-- open the viewer, then ask it for this clip; its own net.Receive("zckc_clip") decodes and plays it, and the server
+-- answers a refusal (not a party / expired / alive in a live round) into the same viewer. The phone steps aside so the
+-- viewer is not drawn under it. Returns true when the request left.
+M.ClipPattern = "^%d+_%d+$" -- sv_feed_store.lua's check on a CityLeak clip reference
+function M.OpenClip(id)
+    if not isstring(id) or #id > 24 or not string.match(id, M.ClipPattern) then return false end
+    if killcamPlaying() then return false end
+    if not ConVarExists("zc_killcam_show") and not concommand.GetTable()["zc_killcam"] then
+        if A.Notify and A.Notify.Push then A.Notify.Push({app = "Replays", glyph = "play", title = "Replays are still loading", body = "Try again in a moment."}) end
+        return false
+    end
+    local phone = hg and hg.chat
+    if IsValid(phone) and phone.GetActive and phone:GetActive() then phone:SetActive(false) end
+    RunConsoleCommand("zc_killcam")
+    net.Start("zckc_clip")
+    net.WriteString(id)
+    net.SendToServer()
+    return true
+end
+
 -- item = {kind = "photo", path = "goobos/photos/<file>.jpg" (DATA) or base64 = "<jpeg b64>",
 --   title, author, time, actions = {{label, fn, danger}}}
 -- or {kind = "clip", id = "<killcam clip id>", title, ...}
 function M.Open(item)
     if not istable(item) or not isstring(item.kind) then return end
     if killcamPlaying() then return end
-    if item.kind == "clip" then
-        if not isstring(item.id) or item.id == "" then return end
-        -- Exactly what the killcam records menu does (cl_part_03.lua:100-230, cl_part_02.lua:583):
-        -- open the viewer, then ask it for this clip. Its own net.Receive("zckc_clip") (already
-        -- registered by that file) decodes and plays it -- this file adds no net.Receive of its own.
-        RunConsoleCommand("zc_killcam")
-        net.Start("zckc_clip")
-        net.WriteString(item.id)
-        net.SendToServer()
-        return
-    end
+    if item.kind == "clip" then return M.OpenClip(item.id) end
     if item.kind == "video" then
         local p = ensurePanel()
         if not openVideo(item) then return end
