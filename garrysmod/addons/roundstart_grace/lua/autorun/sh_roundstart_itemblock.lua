@@ -144,6 +144,17 @@ if SERVER then
 		print("[ItemBlock] throw gate armed (" .. gatedCount .. " live grenades gated)")
 	end)
 
+	-- kicks are a concommand (hg_kick -> PLAYER:LegAttack), not an
+	-- attack key, so the key strip above never saw them: during grace
+	-- players were kicking idle/loading players to the ground and
+	-- searching them (owner, 2026-09-26). Both the ground kick
+	-- (legkick/sv_legkick.lua) and the jump kick (zc_jumpkick) ask
+	-- this hook before anything happens.
+	hook.Add("PlayerCanLegAttack", "RoundStart_ItemBlock", function(ply)
+		local untilT = GetGlobalFloat("RS_GraceUntil", 0)
+		if untilT > 0 and CurTime() < untilT then return false end
+	end)
+
 	-- diagnostic: rs_graceinfo prints grace state + gate census
 	concommand.Add("rs_graceinfo", function(ply)
 		if IsValid(ply) and not ply:IsAdmin() then return end
