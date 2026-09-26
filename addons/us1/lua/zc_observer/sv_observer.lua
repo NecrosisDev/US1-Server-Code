@@ -1,18 +1,23 @@
 if not SERVER then return end
 ZCObserverServer = ZCObserverServer or {}
 local O = ZCObserverServer
-O.Version = "20260922.observer1"
+O.Version = "20260926.observer2"
 local mode = CreateConVar("zc_observer_mode", "2", FCVAR_ARCHIVE, "Afterlife: 0 staged/off, 1 owner preview, 2 public", 0, 2)
 local owner = "76561198011536179"
 local histories = setmetatable({}, {__mode="k"})
 local lives = setmetatable({}, {__mode="k"})
+local debriefs = setmetatable({}, {__mode="k"}) -- player -> {snapshot, life, round, gen}: this death's, for a re-send
 local serial = 0
 local generation = 0
 util.AddNetworkString("ZCObserverSnapshot")
 
-local function allowed(ply)
+local function human(ply)
     return IsValid(ply) and ply:IsPlayer() and not ply:IsBot()
-        and (mode:GetInt() == 2 or (mode:GetInt() == 1 and ply:SteamID64() == owner))
+end
+-- zc_observer_mode gates the SPECTATING tools (the dock, the ESP, the legacy HUD hooks below). A player's own death
+-- debrief is their own data: the GoobOS death panel shows it whatever the mode (UI cohesion U1, 2026-09-26).
+local function allowed(ply)
+    return human(ply) and (mode:GetInt() == 2 or (mode:GetInt() == 1 and ply:SteamID64() == owner))
 end
 local function clean(value, limit)
     return tostring(value or ""):gsub("[%c]", " "):sub(1, limit or 80)
@@ -24,7 +29,7 @@ local function finite(value, maximum)
 end
 local function roundId() return math.floor(zb and zb.ROUND_START or 0) end
 local function send(ply, snapshot)
-    if not allowed(ply) then return end
+    if not human(ply) then return end
     local data = util.TableToJSON(snapshot)
     if not data or #data > 24000 then return end
     net.Start("ZCObserverSnapshot")
@@ -32,10 +37,22 @@ local function send(ply, snapshot)
     net.Send(ply)
 end
 
+-- What kind of harm a hit was, for the death panel's cause line ("Shot", "Fall", ...). nil when the type says nothing.
+local function kindOf(d)
+    if d:IsFallDamage() then return "fall" end
+    if d:IsExplosionDamage() then return "explosion" end
+    if d:IsBulletDamage() or d:IsDamageType(DMG_BUCKSHOT) then return "bullet" end
+    if d:IsDamageType(DMG_SLASH) then return "slash" end
+    if d:IsDamageType(DMG_BURN) or d:IsDamageType(DMG_SLOWBURN) then return "burn" end
+    if d:IsDamageType(DMG_DROWN) then return "drown" end
+    if d:IsDamageType(DMG_CLUB) or d:IsDamageType(DMG_CRUSH) then return "blunt" end
+    return nil
+end
+
 -- Personal injury history only; no global kill feed or role information.
 hook.Add("HomigradDamage", "ZCObserver.Injury", function(victim, damage, hitgroup, body, harm)
     if IsValid(victim) and not victim:IsPlayer() and hg and hg.RagdollOwner then victim = hg.RagdollOwner(victim) end
-    if not allowed(victim) or not victim:Alive() then return end
+    if not human(victim) or not victim:Alive() then return end
     local list = histories[victim] or {}; histories[victim] = list
     local attacker = damage:GetAttacker()
     local inflictor = damage:GetInflictor()
@@ -49,11 +66,13 @@ hook.Add("HomigradDamage", "ZCObserver.Injury", function(victim, damage, hitgrou
         sid=IsValid(attacker) and attacker:IsPlayer() and clean(attacker:SteamID64(),20) or "",
         weapon=clean(weapon,64), group=math.floor(finite(hitgroup,16)), harm=finite(harm,10000),
     }
+    local ok, kind = pcall(kindOf, damage)
+    if ok and kind then list[#list].kind = kind end
     while #list > 24 do table.remove(list,1) end
 end)
 
 hook.Add("PlayerDeath", "ZCObserver.Debrief", function(victim, inflictor, attacker)
-    if not allowed(victim) then return end
+    if not human(victim) then return end
     serial = (serial + 1) % 4294967295
     local org = victim.organism or {}
     local now = CurTime()
@@ -74,22 +93,43 @@ hook.Add("PlayerDeath", "ZCObserver.Debrief", function(victim, inflictor, attack
     histories[victim]=nil
     -- Send after the engine's death state; never deliver an old death over a respawn.
     local uid=victim:UserID(); local epoch=snapshot.round; local life=lives[victim]; local gen=generation
+    debriefs[victim]={snapshot=snapshot, life=life, round=epoch, gen=gen}
     timer.Simple(0,function()
         if IsValid(victim) and victim:UserID()==uid and not victim:Alive() and roundId()==epoch and lives[victim]==life and generation==gen then send(victim,snapshot) end
     end)
 end)
 hook.Add("PlayerSpawn", "ZCObserver.Spawn", function(ply)
     histories[ply]=nil
+    debriefs[ply]=nil
     lives[ply]=(lives[ply] or 0)+1
-    if allowed(ply) then send(ply,{clear=true,round=roundId()}) end
+    send(ply,{clear=true,round=roundId()})
 end)
-hook.Add("PlayerDisconnected", "ZCObserver.Gone", function(ply) histories[ply]=nil; lives[ply]=nil end)
+hook.Add("PlayerDisconnected", "ZCObserver.Gone", function(ply) histories[ply]=nil; lives[ply]=nil; debriefs[ply]=nil end)
 hook.Add("ZB_PreRoundStart", "ZCObserver.Round", function()
     generation=generation+1
     histories=setmetatable({}, {__mode="k"})
     lives=setmetatable({}, {__mode="k"})
-    for _,ply in ipairs(player.GetHumans()) do if allowed(ply) then send(ply,{clear=true,round=roundId()}) end end
+    debriefs=setmetatable({}, {__mode="k"})
+    for _,ply in ipairs(player.GetHumans()) do send(ply,{clear=true,round=roundId()}) end
 end)
+
+-- The death panel asks for this death's debrief when it opens without one (the push above can land before the client
+-- is listening). No payload; the reply is the same ZCObserverSnapshot, only for the asker's own current death.
+local function resend(_, ply)
+    local d=debriefs[ply]
+    if d and not ply:Alive() and d.life==lives[ply] and d.round==roundId() and d.gen==generation then send(ply,d.snapshot) end
+end
+if US1 and US1.Net and US1.Net.Receive then
+    US1.Net.Receive("ZCObserverDebriefRequest", {maxBits = 8, rate = 1}, resend)
+else
+    util.AddNetworkString("ZCObserverDebriefRequest")
+    local asked=setmetatable({}, {__mode="k"})
+    net.Receive("ZCObserverDebriefRequest", function(len, ply)
+        if not human(ply) or len > 8 or (asked[ply] or 0) > RealTime() then return end
+        asked[ply]=RealTime()+1
+        resend(len, ply)
+    end)
+end
 
 -- Exact legacy hooks only. Preview leaves other players' existing HUD untouched.
 local legacy = {

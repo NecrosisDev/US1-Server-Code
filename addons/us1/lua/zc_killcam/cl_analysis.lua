@@ -7,9 +7,22 @@ local V = ZCKillcamView
 local SHOT, HIT, DEATH = 1, 2, 3
 local F_ALIVE, F_RAGDOLL = 1, 4
 local AIM_CONE, AIM_RANGE, AIM_HOLD = 7, 2500, 5 -- degrees, units, consecutive 0.1 s samples
-local HITGROUPS
+-- One hit group vocabulary for the killcam, the GoobOS death panel and the observer (UI cohesion U1, 2026-09-26):
+-- head, neck, chest, abdomen, left/right arm, left/right leg, gear. V.HitGroups names the engine's groups by number
+-- (HITGROUP_GENERIC 0 has no name); V.HitGroupBones names Z-City's organ bones (hg.organism.GetHitBoxOrgans) with the
+-- same words - the only place "neck" exists, as the engine has no neck group.
+local HITGROUPS = {[1] = "head", [2] = "chest", [3] = "abdomen", [4] = "left arm", [5] = "right arm", [6] = "left leg", [7] = "right leg", [10] = "gear"}
+V.HitGroups = HITGROUPS
+V.HitGroupBones = {
+    ["ValveBiped.Bip01_Head1"] = "head", ["ValveBiped.Bip01_Neck1"] = "neck",
+    ["ValveBiped.Bip01_Spine4"] = "chest", ["ValveBiped.Bip01_Spine2"] = "chest",
+    ["ValveBiped.Bip01_Spine1"] = "abdomen", ["ValveBiped.Bip01_Spine"] = "abdomen", ["ValveBiped.Bip01_Pelvis"] = "abdomen",
+    ["ValveBiped.Bip01_L_UpperArm"] = "left arm", ["ValveBiped.Bip01_L_Forearm"] = "left arm", ["ValveBiped.Bip01_L_Hand"] = "left arm",
+    ["ValveBiped.Bip01_R_UpperArm"] = "right arm", ["ValveBiped.Bip01_R_Forearm"] = "right arm", ["ValveBiped.Bip01_R_Hand"] = "right arm",
+    ["ValveBiped.Bip01_L_Thigh"] = "left leg", ["ValveBiped.Bip01_L_Calf"] = "left leg", ["ValveBiped.Bip01_L_Foot"] = "left leg",
+    ["ValveBiped.Bip01_R_Thigh"] = "right leg", ["ValveBiped.Bip01_R_Calf"] = "right leg", ["ValveBiped.Bip01_R_Foot"] = "right leg",
+}
 function V.HitGroupName(id) return HITGROUPS[id] or "" end
-HITGROUPS = {[1] = "head", [2] = "chest", [3] = "stomach", [4] = "left arm", [5] = "right arm", [6] = "left leg", [7] = "right leg"}
 
 local floor, abs, sqrt, deg, atan2 = math.floor, math.abs, math.sqrt, math.deg, math.atan2 or math.atan
 local function angdiff(a, b) return (a - b + 180) % 360 - 180 end

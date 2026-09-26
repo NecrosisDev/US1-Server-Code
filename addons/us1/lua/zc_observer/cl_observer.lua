@@ -1,21 +1,16 @@
 if not CLIENT then return end
 local previous=ZCObserver
 if previous and previous.Shutdown then previous.Shutdown() end
-local O={Version="20260924.observer4",legacy={}}
+local O={Version="20260926.observer5",legacy={}}
 -- Keep debrief data across the no-restart UI refresh.
 if previous then
     for _,key in ipairs({"Snapshot","Pending","PendingUntil","ReceivedAt","Revision","DeadSince"}) do O[key]=previous[key] end
 end
 ZCObserver=O
-local bg=Color(17,24,35,246)
-local card=Color(32,44,62,235)
-local text=Color(226,237,251)
-local dim=Color(147,173,202)
-local cyan=Color(99,202,244)
-local rose=Color(235,137,157)
-surface.CreateFont("ZCObserver.Title",{font="Roboto",size=28,weight=700,antialias=true})
-surface.CreateFont("ZCObserver.Body",{font="Roboto",size=16,weight=400,antialias=true})
-surface.CreateFont("ZCObserver.Small",{font="Roboto",size=13,weight=500,antialias=true})
+-- UI cohesion U1 (2026-09-26): the Afterlife debrief frame and its phone tile are retired. The death debrief this file
+-- receives (ZCObserverSnapshot: cause, final vitals, recent injuries) is shown by the GoobOS death panel's CAUSE OF
+-- DEATH card (zc_goobos/deathpanel.lua), which reads O.Snapshot / O.Revision and asks again with O.Request(). What is
+-- left here: that receiver, the spectator dock and the spectator ESP.
 
 local function enabled()
     local me=LocalPlayer()
@@ -25,17 +20,10 @@ local function replay()
     local viewer=ZCKillcamView
     return viewer and viewer.ObserverState and viewer.ObserverState() or {}
 end
-local function pretty(value)
-    return tostring(value or "Unknown"):gsub("^weapon_", ""):gsub("_", " ")
-end
 local function roundId() return math.floor(zb and zb.ROUND_START or 0) end
 -- The server floors a double ROUND_START; the client's arrives as a float32 (net.WriteFloat), so the two floors can
 -- differ by one. Same round = within a second.
 local function sameRound(value) return math.abs((tonumber(value) or -1e9) - roundId()) <= 1 end
-local function close()
-    if IsValid(O.Frame) then O.Frame:Remove() end
-    O.Frame=nil
-end
 -- 2026-09-24 (owner: "remove that block of text"): Pat's Spectator HUD (workshop 3686174019, mounted server-side,
 -- client hooks below) is retired for good, not only while the observer is on. A workshop addon's client autorun can
 -- register its hooks AFTER this file loads, so the removal repeats every 2 s and on InitPostEntity, and its two
@@ -63,217 +51,62 @@ local function ownLegacy(on)
         elseif O.legacy[id] and not fn then hook.Add(event,id,O.legacy[id]) end
     end
 end
+-- An Afterlife tile an older load of this file put on the phone's home grid (it is not re-created).
+local function removeTile()
+    local chat=hg and hg.chat
+    local tile=IsValid(chat) and chat.ZCObserverApp or O.Tile
+    if IsValid(tile) then
+        local grid=tile.ZCObserverGrid
+        tile:Remove()
+        if IsValid(grid) and grid.Layout then grid:Layout() end
+    end
+    if IsValid(chat) then chat.ZCObserverApp=nil end
+    O.Tile=nil
+end
 function O.Shutdown()
-    close(); ownLegacy(false)
-    if IsValid(O.Tile) then O.Tile:Remove() end
+    ownLegacy(false)
+    if IsValid(O.Frame) then O.Frame:Remove() end
+    removeTile()
     if O.DockCleanup then O.DockCleanup() end
 end
+removeTile()
 
+-- The player's own death debrief: accepted whatever zc_observer_mode says (the server sends it to every human now);
+-- only the spectating tools below still follow ZCObserverEnabled.
 net.Receive("ZCObserverSnapshot",function()
     local len=net.ReadUInt(16)
     if len<2 or len>24000 then return end
     local raw=net.ReadData(len)
     local value=raw and util.JSONToTable(raw)
-    if not istable(value) or not enabled() then return end
-    if value.clear then O.Pending=nil; O.Snapshot=nil; O.Revision=(O.Revision or 0)+1; close(); return end
+    if not istable(value) then return end
+    if value.clear then O.Pending=nil; O.Snapshot=nil; O.Revision=(O.Revision or 0)+1; return end
     if value.map~=game.GetMap() or not sameRound(value.round) then return end
     if not istable(value.injuries) or #value.injuries>24 or not istable(value.condition) then return end
     if LocalPlayer():Alive() then O.Pending=value; O.PendingUntil=RealTime()+2; return end
     O.Snapshot=value; O.ReceivedAt=RealTime(); O.Revision=(O.Revision or 0)+1
 end)
+-- Ask the server to send this death's debrief again (the death panel does, when it opens without one). A server
+-- without the request message (an older sv_observer.lua) makes net.Start throw: asked once, then never again.
+function O.Request()
+    if O.RequestOff then return end
+    if not pcall(function() net.Start("ZCObserverDebriefRequest") net.SendToServer() end) then O.RequestOff=true end
+end
 
-local function label(parent, content, font, color, height)
-    local p=vgui.Create("DLabel",parent)
-    p:Dock(TOP); p:DockMargin(14,4,14,2); p:SetTall(height or 24)
-    p:SetFont(font or "ZCObserver.Body"); p:SetTextColor(color or text)
-    p:SetText(tostring(content)); p:SetWrap(true)
-    return p
+-- The console command outlives the frame: it opens GoobOS Replays (saved deaths), or says where things went.
+local function openReplays()
+    local apps=ZCGoobApps
+    if apps and isfunction(apps.Launch) and apps.Launch("replays") then return end
+    print("[GoobOS] Your death recap is on the death panel; saved replays are in GoobOS › Replays.")
 end
-local function button(parent, title, fn)
-    local p=vgui.Create("DButton",parent)
-    p:SetText(title); p:SetFont("ZCObserver.Small"); p:SetTextColor(text)
-    p:SetKeyboardInputEnabled(false)
-    p.Paint=function(self,w,h)
-        self.blend=Lerp(math.Clamp(FrameTime()*14,0,1),self.blend or 0,self:IsHovered() and 1 or 0)
-        draw.RoundedBox(9,0,0,w,h,Color(51,103,157,110+self.blend*110))
-    end
-    p.DoClick=fn
-    return p
-end
-local function block(parent,height)
-    local p=vgui.Create("DPanel",parent)
-    p:Dock(TOP); p:DockMargin(0,0,0,10); p:SetTall(height)
-    p.Paint=function(_,w,h) draw.RoundedBox(12,0,0,w,h,card) end
-    return p
-end
-local groups={[0]="body",[1]="head",[2]="chest",[3]="abdomen",[4]="left arm",[5]="right arm",[6]="left leg",[7]="right leg",[10]="gear"}
+O.Open=openReplays
+concommand.Add("zc_observer",openReplays)
 
-function O.Open()
-    if not enabled() then return end
-    close()
-    local state=replay()
-    if state.highlight or state.playing then return end
-    local frame=vgui.Create("DFrame")
-    O.Frame=frame
-    frame:SetTitle(""); frame:ShowCloseButton(false); frame:SetDraggable(false)
-    frame:SetSize(math.min(920,ScrW()-64),math.min(690,ScrH()-96)); frame:Center(); frame:MakePopup()
-    frame:DockPadding(18,76,18,18)
-    local born=RealTime()
-    frame.Paint=function(_,w,h)
-        draw.RoundedBox(18,0,0,w,h,bg)
-        draw.RoundedBoxEx(18,0,0,w,62,Color(29,42,61,255),true,true,false,false)
-        draw.SimpleText("[GoobOS]", "ZCObserver.Small",24,14,cyan)
-        draw.SimpleText("AFTERLIFE", "ZCObserver.Title",24,31,text)
-        draw.SimpleText("DEBRIEF  /  REPLAY  /  SPECTATE", "ZCObserver.Small",w-76,37,dim,TEXT_ALIGN_RIGHT)
-    end
-    local exit=button(frame,"×",close); exit:SetSize(34,32)
-    frame.PerformLayout=function(self,w,h) exit:SetPos(w-48,15) end
-    local footer=vgui.Create("DPanel",frame); footer:Dock(BOTTOM); footer:SetTall(40); footer.Paint=function() end
-    local status=label(footer,"Your recordings and reports stay with the existing replay system.","ZCObserver.Small",dim,36)
-    local tabs=vgui.Create("DPanel",frame); tabs:Dock(TOP); tabs:SetTall(38); tabs:DockMargin(0,0,0,12); tabs.Paint=function() end
-    local scroll=vgui.Create("DScrollPanel",frame); scroll:Dock(FILL)
-    local page="debrief"
-    local function action(name,index)
-        local view=ZCKillcamView
-        if not view or not view.ObserverAction then status:SetText("Replay integration is not loaded yet."); return end
-        local ok,reason=view.ObserverAction(name,index)
-        if not ok then status:SetText(reason or "This action is unavailable.")
-        elseif name=="save" then status:SetText("Save requested. The replay system will confirm the result.")
-        elseif name=="report" then close()
-        else close() end
-    end
-    local function fill()
-        scroll:Clear()
-        local snapshot=O.Snapshot
-        local s=replay()
-        if page=="replays" then
-            if not s.seq then
-                local empty=block(scroll,112)
-                label(empty,"No replay available for this life","ZCObserver.Title",text,36)
-                label(empty,"A recording appears here only when the replay system sends an eligible sequence.",nil,dim,52)
-            else
-                for index,inst in ipairs(s.seq.instances or {}) do
-                    local row=block(scroll,130)
-                    label(row,string.format("%02d   %s",index,tostring(inst.attacker or "Recorded moment")),"ZCObserver.Title",text,34)
-                    label(row,string.format("%s  ·  %.1f harm  ·  %.1fs before death",pretty(inst.wep),tonumber(inst.dmg) or 0,tonumber(inst.ago) or 0),nil,dim,28)
-                    local actions=vgui.Create("DPanel",row); actions:Dock(BOTTOM); actions:DockMargin(14,0,14,12); actions:SetTall(32); actions.Paint=function() end
-                    local watch=button(actions,"Watch moment",function() action("watch",index) end); watch:Dock(LEFT); watch:SetWide(124)
-                    local report=button(actions,"Report",function() action("report",index) end); report:Dock(LEFT); report:DockMargin(8,0,0,0); report:SetWide(86)
-                    report:SetEnabled(inst.reportable==true)
-                    report:SetTooltip(inst.reportable and "Submit this recorded incident for review" or "Not eligible for a replay report")
-                end
-                local actions=block(scroll,48)
-                local save=button(actions,"Save this life",function() action("save",1) end); save:Dock(LEFT); save:DockMargin(8,8,8,8); save:SetWide(132)
-                local tactical=button(actions,"Tactical review",function() action("tactical",1) end); tactical:Dock(LEFT); tactical:DockMargin(0,8,8,8); tactical:SetWide(132)
-            end
-            local archive=button(scroll,"Open replay archive",function() close(); RunConsoleCommand("zc_killcam") end)
-            archive:Dock(TOP); archive:SetTall(38)
-        elseif page=="timeline" then
-            local hits=snapshot and snapshot.injuries or {}
-            if #hits==0 then label(scroll,"No recent injuries were captured for this life.",nil,dim,48) end
-            for i=#hits,1,-1 do
-                local hit=hits[i]
-                local row=block(scroll,88)
-                label(row,string.format("−%.1fs   %s",tonumber(hit.ago) or 0,tostring(hit.name or "Unknown")),nil,text,28)
-                label(row,string.format("%s  ·  %s  ·  %.2f harm",pretty(hit.weapon),groups[hit.group] or "body",tonumber(hit.harm) or 0),nil,dim,42)
-            end
-        else
-            local summary=block(scroll,116)
-            label(summary,"Your last moments","ZCObserver.Title",text,36)
-            label(summary,snapshot and (snapshot.selfInflicted and "The engine recorded self-inflicted death." or "Recorded death source: "..pretty(snapshot.cause)) or "A personal debrief will appear after your next death.",nil,dim,50)
-            if snapshot then
-                local vitals=snapshot.condition or {}
-                local condition=block(scroll,86)
-                label(condition,"FINAL CONDITION","ZCObserver.Small",cyan,22)
-                label(condition,string.format("Blood  %.0f mL       Pulse  %.0f       Pain  %.0f",tonumber(vitals.blood) or 0,tonumber(vitals.pulse) or 0,tonumber(vitals.pain) or 0),nil,text,36)
-                local contributors,total={},0
-                for _,hit in ipairs(snapshot.injuries or {}) do
-                    local key=(hit.sid and hit.sid~="") and hit.sid or hit.name
-                    local item=contributors[key] or {name=hit.name,harm=0}; contributors[key]=item
-                    item.harm=item.harm+(tonumber(hit.harm) or 0); total=total+(tonumber(hit.harm) or 0)
-                end
-                local sorted={}; for _,item in pairs(contributors) do sorted[#sorted+1]=item end
-                table.sort(sorted,function(a,b) return a.harm>b.harm end)
-                label(scroll,"RECENT INJURY CONTRIBUTIONS","ZCObserver.Small",cyan,28)
-                for i=1,math.min(5,#sorted) do
-                    local item=sorted[i]; local row=block(scroll,62)
-                    local share=total>0 and item.harm/total or 0
-                    row.Paint=function(_,w,h)
-                        draw.RoundedBox(10,0,0,w,h,card)
-                        draw.RoundedBox(2,14,h-12,math.max(1,(w-28)*share),3,cyan)
-                    end
-                    label(row,string.format("%s   %.0f%%",tostring(item.name),share*100),nil,text,32)
-                end
-                label(scroll,"Harm is injury severity, not HP damage. A contribution does not establish the cause of death.","ZCObserver.Small",dim,44)
-            end
-        end
-    end
-    for _,item in ipairs({{"Debrief","debrief"},{"Injury timeline","timeline"},{"Replay moments","replays"}}) do
-        local tab=button(tabs,item[1],function() page=item[2]; fill() end)
-        tab:Dock(LEFT); tab:SetWide(142); tab:DockMargin(0,0,8,0)
-    end
-    local revision=O.Revision
-    local replayId=state.id
-    frame.Think=function(self)
-        if not enabled() or not IsValid(LocalPlayer()) then close(); return end
-        local current=replay()
-        if current.highlight or current.playing then close(); return end
-        if revision~=O.Revision or replayId~=current.id then revision=O.Revision; replayId=current.id; fill() end
-        local t=math.Clamp((RealTime()-born)/0.18,0,1); self:SetAlpha(255*t*t*(3-2*t))
-    end
-    fill()
-end
-concommand.Add("zc_observer",O.Open)
-
--- The shared launcher owns tile geometry. Fixed Home coordinates are only
--- valid for the legacy two-button shell, not the responsive GoobOS grid.
-local function installApp(chat)
-    if not IsValid(chat) or not IsValid(chat.phoneHome) then return end
-    local grid=IsValid(chat.goobGrid) and chat.goobGrid or nil
-    local parent=grid or chat.phoneHome
-    local current=chat.ZCObserverApp
-    if IsValid(current) then
-        if current:GetParent()==parent then O.Tile=current; return end
-        current:Remove() -- migrate an old overlay or a rebuilt launcher
-    end
-    local tile=button(parent,"",function() chat:SetActive(false); O.Open() end)
-    O.Tile=tile; chat.ZCObserverApp=tile
-    tile.ZCObserverGrid=grid; tile.ZCAppID="afterlife"
-    tile:SetSize(grid and 100 or 104,grid and 104 or 98)
-    tile:SetTooltip("Afterlife: debrief and replay moments")
-    tile.Paint=function(self,w,h)
-        if grid then
-            local theme=ZCGoobApps and ZCGoobApps.Theme
-            local accent=theme and theme.accent or cyan
-            draw.RoundedBox(12,0,0,w,h,theme and (self:IsHovered() and theme.hover or theme.card) or card)
-            draw.RoundedBox(14,w/2-26,12,52,52,Color(accent.r,accent.g,accent.b,35))
-            surface.SetDrawColor(accent)
-            surface.DrawOutlinedRect(w/2-14,26,28,24,2)
-            surface.DrawLine(w/2-8,41,w/2-2,32)
-            surface.DrawLine(w/2-2,32,w/2+4,42)
-            surface.DrawLine(w/2+4,42,w/2+10,36)
-            draw.SimpleText("Afterlife","GoobBody",w/2,83,theme and theme.text or text,TEXT_ALIGN_CENTER,TEXT_ALIGN_CENTER)
-        else
-            draw.RoundedBox(15,23,4,58,58,Color(49,93,116))
-            surface.SetDrawColor(cyan); surface.DrawOutlinedRect(38,19,28,24,2)
-            surface.DrawLine(44,34,50,25); surface.DrawLine(50,25,56,35); surface.DrawLine(56,35,62,29)
-            draw.SimpleText("Afterlife","DermaDefaultBold",w/2,74,text,TEXT_ALIGN_CENTER)
-        end
-    end
-    if grid then
-        if ZCGoobApps and ZCGoobApps.Layout then
-            ZCGoobApps.Layout(chat,chat:GetWide(),chat:GetTall())
-        end
-        grid:Layout()
-    end
-end
 local nextUpdate=0
 hook.Add("Think","ZCObserver.Lifecycle",function()
     if RealTime()<nextUpdate then return end
     nextUpdate=RealTime()+0.15
-    local on=enabled(); ownLegacy(on)
-    if not on then close(); if IsValid(O.Tile) then O.Tile:Remove(); O.Tile=nil end return end
     local me=LocalPlayer()
+    if not IsValid(me) then return end
     if me:Alive() then O.DeadSince=nil else O.DeadSince=O.DeadSince or RealTime() end
     if O.Pending then
         if RealTime()>O.PendingUntil or not sameRound(O.Pending.round) then O.Pending=nil
@@ -281,23 +114,8 @@ hook.Add("Think","ZCObserver.Lifecycle",function()
             O.Snapshot=O.Pending; O.Pending=nil; O.ReceivedAt=RealTime(); O.Revision=(O.Revision or 0)+1
         end
     end
-    if O.Snapshot and (me:Alive() or not sameRound(O.Snapshot.round)) then O.Snapshot=nil; O.Revision=(O.Revision or 0)+1; close() end
-    local chat=hg and hg.chat
-    installApp(chat)
-    if IsValid(O.Tile) and IsValid(chat) then
-        local home=chat:GetActive() and chat.phonePage=="home"
-        if IsValid(O.Tile.ZCObserverGrid) then
-            -- Keep visibility inherited from Home; relayout once on navigation,
-            -- not every Think. Never overwrite grid-owned tile coordinates.
-            if O.Tile.ZCObserverHomeVisible~=home then
-                O.Tile.ZCObserverHomeVisible=home
-                O.Tile.ZCObserverGrid:Layout()
-            end
-        else
-            O.Tile:SetPos(144,chat:GetTall()-44>=242 and 119 or 14)
-            O.Tile:SetVisible(home)
-        end
-    end
+    if O.Snapshot and (me:Alive() or not sameRound(O.Snapshot.round)) then O.Snapshot=nil; O.Revision=(O.Revision or 0)+1 end
+    ownLegacy(enabled())
 end)
 
 -- Spectator dock card style: near-black translucent panel + dark-red accent, hg_font/Bahnschrift
@@ -430,7 +248,7 @@ hook.Add("HUDPaint","ZCObserver.Dock",function()
     end
     -- 2026-09-26 review: every early return clears DockShownPly, or GoobOS voice keeps leaving that player's plate
     -- to a dock that is not drawn (you could not see who was talking while TAB was held or a replay played).
-    if IsValid(O.Frame) or gui.IsGameUIVisible() or input.IsKeyDown(KEY_TAB) then O.DockShownPly=nil; return end
+    if gui.IsGameUIVisible() or input.IsKeyDown(KEY_TAB) then O.DockShownPly=nil; return end
     if RealTime()-(O.DeadSince or RealTime())<6 then O.DockShownPly=nil; return end
     if hg and IsValid(hg.chat) and hg.chat:GetActive() then O.DockShownPly=nil; return end
     local state=replay()
@@ -525,7 +343,7 @@ hook.Add("HUDPaint","ZCObserver.ESP",function()
     local alt=input.IsKeyDown(KEY_LALT) or input.IsKeyDown(KEY_RALT)
     if alt and not espAltWas and not espTyping() then espNames=not espNames end
     espAltWas=alt
-    if not espNames or IsValid(O.Frame) or gui.IsGameUIVisible() or replay().active then return end
+    if not espNames or gui.IsGameUIVisible() or replay().active then return end
     local eye=EyePos()
     local spect=me:GetNWEntity("spect")
     local u=math.Clamp(math.min(ScrW()/1920,ScrH()/1080),0.62,1.5)
