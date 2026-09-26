@@ -684,10 +684,13 @@ do
     local fleshTexture = Material("models/flesh"):GetTexture("$basetexture")
     if fleshTexture then W.Flesh:SetTexture("$basetexture", fleshTexture) end
     W.Vapour, W.Red = Color(226, 231, 238), Color(122, 18, 16)
-    -- Temporary-cavity response per tissue class (V2.Classify): elastic, low-density lung stretches and springs back;
-    -- the solid organs (heart, liver, spleen, kidneys: "dense") are inelastic and tear; bone fractures instead of
-    -- stretching; armor does not cavitate.
-    W.Stretch = {flesh = 1.0, organ = 1.0, vessel = 0.9, dense = 1.35, lung = 0.55, bone = 0.2, armor = 0}
+    -- Wound ballistics (Fackler; FBI gelatin protocol): the temporary cavity's SIZE is set by the energy the round
+    -- gives up there, not by the tissue - but the tissue decides what the stretch does. Elastic tissue (muscle, lung,
+    -- bowel, vessels) stretches and springs back; inelastic solid organs (liver, spleen, kidneys) and confined brain
+    -- tear, leaving a torn zone around the channel. Bone does not stretch at all (no cavity inside a bone box), and
+    -- armor stops the transfer. Values: the share of the peak radius left torn once the cavity has closed.
+    W.Torn = {flesh = 0, lung = 0, vessel = 0.05, organ = 0.12, dense = 0.38}
+    W.Confined = {brain = 0.5} -- organ names that tear like a confined, inelastic mass
     -- Fragment stand-ins by what the round broke on: bone chips off a bone box, metal off a plate, flesh otherwise.
     W.GibSet = {
         bone = {"models/gibs/hgibs_rib.mdl", "models/gibs/hgibs_scapula.mdl", "models/gibs/hgibs_spine.mdl"},
@@ -748,82 +751,112 @@ do
         return body.expandAt or nil
     end
 
-    -- Peak temporary-cavity radius at distance x along the corridor. The energy the round deposits per unit length
-    -- there (the organ box it is in: D.Hits deposit / its depth; else the corridor's average loss) sets the size, the
-    -- energy it still carries scales it, the tissue class says how far that tissue stretches, and an expanded round
-    -- (recorded "expand" mark behind x) throws a wider cavity. World units; the game's 52.5 units per metre.
-    function W.CavityRadius(body, x, d)
+    -- Energy per unit length the round gives up at distance x (fraction of its budget per world unit): the organ box
+    -- it is in (D.Hits: the server's own v2 walk, which already charges lung x0.5, dense organs x1.2 and an expanded
+    -- round its extra drag), else the corridor's average. Also the tissue class there and the organ's name.
+    local function depositAt(body, x)
         local span = math.max(body.span, 0.001)
         local energyEnd = body.v2 and body.v2.energy or 0.35
-        local eIn = 1 - (1 - energyEnd) * math.Clamp(x / span, 0, 1)
-        local class, rate = "flesh", (1 - energyEnd) / span
+        local class, rate, name = "flesh", (1 - energyEnd) / span, nil
         for _, h in ipairs(body.organs or {}) do
             if x >= h.enter and x <= h.exit then
-                class, rate = h.class, h.deposit / math.max(h.exit - h.enter, 0.5)
-                if h.class ~= "bone" then break end -- a soft organ inside a bone box is what stretches
+                class, rate, name = h.class, h.deposit / math.max(h.exit - h.enter, 0.5), h.name
+                if h.class ~= "bone" then break end -- a soft organ inside a bone box is what the cavity stretches
             end
         end
-        local grow = W.Stretch[class] or 1
-        local ex = expandAt(body)
-        if ex and x >= ex then grow = grow * 1.6 end
-        return math.Clamp(d * (6 + 30 * math.Clamp(rate * 5, 0, 1)) * grow * (0.45 + 0.55 * eIn), 0, 7), class
+        return rate, class, name, 1 - (1 - energyEnd) * math.Clamp(x / span, 0, 1)
     end
 
-    -- Seconds since the round passed distance x (the corridor reveal runs over `duration` from `start`).
+    -- Peak temporary-cavity radius at x, world units (52.5 per metre). Cavity volume tracks the kinetic energy
+    -- deposited, so per unit length pi*r^2 ~ dE/dx: r ~ sqrt(dE/dx). The round's energy scales with its mass
+    -- (~ diameter^2 at similar sectional density) and speed^2, so r ~ diameter * speed * sqrt(rate). Speed at x is the
+    -- recorded nominal muzzle speed slowed by the energy already spent (E ~ v^2); 500 m/s when not recorded.
+    -- K calibrates 5.56 mm at ~940 m/s to a ~7 cm cavity and 9 mm at ~360 m/s to ~5 cm (gelatin figures).
+    local K = 0.0295
+    function W.CavityRadius(b, body, x)
+        local rate, class, name, eIn = depositAt(body, x)
+        if class == "bone" or class == "armor" then return 0, class end
+        local facts = V.Ballistics and V.Ballistics.Facts(b)
+        local muzzle = facts and facts.muzzle or 500
+        local speed = muzzle * math.sqrt(math.max(eIn, 0))
+        local d = V.ShotVisual.Diameter(b)
+        local r = K * d * speed * math.sqrt(math.max(rate, 0))
+        local torn = W.Confined[name or ""] or W.Torn[class] or 0
+        return math.Clamp(r, 0, 4), class, torn
+    end
+
+    -- Presentation seconds since the round passed x (the corridor reveal runs over `duration` from `start`).
     local function sincePassed(b, body, x)
         local start, duration = b.cinematic and 1.41 or 1.30, b.cinematic and 0.95 or 0.45
         local span = math.max(body.span, 0.001)
         return ((b.bodyP or 0) - x / span) * duration + math.max(0, b.t - (start + duration))
     end
 
-    -- The permanent wound channel: a faint dark-red wisp along the recorded path, as far as the round has reached.
+    -- The cavity's radius over time, as a share of its peak. In gelatin it opens a few milliseconds AFTER the round
+    -- has passed (the round is through before the tissue has moved), collapses, and rebounds in several pulses, each
+    -- far smaller and shorter than the last, then closes to the permanent channel - or, in tissue that tore, to the
+    -- torn zone. Real time is milliseconds; here the order and proportions are kept on the slow-motion clock.
+    local PULSES = {{0.20, 1.0}, {0.14, 0.45}, {0.11, 0.2}, {0.09, 0.09}, {0.07, 0.04}}
+    local LAG = 0.06 -- the tip is ahead of the opening cavity
+    local function envelope(age)
+        age = age - LAG
+        if age <= 0 then return 0, false end
+        for _, p in ipairs(PULSES) do
+            if age < p[1] then return math.sin(age / p[1] * math.pi) * p[2], false end
+            age = age - p[1]
+        end
+        return 0, true
+    end
+
+    -- The permanent wound channel: the tissue the round crushed, about its presented width (wider after a recorded
+    -- expansion), as a faint dark-red wisp along the recorded path as far as the round has reached.
     function W.Channel(b, body, reached, point, alpha)
         local d = V.ShotVisual.Diameter(b)
+        local ex = expandAt(body)
         for i = 2, #body.path do
             if body.distances[i - 1] >= reached then break end
             local last = body.distances[i] <= reached and body.path[i] or point
-            W.Wisp(body.path[i - 1], last, b.t, i * 0.7, b.side, b.up, d * 1.3, d * 2.2, d * 0.6, W.Red, 120 * alpha)
+            local w = (ex and body.distances[i - 1] >= ex) and d * 1.8 or d
+            W.Wisp(body.path[i - 1], last, b.t, i * 0.7, b.side, b.up, w * 1.3, w * 2.2, w * 0.5, W.Red, 120 * alpha)
         end
     end
 
-    -- The temporary cavity: bright red, fleshy orbs along the reached corridor. Each swells as the round passes (the
-    -- cavity opens just behind the tip), collapses and pulses a few times, and settles towards the permanent channel.
-    -- Reduced motion: one steady, smaller orb per sample, no pulsing.
+    -- The temporary cavity: a continuous spindle along the reached corridor (overlapping ellipsoids stretched along the
+    -- path), bright fleshy red, each slice sized by its own deposit and pulsing on its own clock - so it balloons
+    -- behind the round and tapers to the tip. Brittle tissue keeps a darker torn zone after the pulses; elastic tissue
+    -- closes back to the channel. Reduced motion: the torn zone and a steady outline at half the peak, no pulsing.
     function W.Cavity(b, body, reached, alpha, reduced)
-        local d = V.ShotVisual.Diameter(b)
-        local stepLen = math.max(1.4, body.span / 14)
+        local n = 24
+        local step = math.max(0.6, body.span / n)
+        local span = math.max(body.span, 0.001)
         cam.IgnoreZ(true)
         render.SetMaterial(W.Flesh)
-        local glows = {}
-        local x = 0
+        local x = step * 0.5
         while x <= reached and x <= body.span do
-            local rmax, class = W.CavityRadius(body, x, d)
+            local rmax, _, torn = W.CavityRadius(b, body, x)
             if rmax > 0.05 then
-                local age = sincePassed(b, body, x)
-                local r, fade
-                if reduced then
-                    r, fade = rmax * 0.55, 0.8
-                else
-                    local rise = math.Clamp(age / 0.08, 0, 1)
-                    local settle = math.max(0, age - 0.08)
-                    local pulse = math.abs(math.cos(settle * 16)) ^ 0.6
-                    r = rmax * math.sin(rise * math.pi / 2) * (0.18 + 0.82 * math.exp(-settle / 0.28) * pulse)
-                    fade = 0.35 + 0.65 * math.exp(-settle / 0.5)
-                end
-                if r > 0.05 then
-                    local at = V.Penetration.At(body, math.Clamp(x / math.max(body.span, 0.001), 0, 1))
-                    if at then
-                        local dense = class == "dense" and 1 or 0
-                        render.DrawSphere(at, r, 14, 10, fill(tint, 255, 58 - 18 * dense, 46 - 14 * dense, 150 * fade * alpha))
-                        glows[#glows + 1] = {at, r, fade}
+                local at, dir = V.Penetration.At(body, math.Clamp(x / span, 0, 1))
+                if at then
+                    local share, closed = envelope(sincePassed(b, body, x))
+                    if reduced then share, closed = 0.5, false end
+                    local r = math.max(rmax * share, closed and rmax * torn or 0)
+                    local open = share > 0.02 and not closed
+                    if r > 0.05 then
+                        W.Mtx:Identity()
+                        W.Mtx:Translate(at)
+                        W.Mtx:Rotate((dir or b.dir):Angle())
+                        W.Mtx:Scale(Vector(step * 0.8, r, r))
+                        cam.PushModelMatrix(W.Mtx)
+                        if open then
+                            render.DrawSphere(vector_origin, 1, 14, 10, fill(tint, 255, 60, 48, (60 + 110 * share) * alpha))
+                        else -- the torn zone left in brittle tissue: darker, still
+                            render.DrawSphere(vector_origin, 1, 12, 8, fill(tint, 150, 22, 20, 120 * alpha))
+                        end
+                        cam.PopModelMatrix()
                     end
                 end
             end
-            x = x + stepLen
-        end
-        render.SetMaterial(W.GlowNoZ)
-        for _, g in ipairs(glows) do
-            render.DrawSprite(g[1], g[2] * 3.4, g[2] * 3.4, fill(tint, 255, 36, 24, 70 * g[3] * alpha))
+            x = x + step
         end
         cam.IgnoreZ(false)
     end
