@@ -93,3 +93,7 @@
 # Generated releases are not source; a Lua extension must not re-include them.
 /build/
 /dist/
+
+# Reviewed storage metadata and placeholder-only developer configuration.
+!/manifests/storage-audit.json
+!/config/examples/mysql-dev.cnf.example

@@ -1,0 +1,815 @@
+{
+  "observed_utc": "2026-09-26T05:29:58.408735+00:00",
+  "source_commit": "d6bcc5615c4101c278ebc415cc43a25e51dd01bb",
+  "configured_backend": "sqlite",
+  "database_bytes": 29081600,
+  "table_count": 54,
+  "mysqloo_file_found_in_standard_module_directories": false,
+  "mysql_client_available": true,
+  "database_snapshot_verified": true,
+  "snapshot_scope": "sv.db only; not data/ or configuration",
+  "lua_files_scanned": 2590,
+  "mechanism_files": {
+    "direct_sqlite": [
+      "garrysmod/addons/ulib/lua/ulib/server/bans.lua",
+      "garrysmod/addons/ulib/lua/ulib/server/ucl.lua",
+      "garrysmod/addons/ulx/lua/ulx/modules/sh/util.lua",
+      "garrysmod/addons/ulx_cmdlog/lua/autorun/server/sv_damage_log.lua",
+      "garrysmod/addons/ulx_cmdlog/lua/autorun/server/sv_punish_history.lua",
+      "garrysmod/addons/ulx_cmdlog/lua/autorun/server/sv_ulx_cmdlog.lua",
+      "garrysmod/addons/ulx_cmdlog/lua/autorun/server/sv_ulx_logpanel.lua",
+      "garrysmod/addons/ulx_cmdlog/lua/autorun/server/sv_watchdog_log.lua",
+      "garrysmod/addons/zc_solidmapvote/lua/solidmapvote/core/server/sv_mapvote.lua",
+      "garrysmod/addons/zc_watchdog/lua/autorun/server/sv_watchdog_evasion.lua",
+      "garrysmod/addons/zc_watchdog/lua/autorun/server/sv_watchdog_vpn.lua",
+      "garrysmod/addons/zcity/gamemodes/zcity/gamemode/modes/coop/sv_coop.lua",
+      "garrysmod/addons/zcity/lua/homigrad/libraries/core/sv_mysql.lua",
+      "garrysmod/lua/includes/extensions/player.lua",
+      "garrysmod/lua/includes/extensions/util.lua",
+      "garrysmod/lua/includes/modules/cookie.lua",
+      "garrysmod/lua/includes/util/model_database.lua",
+      "garrysmod/lua/includes/util/sql.lua",
+      "garrysmod/lua/voiceadmin/sv_main.lua",
+      "garrysmod/lua/zc_goobos/sv_arcade_duels.lua",
+      "garrysmod/lua/zc_goobos/sv_arcade_specdm.lua",
+      "garrysmod/lua/zc_goobos/sv_arcade_store.lua",
+      "garrysmod/lua/zc_goobos/sv_feed_store.lua"
+    ],
+    "mysql_wrapper": [
+      "garrysmod/addons/zcity/gamemodes/zcity/gamemode/libraries/experience/sv_experience.lua",
+      "garrysmod/addons/zcity/gamemodes/zcity/gamemode/libraries/guilt/sv_guilt.lua",
+      "garrysmod/addons/zcity/lua/homigrad/abnormalty_detection/sv_plugin.lua",
+      "garrysmod/addons/zcity/lua/homigrad/achievements/sv_achievement.lua",
+      "garrysmod/addons/zcity/lua/homigrad/libraries/core/sv_mysql.lua",
+      "garrysmod/addons/zcity/lua/homigrad/libraries/early_access/sv_db.lua",
+      "garrysmod/addons/zcity/lua/homigrad/libraries/pointshop/sv_pointshop.lua",
+      "garrysmod/addons/zcity/lua/homigrad/libraries/sv_database.lua",
+      "garrysmod/lua/zc_goobos/sv_arcade_bets.lua",
+      "garrysmod/lua/zc_goobos/sv_arcade_store.lua",
+      "garrysmod/lua/zc_justice_v3/shadow.lua",
+      "garrysmod/lua/zc_playtime/sv_playtime.lua",
+      "garrysmod/lua/zc_release_postrestart_20260916.lua",
+      "garrysmod/lua/zc_release_status_20260923.lua"
+    ],
+    "player_pdata": [
+      "garrysmod/addons/persistent_gags_and_mutes/lua/ulx/modules/sh/tgag.lua",
+      "garrysmod/addons/persistent_gags_and_mutes/lua/ulx/modules/sh/tmute.lua",
+      "garrysmod/addons/ulx_zchat_bridge/lua/autorun/server/sv_ulx_zchat_bridge.lua",
+      "garrysmod/addons/zcity/gamemodes/zcity/gamemode/modes/homicide/sv_homicide.lua",
+      "garrysmod/gamemodes/terrortown/gamemode/karma.lua",
+      "garrysmod/lua/autorun/server/zc_chatguard.lua",
+      "garrysmod/lua/includes/extensions/player.lua",
+      "garrysmod/lua/includes/extensions/util.lua"
+    ],
+    "file_storage": [
+      "garrysmod/addons/admin_max_karma/lua/autorun/server/sv_admin_max_karma.lua",
+      "garrysmod/addons/admin_max_karma/lua/autorun/sh_mode_vote.lua",
+      "garrysmod/addons/admin_max_karma/lua/autorun/sh_zc_welcome.lua",
+      "garrysmod/addons/advdupe2/lua/advdupe2/cl_file.lua",
+      "garrysmod/addons/advdupe2/lua/advdupe2/file_browser.lua",
+      "garrysmod/addons/advdupe2/lua/autorun/server/advdupe2_sv_init.lua",
+      "garrysmod/addons/advdupe2/lua/weapons/gmod_tool/stools/advdupe2.lua",
+      "garrysmod/addons/eprotect-keep-exploiterscheaters-at-bay-v1.5.35/lua/e_protect/client/cl_eprotect.lua",
+      "garrysmod/addons/eprotect-keep-exploiterscheaters-at-bay-v1.5.35/lua/e_protect/client/cl_miscs.lua",
+      "garrysmod/addons/eprotect-keep-exploiterscheaters-at-bay-v1.5.35/lua/e_protect/server/sv_eprotect.lua",
+      "garrysmod/addons/kill_zones/lua/autorun/server/sv_kill_zones.lua",
+      "garrysmod/addons/restart_warning/lua/autorun/server/sv_restart_warning.lua",
+      "garrysmod/addons/scoreboard/lua/zc_scoreboard/cl_services.lua",
+      "garrysmod/addons/scoreboard/lua/zc_scoreboard/sv_settings.lua",
+      "garrysmod/addons/ulib/lua/ulib/server/ucl.lua",
+      "garrysmod/addons/ulib/lua/ulib/shared/util.lua",
+      "garrysmod/addons/ulx_cmdlog/lua/autorun/client/cl_ulx_logpanel.lua",
+      "garrysmod/addons/ulx_cmdlog/lua/autorun/server/sv_ulx_cmdlog.lua",
+      "garrysmod/addons/zc_crosshair/lua/autorun/client/cl_zc_crosshair.lua",
+      "garrysmod/addons/zc_hmcd_mutators/lua/zc_hmcd_mutators/sv_points.lua",
+      "garrysmod/addons/zc_perf/lua/autorun/server/sv_zc_errlog.lua",
+      "garrysmod/addons/zc_perf/lua/autorun/server/sv_zc_perf.lua",
+      "garrysmod/addons/zc_solidmapvote/lua/solidmapvote/core/lib/b-draw_lib.lua",
+      "garrysmod/addons/zc_spikewatch/lua/autorun/server/sv_zc_spikewatch.lua",
+      "garrysmod/addons/zc_ui_lifecycle_fix/lua/homigrad/new_appearance/derma/cl_appearance_editor1.lua",
+      "garrysmod/addons/zc_watchdog/lua/autorun/server/sv_watchdog_core.lua",
+      "garrysmod/addons/zc_watchdog/lua/autorun/server/sv_watchdog_ui.lua",
+      "garrysmod/addons/zc_watchdog/lua/autorun/server/sv_watchdog_vpn.lua",
+      "garrysmod/addons/zc_watchdog/wd_bootstrap.lua",
+      "garrysmod/addons/zc_wfa_tpik_fix/lua/autorun/zc_wfa_tpik_fix.lua",
+      "garrysmod/addons/zc_wfa_tpik_fix/lua/zc_wfa_tpik_fix/cl_install.lua",
+      "garrysmod/addons/zcity/gamemodes/zcity/gamemode/cl_init.lua",
+      "garrysmod/addons/zcity/gamemodes/zcity/gamemode/libraries/mappoints/sv_points.lua",
+      "garrysmod/addons/zcity/gamemodes/zcity/gamemode/libraries/rtv/sv_rtv.lua",
+      "garrysmod/addons/zcity/gamemodes/zcity/gamemode/libraries/sv_roundsystem.lua",
+      "garrysmod/addons/zcity/gamemodes/zcity/gamemode/loader.lua",
+      "garrysmod/addons/zcity/gamemodes/zcity/gamemode/modes/coop/sv_cooppersistence.lua",
+      "garrysmod/addons/zcity/gamemodes/zcity/gamemode/modes/eventhandler/sv_event.lua",
+      "garrysmod/addons/zcity/gamemodes/zcity/gamemode/modes/homicide_fear/core/cl_fear.lua",
+      "garrysmod/addons/zcity/gamemodes/zcity/gamemode/modes/homicide_fear/core/sv_fear.lua",
+      "garrysmod/addons/zcity/lua/autorun/sh_glide.lua",
+      "garrysmod/addons/zcity/lua/glide/client/engine_stream.lua",
+      "garrysmod/addons/zcity/lua/glide/client/vgui/stream_editor_tab.lua",
+      "garrysmod/addons/zcity/lua/glide/server/map.lua",
+      "garrysmod/addons/zcity/lua/homigrad/libraries/core/sv_mysql.lua",
+      "garrysmod/addons/zcity/lua/homigrad/libraries/early_access/sv_db.lua",
+      "garrysmod/addons/zcity/lua/homigrad/libraries/sv_database.lua",
+      "garrysmod/addons/zcity/lua/homigrad/new_appearance/cl_init.lua",
+      "garrysmod/addons/zcity/lua/homigrad/new_appearance/derma/cl_appearance_editor.lua",
+      "garrysmod/addons/zcity/lua/homigrad/organism/tier_1/cl_main.lua",
+      "garrysmod/addons/zcity/lua/homigrad/organism/tier_1/sv_ballistics_v2_shadow.lua",
+      "garrysmod/addons/zcity/lua/homigrad/sh_vehicles.lua",
+      "garrysmod/addons/zcity/lua/initpost/sh_initpost.lua",
+      "garrysmod/addons/zcity/lua/wos/dynabase/core/cl_config_menu.lua",
+      "garrysmod/addons/zcity/lua/wos/dynabase/core/cl_local_copy.lua",
+      "garrysmod/addons/zcity/lua/wos/dynabase/core/sh_model_operations.lua",
+      "garrysmod/addons/zcity/lua/wos/dynabase/core/sh_mounting.lua",
+      "garrysmod/addons/zcity_stealth/lua/zcity_stealth/sv_body.lua",
+      "garrysmod/addons/zcity_traitor_picker/lua/autorun/server/sv_staff_admin.lua",
+      "garrysmod/gamemodes/sandbox/gamemode/persistence.lua",
+      "garrysmod/gamemodes/terrortown/gamemode/admin.lua",
+      "garrysmod/gamemodes/terrortown/gamemode/cl_scoring.lua",
+      "garrysmod/gamemodes/terrortown/gamemode/ent_replace.lua",
+      "garrysmod/lua/autorun/client/zc_poop_visuals.lua",
+      "garrysmod/lua/autorun/client/zcity_keybind_patch.lua",
+      "garrysmod/lua/autorun/server/sv_pat_guilt_overhaul.lua",
+      "garrysmod/lua/autorun/server/sv_persistentprops.lua",
+      "garrysmod/lua/autorun/server/sv_zc_appearance_scale_fastkey.lua",
+      "garrysmod/lua/autorun/server/sv_zc_bots.lua",
+      "garrysmod/lua/autorun/server/sv_zc_chat_groups.lua",
+      "garrysmod/lua/autorun/server/sv_zc_chat_moderation.lua",
+      "garrysmod/lua/autorun/server/sv_zc_chat_report.lua",
+      "garrysmod/lua/autorun/server/sv_zc_crawler_diag.lua",
+      "garrysmod/lua/autorun/server/sv_zc_explosion_fragment_trial.lua",
+      "garrysmod/lua/autorun/server/sv_zc_eye_read_fastpath.lua",
+      "garrysmod/lua/autorun/server/sv_zc_hd_textures.lua",
+      "garrysmod/lua/autorun/server/sv_zc_lockstep.lua",
+      "garrysmod/lua/autorun/server/sv_zc_momo_disable.lua",
+      "garrysmod/lua/autorun/server/sv_zc_reinforcement_vote_spawn.lua",
+      "garrysmod/lua/autorun/server/sv_zc_respawn_at_camera.lua",
+      "garrysmod/lua/autorun/server/zc_chatguard.lua",
+      "garrysmod/lua/autorun/server/zc_combat_incident.lua",
+      "garrysmod/lua/autorun/server/zc_compat_loader.lua",
+      "garrysmod/lua/autorun/server/zc_killcam_ledger.lua",
+      "garrysmod/lua/autorun/server/zc_killcam_lifetime.lua",
+      "garrysmod/lua/autorun/server/zc_killcam_viewer_delivery.lua",
+      "garrysmod/lua/autorun/server/zc_make_crawler.lua",
+      "garrysmod/lua/autorun/server/zc_map_prevote.lua",
+      "garrysmod/lua/autorun/server/zc_pat_native.lua",
+      "garrysmod/lua/autorun/server/zc_perf_pass2.lua",
+      "garrysmod/lua/autorun/server/zc_poop_eat.lua",
+      "garrysmod/lua/autorun/server/zc_poop_involuntary.lua",
+      "garrysmod/lua/autorun/server/zc_poop_odor.lua",
+      "garrysmod/lua/autorun/server/zc_poop_throw.lua",
+      "garrysmod/lua/autorun/server/zc_round_guard.lua",
+      "garrysmod/lua/autorun/server/zc_round_summary.lua",
+      "garrysmod/lua/autorun/server/zc_scanner_response.lua",
+      "garrysmod/lua/autorun/server/zc_tick_budget.lua",
+      "garrysmod/lua/autorun/server/zc_urine.lua",
+      "garrysmod/lua/autorun/server/zc_vote_manager.lua",
+      "garrysmod/lua/autorun/server/zz_zcj_medical_verify.lua",
+      "garrysmod/lua/autorun/sh_zc_appearance_fixes.lua",
+      "garrysmod/lua/derma/derma_gwen.lua",
+      "garrysmod/lua/includes/extensions/file.lua",
+      "garrysmod/lua/includes/extensions/player_auth.lua",
+      "garrysmod/lua/includes/util/javascript_util.lua",
+      "garrysmod/lua/lw_physics_window_activate.lua",
+      "garrysmod/lua/menu/mainmenu.lua",
+      "garrysmod/lua/sn_storage_observe.lua",
+      "garrysmod/lua/sn_storage_ops.lua",
+      "garrysmod/lua/voiceadmin/cl_main.lua",
+      "garrysmod/lua/zc48_final_20260919t020013z.lua",
+      "garrysmod/lua/zc48_inventory_20260919t020013z.lua",
+      "garrysmod/lua/zc48_net_census_20260919t020013z.lua",
+      "garrysmod/lua/zc48_passive_20260919t020013z.lua",
+      "garrysmod/lua/zc48_screenshake_fixture_20260919t020013z.lua",
+      "garrysmod/lua/zc48_source_export_20260919t020013z.lua",
+      "garrysmod/lua/zc_36repair_ops.lua",
+      "garrysmod/lua/zc_activate_priority_20260919t025322z.lua",
+      "garrysmod/lua/zc_admin_rtv_activate.lua",
+      "garrysmod/lua/zc_ammo_delta_ops.lua",
+      "garrysmod/lua/zc_ammo_readback_224411.lua",
+      "garrysmod/lua/zc_amtx_20260917_0532/observe_ammo_events.lua",
+      "garrysmod/lua/zc_amtx_20260917_0532/observe_rates.lua",
+      "garrysmod/lua/zc_audio_20260919t031136z/candidate.lua",
+      "garrysmod/lua/zc_audio_20260919t031136z/preflight_audio.lua",
+      "garrysmod/lua/zc_audio_activate_20260919t031136z.lua",
+      "garrysmod/lua/zc_audio_rollback_20260919t031136z.lua",
+      "garrysmod/lua/zc_audio_verify_20260919t031136z.lua",
+      "garrysmod/lua/zc_bot_immersion_activate.lua",
+      "garrysmod/lua/zc_bot_immersion_status.lua",
+      "garrysmod/lua/zc_bot_release_owner_presence.lua",
+      "garrysmod/lua/zc_bot_release_restart_audit.lua",
+      "garrysmod/lua/zc_bots/sv_navgen.lua",
+      "garrysmod/lua/zc_bots/sv_persona.lua",
+      "garrysmod/lua/zc_bots/sv_relations.lua",
+      "garrysmod/lua/zc_bots/sv_shim.lua",
+      "garrysmod/lua/zc_brain_balance_activate.lua",
+      "garrysmod/lua/zc_bullet_audit_phase1/verify_compile.lua",
+      "garrysmod/lua/zc_bullet_audit_phase2/verify_compile.lua",
+      "garrysmod/lua/zc_bullet_phase2/test_fraction_left_solid.lua",
+      "garrysmod/lua/zc_bullet_phase2/verify_compile.lua",
+      "garrysmod/lua/zc_bullet_repairs/apply.lua",
+      "garrysmod/lua/zc_capacity_census_20260916_1254.lua",
+      "garrysmod/lua/zc_capacity_netobserve_20260916_1254.lua",
+      "garrysmod/lua/zc_chat_beta_preflight.lua",
+      "garrysmod/lua/zc_chat_beta_rollout.lua",
+      "garrysmod/lua/zc_chat_beta_status_once.lua",
+      "garrysmod/lua/zc_chat_conversation_preview.lua",
+      "garrysmod/lua/zc_chat_groups_activate.lua",
+      "garrysmod/lua/zc_chat_groups_censor_check.lua",
+      "garrysmod/lua/zc_chat_groups_preflight.lua",
+      "garrysmod/lua/zc_chat_groups_preview.lua",
+      "garrysmod/lua/zc_chat_groups_probe.lua",
+      "garrysmod/lua/zc_chat_groups_public_status.lua",
+      "garrysmod/lua/zc_chat_groups_revision_preflight.lua",
+      "garrysmod/lua/zc_chat_identity_probe.lua",
+      "garrysmod/lua/zc_chat_identity_public_status.lua",
+      "garrysmod/lua/zc_chat_media/client.lua",
+      "garrysmod/lua/zc_chat_moderation_compat.lua",
+      "garrysmod/lua/zc_chat_moderation_preview.lua",
+      "garrysmod/lua/zc_chat_moderation_public.lua",
+      "garrysmod/lua/zc_chat_net_preview_once.lua",
+      "garrysmod/lua/zc_chat_phone_preview.lua",
+      "garrysmod/lua/zc_chat_pm_access.lua",
+      "garrysmod/lua/zc_chat_pm_activate.lua",
+      "garrysmod/lua/zc_chat_pm_preflight.lua",
+      "garrysmod/lua/zc_chat_pm_preview.lua",
+      "garrysmod/lua/zc_chat_pm_probe.lua",
+      "garrysmod/lua/zc_chat_polish_preview.lua",
+      "garrysmod/lua/zc_chat_preview/client.lua",
+      "garrysmod/lua/zc_chat_reaction_preview.lua",
+      "garrysmod/lua/zc_chat_settings_preview.lua",
+      "garrysmod/lua/zc_chat_social_preview.lua",
+      "garrysmod/lua/zc_chat_social_public.lua",
+      "garrysmod/lua/zc_circle_preview.lua",
+      "garrysmod/lua/zc_cleanup_activate.lua",
+      "garrysmod/lua/zc_combat_policy_activate.lua",
+      "garrysmod/lua/zc_containment_activate.lua",
+      "garrysmod/lua/zc_context_polish_preview.lua",
+      "garrysmod/lua/zc_context_posture_apply.lua",
+      "garrysmod/lua/zc_context_posture_preflight.lua",
+      "garrysmod/lua/zc_conversation_probe.lua",
+      "garrysmod/lua/zc_crawler_inspect_20260919t004322z.lua",
+      "garrysmod/lua/zc_crawler_native_20260919t004322z/activate.lua",
+      "garrysmod/lua/zc_crawler_native_20260919t004322z/activate_native2.lua",
+      "garrysmod/lua/zc_crawler_native_20260919t004322z/candidate.lua",
+      "garrysmod/lua/zc_crawler_native_20260919t004322z/candidate_native2.lua",
+      "garrysmod/lua/zc_crawler_native_20260919t004322z/preflight.lua",
+      "garrysmod/lua/zc_crawler_native_20260919t004322z/preflight_native2.lua",
+      "garrysmod/lua/zc_crawler_native_20260919t004322z/verify_install.lua",
+      "garrysmod/lua/zc_crawler_native_20260919t004322z/verify_native2.lua",
+      "garrysmod/lua/zc_death_audio_activate.lua",
+      "garrysmod/lua/zc_drone_controls_activate.lua",
+      "garrysmod/lua/zc_encoding_probe_20260919t140200z.lua",
+      "garrysmod/lua/zc_eprotect_repair_activate.lua",
+      "garrysmod/lua/zc_fart_puff_activate_20260919t012630z.lua",
+      "garrysmod/lua/zc_fart_puff_stage_20260919t012630z/preflight.lua",
+      "garrysmod/lua/zc_fart_puff_stage_20260919t012630z/verify.lua",
+      "garrysmod/lua/zc_ff_karma_verify.lua",
+      "garrysmod/lua/zc_flying_pill_audio_activate.lua",
+      "garrysmod/lua/zc_goobos/camera.lua",
+      "garrysmod/lua/zc_goobos/feed.lua",
+      "garrysmod/lua/zc_goobos/links.lua",
+      "garrysmod/lua/zc_goobos/media.lua",
+      "garrysmod/lua/zc_goobos/settings.lua",
+      "garrysmod/lua/zc_gore_intestines/server.lua",
+      "garrysmod/lua/zc_guilt_justice/core.lua",
+      "garrysmod/lua/zc_guilt_justice/legacy_server.lua",
+      "garrysmod/lua/zc_guilt_justice/meta.lua",
+      "garrysmod/lua/zc_guilt_justice/roles.lua",
+      "garrysmod/lua/zc_guilt_review_activate.lua",
+      "garrysmod/lua/zc_head_only_20260917_133109.lua",
+      "garrysmod/lua/zc_incident_20260919/activate.lua",
+      "garrysmod/lua/zc_incident_20260919/capacity_observe.lua",
+      "garrysmod/lua/zc_incident_20260919/cleanup_hooks.lua",
+      "garrysmod/lua/zc_incident_20260919/final_verify.lua",
+      "garrysmod/lua/zc_incident_20260919/gc_20260919t235549z.lua",
+      "garrysmod/lua/zc_incident_20260919/gc_progress.lua",
+      "garrysmod/lua/zc_incident_20260919/hands_observe.lua",
+      "garrysmod/lua/zc_incident_20260919/hooks_sample.lua",
+      "garrysmod/lua/zc_incident_20260919/lua_cost_20260919t232530z.lua",
+      "garrysmod/lua/zc_incident_20260919/lua_cost_20260919t232910z.lua",
+      "garrysmod/lua/zc_incident_20260919/medical_activate.lua",
+      "garrysmod/lua/zc_incident_20260919/medical_benchmark.lua",
+      "garrysmod/lua/zc_incident_20260919/medical_preflight.lua",
+      "garrysmod/lua/zc_incident_20260919/medical_verify.lua",
+      "garrysmod/lua/zc_incident_20260919/methods_20260919t233046z.lua",
+      "garrysmod/lua/zc_incident_20260919/methods_20260919t233120z.lua",
+      "garrysmod/lua/zc_incident_20260919/methods_20260919t233426z.lua",
+      "garrysmod/lua/zc_incident_20260919/methods_20260919t233834z.lua",
+      "garrysmod/lua/zc_incident_20260919/module_activate.lua",
+      "garrysmod/lua/zc_incident_20260919/module_inspect.lua",
+      "garrysmod/lua/zc_incident_20260919/observe.lua",
+      "garrysmod/lua/zc_incident_20260919/phases_20260919t235205z.lua",
+      "garrysmod/lua/zc_incident_20260919/postmap_verify.lua",
+      "garrysmod/lua/zc_incident_20260919/preflight.lua",
+      "garrysmod/lua/zc_incident_20260919/preflight_modules.lua",
+      "garrysmod/lua/zc_incident_20260919/preflight_modules_before.lua",
+      "garrysmod/lua/zc_incident_20260919/removal_inventory.lua",
+      "garrysmod/lua/zc_incident_20260919/replication_20260919T231039Z.lua",
+      "garrysmod/lua/zc_incident_20260919/replication_20260919T231212Z.lua",
+      "garrysmod/lua/zc_incident_20260919/replication_20260919T231513Z.lua",
+      "garrysmod/lua/zc_incident_20260919/replication_20260919T233921Z.lua",
+      "garrysmod/lua/zc_incident_20260919/replication_20260919T234844Z.lua",
+      "garrysmod/lua/zc_incident_20260919/replication_20260919T235716Z.lua",
+      "garrysmod/lua/zc_incident_20260919/replication_20260920T000129Z.lua",
+      "garrysmod/lua/zc_incident_20260919/replication_mounted.lua",
+      "garrysmod/lua/zc_incident_20260919/restore_guard_callbacks.lua",
+      "garrysmod/lua/zc_incident_20260919/round_20260919t234727z.lua",
+      "garrysmod/lua/zc_incident_20260919/round_final_verify.lua",
+      "garrysmod/lua/zc_incident_20260919/round_hooks.lua",
+      "garrysmod/lua/zc_incident_20260919/wrapper_inspect.lua",
+      "garrysmod/lua/zc_incident_20260919/wrapper_restore.lua",
+      "garrysmod/lua/zc_interaction_panel_preview.lua",
+      "garrysmod/lua/zc_intestines_public_delivery_20260920.lua",
+      "garrysmod/lua/zc_justice_integration_activate.lua",
+      "garrysmod/lua/zc_justice_v3/bridge.lua",
+      "garrysmod/lua/zc_justice_v3/deployment_verify.lua",
+      "garrysmod/lua/zc_justice_v3/shadow.lua",
+      "garrysmod/lua/zc_karma_bounties_activate.lua",
+      "garrysmod/lua/zc_killcam/cl_viewer.lua",
+      "garrysmod/lua/zc_killcam/sv_clips.lua",
+      "garrysmod/lua/zc_killcam/sv_karma.lua",
+      "garrysmod/lua/zc_killcam/sv_life.lua",
+      "garrysmod/lua/zc_killcam/sv_net.lua",
+      "garrysmod/lua/zc_killcam/sv_tape.lua",
+      "garrysmod/lua/zc_meta_activate.lua",
+      "garrysmod/lua/zc_moderation_migrate.lua",
+      "garrysmod/lua/zc_moderation_status.lua",
+      "garrysmod/lua/zc_moon_deploy_20260919t150244z/candidate.lua",
+      "garrysmod/lua/zc_moon_deploy_20260919t150244z/preflight.lua",
+      "garrysmod/lua/zc_moon_inspect_20260919t144931z.lua",
+      "garrysmod/lua/zc_net_validation_inspect_20260919t132421z.lua",
+      "garrysmod/lua/zc_observer_preflight.lua",
+      "garrysmod/lua/zc_offload_20260917_0509/observe_payload.lua",
+      "garrysmod/lua/zc_pause_skin_diagnose_owner.lua",
+      "garrysmod/lua/zc_pause_skin_verify_clients.lua",
+      "garrysmod/lua/zc_pending_20260919t215743z/wounds_preflight.lua",
+      "garrysmod/lua/zc_perf2_20260919t122952z/candidate/garrysmod/lua/autorun/server/zc_poop_throw.lua",
+      "garrysmod/lua/zc_perf2_20260919t122952z/candidate/garrysmod/lua/autorun/server/zc_urine.lua",
+      "garrysmod/lua/zc_perf2_20260919t122952z/capture.lua",
+      "garrysmod/lua/zc_perf2_20260919t122952z/preflight.lua",
+      "garrysmod/lua/zc_perf2_full_capture.lua",
+      "garrysmod/lua/zc_perf_observe_20260919t153737z.lua",
+      "garrysmod/lua/zc_perf_pass2_activate.lua",
+      "garrysmod/lua/zc_perf_repair_20260919t041714z/preflight.lua",
+      "garrysmod/lua/zc_perf_repair_inspect_20260919t041714z.lua",
+      "garrysmod/lua/zc_phone_preflight.lua",
+      "garrysmod/lua/zc_phone_public_rollout.lua",
+      "garrysmod/lua/zc_phone_status.lua",
+      "garrysmod/lua/zc_pill_all_activate.lua",
+      "garrysmod/lua/zc_pill_selection_activate.lua",
+      "garrysmod/lua/zc_polish_public_rollout.lua",
+      "garrysmod/lua/zc_polish_status.lua",
+      "garrysmod/lua/zc_poop/content.lua",
+      "garrysmod/lua/zc_poop_eat_verify.lua",
+      "garrysmod/lua/zc_poop_mesh_activate.lua",
+      "garrysmod/lua/zc_poop_odor_verify.lua",
+      "garrysmod/lua/zc_poop_verify.lua",
+      "garrysmod/lua/zc_poop_visual_audit.lua",
+      "garrysmod/lua/zc_priority_20260919t025322z/autorun/server/zc_poop_involuntary.lua",
+      "garrysmod/lua/zc_priority_20260919t025322z/autorun/server/zc_urine.lua",
+      "garrysmod/lua/zc_priority_20260919t025322z/preflight_priority.lua",
+      "garrysmod/lua/zc_pub_observe_20260916_1415/observer.lua",
+      "garrysmod/lua/zc_radial_restore_preflight.lua",
+      "garrysmod/lua/zc_release_delivery_ack_20260923.lua",
+      "garrysmod/lua/zc_release_postrestart_20260916.lua",
+      "garrysmod/lua/zc_release_status_20260923.lua",
+      "garrysmod/lua/zc_repair_inspect_20260919t025322z.lua",
+      "garrysmod/lua/zc_restraint_rollout.lua",
+      "garrysmod/lua/zc_restraint_trial.lua",
+      "garrysmod/lua/zc_restraints_preflight.lua",
+      "garrysmod/lua/zc_rollback_priority_20260919t025322z.lua",
+      "garrysmod/lua/zc_roundprep_probe.lua",
+      "garrysmod/lua/zc_roundstart_probe_20260917_153926.lua",
+      "garrysmod/lua/zc_scanner_escalation_activate.lua",
+      "garrysmod/lua/zc_scanner_photo_activate.lua",
+      "garrysmod/lua/zc_scanner_response_activate.lua",
+      "garrysmod/lua/zc_scoreboard_bomber_offline.lua",
+      "garrysmod/lua/zc_scoreboard_bomber_probe.lua",
+      "garrysmod/lua/zc_scoreboard_karma_probe.lua",
+      "garrysmod/lua/zc_scoreboard_layout_audit.lua",
+      "garrysmod/lua/zc_scoreboard_penalty_activate.lua",
+      "garrysmod/lua/zc_scoreboard_penalty_preflight.lua",
+      "garrysmod/lua/zc_scoreboard_penalty_probe.lua",
+      "garrysmod/lua/zc_scoreboard_players_probe.lua",
+      "garrysmod/lua/zc_scoreboard_preview/sv_restore.lua",
+      "garrysmod/lua/zc_scoreboard_repair_preview.lua",
+      "garrysmod/lua/zc_scoreboard_repair_publish.lua",
+      "garrysmod/lua/zc_scoreboard_server_compile.lua",
+      "garrysmod/lua/zc_scoreboard_successor_preview.lua",
+      "garrysmod/lua/zc_scoreboard_sync_audit.lua",
+      "garrysmod/lua/zc_settings_layout_probe.lua",
+      "garrysmod/lua/zc_shitterhunt_delivery_20260920.lua",
+      "garrysmod/lua/zc_social_native_probe.lua",
+      "garrysmod/lua/zc_social_status.lua",
+      "garrysmod/lua/zc_splat_inspect_20260919t035103z.lua",
+      "garrysmod/lua/zc_splat_stage_20260919t035103z/autorun/server/zc_poop_throw.lua",
+      "garrysmod/lua/zc_splat_stage_20260919t035103z/preflight.lua",
+      "garrysmod/lua/zc_startup_canary_20260916.lua",
+      "garrysmod/lua/zc_startup_server_repair.lua",
+      "garrysmod/lua/zc_startup_verify_clients.lua",
+      "garrysmod/lua/zc_sticky_activate_20260919t033648z.lua",
+      "garrysmod/lua/zc_sticky_rollback_20260919t033648z.lua",
+      "garrysmod/lua/zc_sticky_stage_20260919t033648z/candidate.lua",
+      "garrysmod/lua/zc_sticky_stage_20260919t033648z/preflight.lua",
+      "garrysmod/lua/zc_sticky_verify_20260919t033648z.lua",
+      "garrysmod/lua/zc_storage_observation_224411.lua",
+      "garrysmod/lua/zc_supercrusher_fake_activate.lua",
+      "garrysmod/lua/zc_sync_observe_20260917_0433.lua",
+      "garrysmod/lua/zc_tape_repair_20260919t153737z/preflight.lua",
+      "garrysmod/lua/zc_tape_repair_20260919t153737z/verify.lua",
+      "garrysmod/lua/zc_tick_budget/monitor.lua",
+      "garrysmod/lua/zc_tick_budget_activate.lua",
+      "garrysmod/lua/zc_tick_cleanup_20260919t013709z.lua",
+      "garrysmod/lua/zc_tick_snapshot_20260919t013709z.lua",
+      "garrysmod/lua/zc_tick_trial_20260919t013709z/grenade_preflight.lua",
+      "garrysmod/lua/zc_tick_trial_20260919t013709z/observe.lua",
+      "garrysmod/lua/zc_train_archive_activate.lua",
+      "garrysmod/lua/zc_tranq_validation_20260919t132421z/tranq_preflight.lua",
+      "garrysmod/lua/zc_tranq_validation_20260919t132421z/verify.lua",
+      "garrysmod/lua/zc_urine_material_20260918t235348z/preflight.lua",
+      "garrysmod/lua/zc_urine_visual_20260919t010507z/activate.lua",
+      "garrysmod/lua/zc_urine_visual_20260919t010507z/autorun/server/zc_poop_involuntary.lua",
+      "garrysmod/lua/zc_urine_visual_20260919t010507z/autorun/server/zc_poop_throw.lua",
+      "garrysmod/lua/zc_urine_visual_20260919t010507z/autorun/server/zc_urine.lua",
+      "garrysmod/lua/zc_urine_visual_20260919t010507z/preflight.lua",
+      "garrysmod/lua/zc_urine_visual_20260919t010507z/rollback.lua",
+      "garrysmod/lua/zc_urine_visual_20260919t010507z/verify.lua",
+      "garrysmod/lua/zc_urine_visual_activate_20260919t010507z.lua",
+      "garrysmod/lua/zc_urine_visual_rollback_20260919t010507z.lua",
+      "garrysmod/lua/zc_verify_priority_20260919t025322z.lua",
+      "garrysmod/lua/zc_viewer_delivery_apply_20260923.lua",
+      "garrysmod/lua/zc_viewer_delivery_apply_final_20260923.lua",
+      "garrysmod/lua/zc_visq_repair_ops.lua",
+      "garrysmod/lua/zc_waste_activate_20260918t233404z.lua",
+      "garrysmod/lua/zc_waste_admin_collision_20260919t001443z/autorun/client/zc_poop_visuals.lua",
+      "garrysmod/lua/zc_waste_admin_collision_20260919t001443z/autorun/server/zc_poop_eat.lua",
+      "garrysmod/lua/zc_waste_admin_collision_20260919t001443z/autorun/server/zc_poop_involuntary.lua",
+      "garrysmod/lua/zc_waste_admin_collision_20260919t001443z/autorun/server/zc_poop_odor.lua",
+      "garrysmod/lua/zc_waste_admin_collision_20260919t001443z/autorun/server/zc_poop_throw.lua",
+      "garrysmod/lua/zc_waste_admin_collision_20260919t001443z/autorun/server/zc_urine.lua",
+      "garrysmod/lua/zc_waste_admin_collision_20260919t001443z/preflight.lua",
+      "garrysmod/lua/zc_waste_admin_collision_20260919t001443z/zc_poop/content.lua",
+      "garrysmod/lua/zc_waste_audit_20260918T230556Z.lua",
+      "garrysmod/lua/zc_waste_midround_20260919t000035z/autorun/client/zc_poop_visuals.lua",
+      "garrysmod/lua/zc_waste_midround_20260919t000035z/autorun/server/zc_poop_eat.lua",
+      "garrysmod/lua/zc_waste_midround_20260919t000035z/autorun/server/zc_poop_involuntary.lua",
+      "garrysmod/lua/zc_waste_midround_20260919t000035z/autorun/server/zc_poop_odor.lua",
+      "garrysmod/lua/zc_waste_midround_20260919t000035z/autorun/server/zc_poop_throw.lua",
+      "garrysmod/lua/zc_waste_midround_20260919t000035z/autorun/server/zc_urine.lua",
+      "garrysmod/lua/zc_waste_midround_20260919t000035z/preflight.lua",
+      "garrysmod/lua/zc_waste_midround_20260919t000035z/zc_poop/content.lua",
+      "garrysmod/lua/zc_waste_midround_inspect_20260919t000035z.lua",
+      "garrysmod/lua/zc_waste_rollback_20260918t233404z.lua",
+      "garrysmod/lua/zc_waste_stage_20260918t233404z/autorun/server/zc_poop_involuntary.lua",
+      "garrysmod/lua/zc_waste_stage_20260918t233404z/autorun/server/zc_poop_throw.lua",
+      "garrysmod/lua/zc_waste_stage_20260918t233404z/autorun/server/zc_urine.lua",
+      "garrysmod/lua/zc_waste_stage_20260918t233404z/preflight_deploy.lua",
+      "garrysmod/lua/zc_waste_stage_20260918t233404z/snapshot_deploy.lua",
+      "garrysmod/lua/zch_activation_control.lua",
+      "garrysmod/lua/zch_activation_verify.lua",
+      "garrysmod/lua/zch_aim_activate.lua",
+      "garrysmod/lua/zch_aim_trial.lua",
+      "garrysmod/lua/zch_delivery_native.lua",
+      "garrysmod/lua/zch_follow_activate.lua",
+      "garrysmod/lua/zch_follow_trial.lua",
+      "garrysmod/lua/zch_gait_trial.lua",
+      "garrysmod/lua/zch_grab_diagnostic.lua",
+      "garrysmod/lua/zch_grab_fix_apply.lua",
+      "garrysmod/lua/zch_grab_fix_trial.lua",
+      "garrysmod/lua/zch_motion_activate.lua",
+      "garrysmod/lua/zch_motion_diag.lua",
+      "garrysmod/lua/zch_motion_speed_apply.lua",
+      "garrysmod/lua/zch_motion_speed_check.lua",
+      "garrysmod/lua/zch_motion_trial.lua",
+      "garrysmod/lua/zch_presentation_trial.lua",
+      "garrysmod/lua/zch_quickgrab_trial.lua",
+      "garrysmod/lua/zch_scale_activate.lua",
+      "garrysmod/lua/zch_scale_trial.lua",
+      "garrysmod/lua/zch_smoothness_activate.lua",
+      "garrysmod/lua/zch_smoothness_collision_apply.lua",
+      "garrysmod/lua/zch_smoothness_collision_check.lua",
+      "garrysmod/lua/zch_smoothness_trial.lua",
+      "garrysmod/lua/zsf_postrestart_verify_2f242e95.lua",
+      "garrysmod/lua/zsf_restart_authorized_2f242e95.lua",
+      "garrysmod/lua/zsf_trial_probe_2f242e95.lua"
+    ]
+  },
+  "table_source_candidates": [
+    {
+      "table": "LSAC_datastorage_kv",
+      "source_references": []
+    },
+    {
+      "table": "LSAC_detectionlogs",
+      "source_references": []
+    },
+    {
+      "table": "LSAC_detectionlogs_kvblob",
+      "source_references": []
+    },
+    {
+      "table": "LSAC_msglogs",
+      "source_references": []
+    },
+    {
+      "table": "LSAC_playerjoins",
+      "source_references": []
+    },
+    {
+      "table": "abnormalties_player_info",
+      "source_references": [
+        "garrysmod/addons/zcity/lua/homigrad/abnormalty_detection/sv_plugin.lua"
+      ]
+    },
+    {
+      "table": "cookies",
+      "source_references": [
+        "garrysmod/lua/includes/modules/cookie.lua"
+      ]
+    },
+    {
+      "table": "damage_log",
+      "source_references": [
+        "garrysmod/addons/ulx_cmdlog/lua/autorun/server/sv_damage_log.lua",
+        "garrysmod/addons/ulx_cmdlog/lua/autorun/server/sv_ulx_logpanel.lua"
+      ]
+    },
+    {
+      "table": "eprotect_detections",
+      "source_references": [
+        "garrysmod/addons/eprotect-keep-exploiterscheaters-at-bay-v1.5.35/lua/e_protect/server/sv_storage.lua"
+      ]
+    },
+    {
+      "table": "eprotect_http",
+      "source_references": [
+        "garrysmod/addons/eprotect-keep-exploiterscheaters-at-bay-v1.5.35/lua/e_protect/server/sv_storage.lua"
+      ]
+    },
+    {
+      "table": "eprotect_ips",
+      "source_references": [
+        "garrysmod/addons/eprotect-keep-exploiterscheaters-at-bay-v1.5.35/lua/e_protect/server/sv_storage.lua"
+      ]
+    },
+    {
+      "table": "gas_offline_player_data",
+      "source_references": []
+    },
+    {
+      "table": "gas_servers",
+      "source_references": []
+    },
+    {
+      "table": "gas_steam_avatars",
+      "source_references": []
+    },
+    {
+      "table": "gas_teams",
+      "source_references": []
+    },
+    {
+      "table": "hg_achievements",
+      "source_references": [
+        "garrysmod/addons/zcity/lua/homigrad/achievements/cl_achievement.lua",
+        "garrysmod/addons/zcity/lua/homigrad/achievements/sv_achievement.lua"
+      ]
+    },
+    {
+      "table": "hg_pointshop",
+      "source_references": [
+        "garrysmod/addons/zcity/lua/homigrad/libraries/pointshop/derma/cl_pointshop.lua",
+        "garrysmod/addons/zcity/lua/homigrad/libraries/pointshop/sv_pointshop.lua",
+        "garrysmod/addons/zcity/lua/initpost/menu-n-derma/derma/cl_menu_panel.lua",
+        "garrysmod/lua/zc_goobos/sv_arcade_bets.lua",
+        "garrysmod/lua/zc_goobos/sv_arcade_store.lua"
+      ]
+    },
+    {
+      "table": "mediaplayer_history",
+      "source_references": []
+    },
+    {
+      "table": "mediaplayer_metadata",
+      "source_references": []
+    },
+    {
+      "table": "playerpdata",
+      "source_references": [
+        "garrysmod/lua/includes/extensions/player.lua",
+        "garrysmod/lua/includes/extensions/util.lua"
+      ]
+    },
+    {
+      "table": "punish_history",
+      "source_references": [
+        "garrysmod/addons/ulx_cmdlog/lua/autorun/client/cl_ulx_logpanel.lua",
+        "garrysmod/addons/ulx_cmdlog/lua/autorun/server/sv_punish_history.lua",
+        "garrysmod/addons/ulx_cmdlog/lua/autorun/server/sv_ulx_logpanel.lua"
+      ]
+    },
+    {
+      "table": "solid_map_vote_data",
+      "source_references": [
+        "garrysmod/addons/zc_solidmapvote/lua/solidmapvote/core/server/sv_mapvote.lua"
+      ]
+    },
+    {
+      "table": "sqlite_sequence",
+      "source_references": []
+    },
+    {
+      "table": "srv1_gas_logging_classes",
+      "source_references": []
+    },
+    {
+      "table": "srv1_gas_logging_deepstorage",
+      "source_references": []
+    },
+    {
+      "table": "srv1_gas_logging_deepstorage_logdata",
+      "source_references": []
+    },
+    {
+      "table": "srv1_gas_logging_module_categories",
+      "source_references": []
+    },
+    {
+      "table": "srv1_gas_logging_modules",
+      "source_references": []
+    },
+    {
+      "table": "srv1_gas_logging_pvp_events",
+      "source_references": []
+    },
+    {
+      "table": "srv1_gas_secondaryusergroups",
+      "source_references": []
+    },
+    {
+      "table": "ulib_bans",
+      "source_references": [
+        "garrysmod/addons/ulib/lua/ulib/server/bans.lua",
+        "garrysmod/addons/ulx/lua/ulx/modules/sh/util.lua",
+        "garrysmod/lua/voiceadmin/sv_main.lua"
+      ]
+    },
+    {
+      "table": "ulib_users",
+      "source_references": [
+        "garrysmod/addons/ulib/lua/ulib/server/ucl.lua",
+        "garrysmod/addons/ulx/lua/ulx/modules/sh/util.lua"
+      ]
+    },
+    {
+      "table": "ulx_cmdlog",
+      "source_references": [
+        "garrysmod/addons/ulx_cmdlog/lua/autorun/client/cl_ulx_logpanel.lua",
+        "garrysmod/addons/ulx_cmdlog/lua/autorun/server/sv_punish_history.lua",
+        "garrysmod/addons/ulx_cmdlog/lua/autorun/server/sv_ulx_cmdlog.lua",
+        "garrysmod/addons/ulx_cmdlog/lua/autorun/server/sv_ulx_logpanel.lua",
+        "garrysmod/addons/zc_watchdog/wd_bootstrap.lua"
+      ]
+    },
+    {
+      "table": "utime_updated",
+      "source_references": [
+        "garrysmod/lua/zc_playtime/sv_playtime.lua"
+      ]
+    },
+    {
+      "table": "voiceadmin_requests",
+      "source_references": [
+        "garrysmod/lua/voiceadmin/sv_main.lua"
+      ]
+    },
+    {
+      "table": "watchdog_log",
+      "source_references": [
+        "garrysmod/addons/ulx_cmdlog/lua/autorun/server/sv_punish_history.lua",
+        "garrysmod/addons/ulx_cmdlog/lua/autorun/server/sv_ulx_logpanel.lua",
+        "garrysmod/addons/ulx_cmdlog/lua/autorun/server/sv_watchdog_log.lua"
+      ]
+    },
+    {
+      "table": "wd_connections",
+      "source_references": [
+        "garrysmod/addons/zc_watchdog/lua/autorun/server/sv_watchdog_evasion.lua"
+      ]
+    },
+    {
+      "table": "wd_vpncache",
+      "source_references": [
+        "garrysmod/addons/zc_watchdog/lua/autorun/server/sv_watchdog_vpn.lua"
+      ]
+    },
+    {
+      "table": "wire_expression2_extensions",
+      "source_references": []
+    },
+    {
+      "table": "zb_experience",
+      "source_references": [
+        "garrysmod/addons/zcity/gamemodes/zcity/gamemode/libraries/experience/sv_experience.lua",
+        "garrysmod/addons/zcity/lua/homigrad/libraries/pointshop/sv_pointshop.lua"
+      ]
+    },
+    {
+      "table": "zb_guilt",
+      "source_references": [
+        "garrysmod/addons/zcity/gamemodes/zcity/gamemode/libraries/guilt/sv_guilt.lua"
+      ]
+    },
+    {
+      "table": "zc_arcade_duels",
+      "source_references": [
+        "garrysmod/lua/zc_goobos/sv_arcade_duels.lua"
+      ]
+    },
+    {
+      "table": "zc_arcade_ledger",
+      "source_references": [
+        "garrysmod/lua/zc_goobos/sv_arcade_duels.lua",
+        "garrysmod/lua/zc_goobos/sv_arcade_social.lua"
+      ]
+    },
+    {
+      "table": "zc_arcade_rounds",
+      "source_references": [
+        "garrysmod/lua/zc_goobos/sv_arcade_bets.lua",
+        "garrysmod/lua/zc_goobos/sv_arcade_specdm.lua",
+        "garrysmod/lua/zc_goobos/sv_arcade_store.lua"
+      ]
+    },
+    {
+      "table": "zc_arcade_sessions",
+      "source_references": [
+        "garrysmod/lua/zc_goobos/sv_arcade_specdm.lua",
+        "garrysmod/lua/zc_goobos/sv_arcade_store.lua"
+      ]
+    },
+    {
+      "table": "zc_arcade_specdm",
+      "source_references": [
+        "garrysmod/lua/zc_goobos/sv_arcade_specdm.lua"
+      ]
+    },
+    {
+      "table": "zc_arcade_specdm_ledger",
+      "source_references": [
+        "garrysmod/lua/zc_goobos/sv_arcade_specdm.lua"
+      ]
+    },
+    {
+      "table": "zc_feed_comments",
+      "source_references": [
+        "garrysmod/lua/zc_goobos/sv_feed.lua",
+        "garrysmod/lua/zc_goobos/sv_feed_store.lua"
+      ]
+    },
+    {
+      "table": "zc_feed_photos",
+      "source_references": [
+        "garrysmod/lua/zc_goobos/sv_feed.lua",
+        "garrysmod/lua/zc_goobos/sv_feed_store.lua"
+      ]
+    },
+    {
+      "table": "zc_feed_posts",
+      "source_references": [
+        "garrysmod/lua/zc_goobos/sv_feed.lua",
+        "garrysmod/lua/zc_goobos/sv_feed_store.lua"
+      ]
+    },
+    {
+      "table": "zc_feed_profiles",
+      "source_references": [
+        "garrysmod/lua/zc_goobos/sv_feed_store.lua"
+      ]
+    },
+    {
+      "table": "zc_feed_reactions",
+      "source_references": [
+        "garrysmod/lua/zc_goobos/sv_feed_store.lua"
+      ]
+    },
+    {
+      "table": "zc_feed_reports",
+      "source_references": [
+        "garrysmod/lua/zc_goobos/sv_feed.lua",
+        "garrysmod/lua/zc_goobos/sv_feed_store.lua"
+      ]
+    },
+    {
+      "table": "zc_playtime",
+      "source_references": [
+        "garrysmod/lua/autorun/server/zc_playtime.lua",
+        "garrysmod/lua/zc_playtime/sv_playtime.lua"
+      ]
+    }
+  ],
+  "limitations": [
+    "Static text matches include comments and inactive/reference files.",
+    "No active runtime ownership or current player values established.",
+    "153 inventoried GMA packages remain unextracted.",
+    "No live MySQL connection tested and no database created."
+  ]
+}

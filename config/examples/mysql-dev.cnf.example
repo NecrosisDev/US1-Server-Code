@@ -1,0 +1,11 @@
+# EXAMPLE ONLY. Copy outside ALL Git repositories before entering credentials.
+# For the observed MariaDB client, not the game's production JSON config.
+# Suggested SSH-home location: ~/.config/us1/mysql-dev.cnf (chmod 600).
+# Use the connection values reported AFTER creating the empty dev database.
+[client]
+host=REPLACE_WITH_PANEL_DATABASE_HOST
+port=REPLACE_WITH_PANEL_DATABASE_PORT
+user=REPLACE_WITH_DATABASE_USERNAME
+password="REPLACE_WITH_DATABASE_PASSWORD"
+# Add ssl-ca=/absolute/path/to/provider-ca.pem if Physgun requires its own CA.
+# The checker forces TLS and certificate verification; never disable them to pass.

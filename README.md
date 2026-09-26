@@ -57,3 +57,12 @@ See [current import status](docs/ADDON_IMPORT_STATUS.md), the
 [code/content separation plan](docs/CONTENT_PACK_PLAN.md), and the
 [machine-readable package inventory](manifests/addon-packages.json).
 The content-pack plan does not move assets or authorize public redistribution.
+
+## Database readiness
+
+The observed live configuration uses SQLite. A verified, private SQLite snapshot
+was saved outside Git; no live backend change or data migration was performed.
+See [database readiness](docs/DATABASE_READINESS.md) and
+[storage audit](manifests/storage-audit.json). The read-only development checker
+has seven passing offline tests; hosted-database creation and a real connection
+remain pending. Actual player data and credentials must never enter this repo.
