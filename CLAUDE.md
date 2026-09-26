@@ -2,6 +2,7 @@
 
 This repo holds a Garry's Mod (Z-City gamemode) server's code. Read `docs/ARCHITECTURE.md` before changing anything.
 The migration backlog is in `docs/MIGRATION.md`.
+**Active work plan (orchestrator handoff): `docs/HANDOFF_PLAN.md`** — phases, work packages, owner gates, hard rules.
 
 - Custom code: `addons/us1/`. Upstream edits: `patches/<upstream>/` (avoid adding more). Pins: `manifests/dependencies.json`.
 - Where did an old file go? `manifests/source-map.json` (old `garrysmod/...` path -> new path + disposition).

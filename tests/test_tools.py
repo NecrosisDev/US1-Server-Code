@@ -53,26 +53,10 @@ class CheckTests(unittest.TestCase):
             self.assertEqual(len(check.check_secrets([f])), 1)
 
 
-def killcam_viewer_source(root=ROOT):
-    """The killcam viewer as the client assembles it (cl_viewer.lua): each viewer_parts file returns a Lua long string
-    minus its first character; Lua drops a newline right after the opening bracket and turns CRLF into LF."""
-    import re
-    out = []
-    for i in range(1, 10):
-        s = (root / f"addons/us1/lua/zc_killcam/viewer_parts/cl_part_{i:02d}.lua").read_bytes().decode("utf8")
-        m = re.match(r"return string\.sub\(\[(=*)\[(.*)\]\1\], 2\)\s*$", s, re.S)
-        body = m.group(2)
-        if body[:2] in ("\r\n", "\n\r"):
-            body = body[2:]
-        elif body[:1] in ("\r", "\n"):
-            body = body[1:]
-        out.append(re.sub(r"\r\n|\n\r|\r", "\n", body)[1:])
-    return "".join(out)
-
-
-def killcam_viewer_sha256(root=ROOT):
-    import hashlib
-    return hashlib.sha256(killcam_viewer_source(root).encode()).hexdigest()
+viewer_version = load("viewer_version")
+drop = load("drop")
+killcam_viewer_source = viewer_version.viewer_source  # kept for scripts that import it from here
+killcam_viewer_sha256 = viewer_version.digest
 
 
 class KillcamDeliveryTests(unittest.TestCase):
@@ -94,6 +78,39 @@ class KillcamDeliveryTests(unittest.TestCase):
                            capture_output=True, text=True)
         Path(f.name).unlink()
         self.assertEqual(r.returncode, 0, r.stderr)
+
+
+class DropTests(unittest.TestCase):
+    """tools/drop.py maps repo files back to the paths the legacy live tree uses."""
+    OUTPUTS = {"patches/zcity/": "zcity", "patches/ulx/": "ulx"}
+    MAP = {"addons/us1/lua/zc_goobos/roundend.lua": "garrysmod/lua/zc_goobos/roundend.lua",
+           "addons/us1/lua/zc_killcam/sv_tape.lua": "garrysmod/addons/zc_killcam/lua/zc_killcam/sv_tape.lua"}
+
+    def target(self, path):
+        return drop.live_target(path, self.MAP, self.OUTPUTS)
+
+    def test_mapped_file_goes_to_its_old_path(self):
+        self.assertEqual(self.target("addons/us1/lua/zc_killcam/sv_tape.lua")[0],
+                         "garrysmod/addons/zc_killcam/lua/zc_killcam/sv_tape.lua")
+
+    def test_new_file_goes_to_garrysmod_lua(self):
+        self.assertEqual(self.target("addons/us1/lua/us1/modules/x/sh_x.lua")[0], "garrysmod/lua/us1/modules/x/sh_x.lua")
+        self.assertEqual(self.target("addons/us1/gamemodes/zcity/gamemode/modes/a/sh_a.lua")[0],
+                         "garrysmod/gamemodes/zcity/gamemode/modes/a/sh_a.lua")
+
+    def test_patch_ships_the_built_upstream_file(self):
+        self.assertEqual(self.target("patches/zcity/lua/homigrad/cl_screeneffects.lua.patch"),
+                         ("garrysmod/addons/zcity/lua/homigrad/cl_screeneffects.lua",
+                          "dist/garrysmod/addons/zcity/lua/homigrad/cl_screeneffects.lua"))
+
+    def test_docs_and_unknown_paths_are_not_shipped(self):
+        self.assertIsNone(self.target("addons/us1/lua/us1/modules/README.md")[0])
+        self.assertIsNone(self.target("addons/us1/addon.json")[0])
+
+    def test_live_manifest(self):
+        live = json.loads((ROOT / "manifests/live.json").read_text())
+        self.assertIn(live["layout"], ("legacy", "restructured"))
+        self.assertRegex(live["deployed_commit"], r"^[0-9a-f]{7,40}$")
 
 
 class LayoutTests(unittest.TestCase):
