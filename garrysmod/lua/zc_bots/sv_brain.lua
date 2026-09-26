@@ -836,6 +836,20 @@ function lib.FollowPath(bot, brain)
 		end
 	end
 
+	-- 2026-09-26 ladders (sv_navrepair.lua links a ladder's foot and top):
+	-- on a ladder the engine climbs toward where the player looks while
+	-- forward is held -- look well up (or down) past the next waypoint.
+	if bot:GetMoveType() == MOVETYPE_LADDER and math.abs(wp.z - pos.z) > 24 then
+		local flat = wp - pos
+		flat.z = 0
+		local yaw = flat:LengthSqr() > 1 and flat:Angle().y or bot:EyeAngles().y
+		brain.moveAngles = Angle(0, yaw, 0)
+		brain.forward, brain.side, brain.sprint = 200, 0, nil
+		local climb = wp.z > pos.z and 160 or -160
+		lib.LookAt(bot, brain, pos + Vector(0, 0, 64 + climb) + Angle(0, yaw, 0):Forward() * 40, "ladder", true)
+		return
+	end
+
 	-- D: a persistent per-life lateral offset inside the lane (not the
 	-- centreline every time), applied perpendicular to the travel direction.
 	if brain.lateralOffset == nil then brain.lateralOffset = math.Rand(-18, 18) end

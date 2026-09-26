@@ -24,6 +24,7 @@ local FILES = {
 	"zc_bots/sv_aim.lua",
 	"zc_bots/sv_control.lua",
 	"zc_bots/sv_nav.lua",
+	"zc_bots/sv_navrepair.lua",
 	"zc_bots/sv_traverse.lua",
 	"zc_bots/sv_steer.lua",
 	"zc_bots/sv_movement.lua",
