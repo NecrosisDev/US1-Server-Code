@@ -70,10 +70,22 @@ def check_secrets(files):
     return out
 
 
+def code_only(text):
+    """Drop full-line and trailing comments (approximate: ignores '--' inside strings on the same line)."""
+    lines = []
+    for line in text.splitlines():
+        s = line.lstrip()
+        if s.startswith("--"):
+            continue
+        cut = line.find(" --")
+        lines.append(line[:cut] if cut >= 0 and line.count('"', 0, cut) % 2 == 0 else line)
+    return "\n".join(lines)
+
+
 def check_paths(files):
     out = set()
     for f in files:
-        for m in ADDON_PATH.finditer(f.read_text(errors="replace")):
+        for m in ADDON_PATH.finditer(code_only(f.read_text(errors="replace"))):
             name = m.group(1)
             if name not in SHIPPED_ADDONS and not name.endswith(".gma"):
                 out.add(f"{rel(f)} -> addons/{name}/")
@@ -87,7 +99,7 @@ def check_opsfiles(files):
 def check_hooks(files):
     owners = defaultdict(set)
     for f in files:
-        for ev, hid in HOOK_ADD.findall(f.read_text(errors="replace")):
+        for ev, hid in HOOK_ADD.findall(code_only(f.read_text(errors="replace"))):
             owners[(ev, hid)].add(rel(f))
     return sorted(f"{ev} / {hid}: {', '.join(sorted(fs))}" for (ev, hid), fs in owners.items() if len(fs) > 1)
 

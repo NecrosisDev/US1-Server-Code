@@ -1133,13 +1133,13 @@
   },
   {
    "old": "garrysmod/addons/zc_homelander_complete/lua/cl_zc_tempv.lua",
-   "new": "addons/us1/lua/cl_zc_tempv.lua",
-   "disposition": "moved-from-addon:zc_homelander_complete"
+   "new": null,
+   "disposition": "deleted: unreferenced duplicate of the autorun copy"
   },
   {
    "old": "garrysmod/addons/zc_homelander_complete/lua/sv_zc_tempv.lua",
-   "new": "addons/us1/lua/sv_zc_tempv.lua",
-   "disposition": "moved-from-addon:zc_homelander_complete"
+   "new": null,
+   "disposition": "deleted: unreferenced duplicate of the autorun copy"
   },
   {
    "old": "garrysmod/addons/zc_homelander_complete/lua/weapons/weapon_tempv.lua",
