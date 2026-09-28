@@ -6,11 +6,13 @@
 -- Shared: the app words and the release gate. Server: the bare command. Client: the pages, the opener and
 -- the render pass zc_chat_media/client.lua runs from M.FilterRowText. Render-only, like the rest of that
 -- pass: stored text, reports, spoilers and restored history keep exactly what the player typed.
+--   U2 (2026-09-26): "!clip <id>" and "!replay <round> <m:ss>" (share.lua writes them) read as "Replays › Clip 14:05"
+--   / "Replays › Round at 1:23" and open that clip / round moment. They follow zc_goobos_share, not the tester lock.
 if SERVER then AddCSLuaFile() end
 
 ZCGoobLinks = ZCGoobLinks or {}
 local L = ZCGoobLinks
-L.Version = "20260925.2"
+L.Version = "20260926.1"
 
 -- New US1 features ship locked to one tester until the owner lifts the lock: 0 off, 1 tester only,
 -- 2 everyone. Replicated, so "zc_goob_links 2" in the server console releases it with no map change.
@@ -21,6 +23,13 @@ function L.Allowed(ply)
     local mode = modeVar:GetInt()
     if mode >= 2 then return true end
     return mode == 1 and IsValid(ply) and ply:SteamID64() == string.Trim(testerVar:GetString())
+end
+
+-- Clip and round links (U2): on for everyone while sharing is (zc_goobos_share, feed_rules.lua); the lock above
+-- keeps gating the app and page links only.
+function L.ShareLinks()
+    local share = ZCGoobApps and ZCGoobApps.Share
+    return istable(share) and isfunction(share.Enabled) and isfunction(share.MatchLink) and share.Enabled() or false
 end
 
 -- Ids are apps.lua A.Register ids ("home" is the launcher). Every word was checked against the say
@@ -38,7 +47,8 @@ L.Apps = {
     {id = "messages", title = "Messages", words = {"messages"}},
     {id = "camera", title = "Camera", words = {"camera"}},
     {id = "voice", title = "Voice", words = {"voice"}},
-    {id = "donate", title = "Donate", words = {"donate"}}
+    {id = "donate", title = "Donate", words = {"donate"}},
+    {id = "karma", title = "Karma", words = {"karma", "timeline"}}
 }
 L.ByWord = {}
 for _, app in ipairs(L.Apps) do
@@ -117,7 +127,8 @@ L.Pages = {
         apply = function(page) filterState("progress", page.value) end
     },
     replays = {
-        list = {entry("All", {"all"}, 1), entry("My deaths", {"my deaths", "deaths"}, 2), entry("Highlights", {"highlights"}, 3)},
+        list = {entry("All", {"all"}, 1), entry("My deaths", {"my deaths", "deaths"}, 2), entry("Highlights", {"highlights"}, 3),
+            entry("Clips", {"clips"}, 4)},
         -- replays.lua builds S at file load (queue, rows); only the filter moves, and dirty rebuilds the list.
         apply = function(page)
             local S = ZCGoobApps.State.replays
@@ -125,12 +136,15 @@ L.Pages = {
         end
     },
     feed = {
-        list = {entry("Latest", {"latest"}, "feed"), entry("Create", {"create", "post"}, "compose"),
-            entry("My profile", {"my profile", "profile"}, "profile")},
-        -- feed_ui.lua's own tab click, field for field.
+        list = {entry("Latest", {"latest"}, "feed"), entry("Events", {"events"}, "feed:events"), entry("Clips", {"clips"}, "feed:clips"),
+            entry("Create", {"create", "post"}, "compose"), entry("My profile", {"my profile", "profile"}, "profile")},
+        -- feed_ui.lua's own tab click, field for field ("feed:<tab>" also picks the feed tab).
         apply = function(page)
             local C = ZCGoobFeed and ZCGoobFeed.Client
-            if C then C.view, C.author, C.before, C.commentBefore, C.feedItems, C.autoLoading = page.value, nil, nil, nil, {}, false end
+            if not C then return end
+            local view, tab = string.match(page.value, "^(%a+):?(%a*)$")
+            C.view, C.author, C.before, C.commentBefore, C.feedItems, C.autoLoading = view, nil, nil, nil, {}, false
+            if view == "feed" then C.feedTab = tab ~= "" and tab or "posts" end
         end
     }
 }
@@ -218,16 +232,25 @@ local function unescape(text)
 end
 
 -- One run of text with no tags in it. A token is "!" and an app word, glued to no word and no other "!"
--- on either side; one or more spaces and a page word may follow it.
-local function linkRun(run, links)
+-- on either side; one or more spaces and a page word may follow it. `apps` = the app links are released to this
+-- reader; `share` = clip and round links are on (they win over the "replay" app word they start with).
+local function linkRun(run, links, apps, share)
     local lower = string.lower(run)
     local out, pos, from = {}, 1, 1
     while #links < MAX_LINKS do
         local s, e, word = string.find(lower, "!(%a+)", from)
         if not s then break end
-        local app = L.ByWord[word]
+        local app = apps and L.ByWord[word]
         local before = s > 1 and string.sub(lower, s - 1, s - 1) or ""
-        if app and not string.find(before, "[%w_!]") and not string.find(string.sub(lower, e + 1, e + 1), "[%w_]") then
+        local shared, shareEnd
+        if share and not string.find(before, "[%w_!]") then shared, shareEnd = ZCGoobApps.Share.MatchLink(lower, s) end
+        if shared then
+            local label = ZCGoobApps.Share.LinkLabel(shared)
+            links[#links + 1] = {share = shared, label = label}
+            out[#out + 1] = string.sub(run, pos, s - 1)
+            out[#out + 1] = string.format("<color=%d,%d,%d>%s</color>", LINK_R, LINK_G, LINK_B - #links + 1, escape(label))
+            pos, from = shareEnd + 1, shareEnd + 1
+        elseif app and not string.find(before, "[%w_!]") and not string.find(string.sub(lower, e + 1, e + 1), "[%w_]") then
             local page, last = nil, e
             local list = L.PageList(app.id)
             local _, gap = string.find(lower, "^ +", e + 1)
@@ -275,7 +298,8 @@ L.Rows = L.Rows or setmetatable({}, {__mode = "k"})
 -- Called from zc_chat_media M.FilterRowText (pcall'd there). Only a build of the row's own text records
 -- its links: M.ReplyLabel runs the same pass over the grouped copy for the reply quote.
 function L.RenderRow(row, text)
-    if type(text) ~= "string" or not string.find(text, "!", 1, true) or not L.Allowed(LocalPlayer()) then
+    local apps, share = type(text) == "string" and L.Allowed(LocalPlayer()), L.ShareLinks()
+    if type(text) ~= "string" or not string.find(text, "!", 1, true) or not (apps or share) then
         if row and text == row.text then row.ZCGoobLinks = nil end
         return text
     end
@@ -285,7 +309,7 @@ function L.RenderRow(row, text)
     local name = isstring(row.ZCSenderName) and row.ZCSenderName or nil
     local out = eachRun(text, function(run)
         if name and unescape(string.Trim(run)) == name then return run end
-        return linkRun(run, links)
+        return linkRun(run, links, apps, share)
     end)
     if text == row.text then
         row.ZCGoobLinks = links[1] and links or nil
@@ -339,7 +363,7 @@ local function paintLink(button, w, h)
     if alpha <= 0 then return end
     local shown = revealed(row, button)
     if shown <= 0 then return end
-    local hovered = button:IsHovered()
+	local hovered = button.ZCHovered or button:IsHovered()
     surface.SetDrawColor(LINK_R, LINK_G, LINK_B, alpha * (hovered and 1 or 0.55))
     surface.DrawRect(0, h - 2, math.ceil(w * shown), hovered and 2 or 1)
 end
@@ -365,14 +389,20 @@ function L.Place(row)
                 button:SetText("")
                 button:SetCursor("hand")
                 button:SetKeyboardInputEnabled(false)
-                button:SetTooltip("Open " .. link.label)
+                button:SetTooltip((link.share and "Watch " or "Open ") .. link.label)
+                button.ZCShare = link.share ~= nil
                 button.ZCBlock = block
                 button.ZCChars = math.max(1, string.utf8len and string.utf8len(block.text) or #block.text)
                 button.ZCBaseX, button.ZCBaseY = (row.ZCTextX or 0) + block.offset.x, top + block.offset.y
                 button:SetPos(button.ZCBaseX, button.ZCBaseY)
                 button:SetSize(w, block.height or block.thisY or 16)
+				-- The chat's selectable text surface receives drag/selection input.
+				-- It routes a non-drag click here through L.ActivateAt below.
+				button:SetMouseInputEnabled(not row.ZCSelectionActive)
                 button.Paint = paintLink
-                button.DoClick = function() L.Open(link.id, link.page) end
+                button.DoClick = function()
+                    if link.share then ZCGoobApps.Share.OpenLink(link.share) else L.Open(link.id, link.page) end
+                end
                 buttons[#buttons + 1] = button
             end
         end
@@ -388,32 +418,69 @@ local function chatOpen()
         and not (ZCChatMedia and IsValid(ZCChatMedia.Picker))
 end
 
+-- Hit-test the same markup-sized targets as the visible underlines. When chat
+-- text is selectable, its text entry owns mouse input so dragging across a link
+-- still selects text; a click without a drag is routed through this function.
+function L.HitAt(row, screenX, screenY)
+	if not IsValid(row) or not chatOpen() then return nil end
+	if ZCChatThreads and isfunction(ZCChatThreads.Visible) and not ZCChatThreads.Visible(row) then return nil end
+	local x, y = row:ScreenToLocal(screenX, screenY)
+	local allowed, share = L.Allowed(LocalPlayer()), L.ShareLinks()
+	for _, button in ipairs(row.ZCGoobLinkButtons or {}) do
+		if IsValid(button) and button:IsVisible() and ((button.ZCShare and share) or (not button.ZCShare and allowed)) then
+			local bx, by = button:GetPos()
+			if x >= bx and y >= by and x <= bx + button:GetWide() and y <= by + button:GetTall() then return button end
+		end
+	end
+	return nil
+end
+
+function L.ActivateAt(row, screenX, screenY)
+	local button = L.HitAt(row, screenX, screenY)
+	if not IsValid(button) or not isfunction(button.DoClick) then return false end
+	button:DoClick()
+	return true
+end
+
 -- Only rows that carry links are walked. Buttons are made here rather than in RenderRow, which runs
 -- inside the row's PerformLayout; they follow the drop-in animation and take clicks only while the
 -- chat page is open, the same rule UpdateRowActions applies to the report button.
+-- A row stays live while any of its links is still allowed: app links follow the tester lock, clip and round
+-- links follow zc_goobos_share (a link whose switch went off stops taking clicks).
+local function rowLive(links, allowed, share)
+    for _, link in ipairs(links or {}) do
+        if (link.share and share) or (not link.share and allowed) then return true end
+    end
+    return false
+end
 hook.Add("Think", "ZCGoobLinks_Rows", function()
     if next(L.Rows) == nil then return end
-    local allowed, open, still = L.Allowed(LocalPlayer()), chatOpen(), reducedMotion()
+    local allowed, share, open, still = L.Allowed(LocalPlayer()), L.ShareLinks(), chatOpen(), reducedMotion()
+    local mouseX, mouseY = gui.MousePos()
     for row in pairs(L.Rows) do
         if not IsValid(row) then
             L.Rows[row] = nil
-        elseif not allowed or not row.ZCGoobLinks then
+        elseif not row.ZCGoobLinks or not rowLive(row.ZCGoobLinks, allowed, share) then
             clearButtons(row)
             L.Rows[row] = nil
         else
             if row.markup ~= row.ZCGoobLinkMarkup then L.Place(row) end
             local dy = still and 0 or math.floor((row.yAnim or 0) + 0.5)
-            local clickable = open and not (ZCChatThreads and isfunction(ZCChatThreads.Visible) and not ZCChatThreads.Visible(row))
+            local visible = open and not (ZCChatThreads and isfunction(ZCChatThreads.Visible) and not ZCChatThreads.Visible(row))
+            local hoveredLink = row.ZCSelectionActive and L.HitAt(row, mouseX, mouseY) or nil
+            if IsValid(row.ZCSelectableText) then row.ZCSelectableText:SetCursor(hoveredLink and "hand" or "ibeam") end
             for _, button in ipairs(row.ZCGoobLinkButtons or {}) do
                 if IsValid(button) then
                     if button.ZCDy ~= dy then
                         button.ZCDy = dy
                         button:SetPos(button.ZCBaseX, button.ZCBaseY + dy)
                     end
+                    local clickable = visible and ((button.ZCShare and share) or (not button.ZCShare and allowed)) or false
+                    button.ZCHovered = row.ZCSelectionActive and hoveredLink == button or button:IsHovered()
                     if button.ZCClickable ~= clickable then
                         button.ZCClickable = clickable
-                        button:SetMouseInputEnabled(clickable)
                     end
+					button:SetMouseInputEnabled(clickable and not row.ZCSelectionActive)
                 end
             end
         end
@@ -437,3 +504,4 @@ concommand.Add("goobos_link", function(_, _, args)
     end
     L.Open(app.id, page)
 end)
+
