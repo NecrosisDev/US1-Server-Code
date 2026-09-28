@@ -19,7 +19,7 @@ if not CLIENT then return end
 -- Fade   = follows the weapon's own ADS lerp (wep.k), deploy/holster and
 --          sprint, and dims when the muzzle is pressed against a wall.
 --
--- Convars (archived, per player; v3 also lists them in Settings > Crosshair):
+-- Convars (archived, per player; the current controls are listed in Settings > Crosshair):
 --   zc_crosshair 1            zc_crosshair_centerdot 0 (opt-in centre dot)
 --   zc_crosshair_radius 0.1..44 px, thickness/glow and zc_crosshair_r/g/b/a
 --   zc_crosshair_outline 1    zc_crosshair_ads 0 (keep while aiming)
@@ -31,7 +31,7 @@ if not CLIENT then return end
 --   zc_crosshair_blocked 1 (X when the barrel is blocked by cover you can see past)
 -- ============================================================================
 
-ZC_CROSSHAIR_VERSION = "20260927.21"
+ZC_CROSSHAIR_VERSION = "20260928.22"
 
 -- Convar handles live in one table: LuaJIT caps a function at 60 upvalues,
 -- and the paint function would otherwise hold one per convar.
@@ -715,14 +715,53 @@ local SETTINGS = {
 }
 
 -- ---------------------------------------------------- share and reset --
--- A share code is "zcx1-" and all 17 values in SETTINGS order, '-' separated;
--- each convar clamps what it receives to its own range.
 local SHARE_ORDER = {}
 for _, group in ipairs(SETTINGS) do
     for _, row in ipairs(group[2]) do SHARE_ORDER[#SHARE_ORDER + 1] = row[1] end
 end
-local SHARE_PREFIX = "zcx3"
--- zcx1 predates type and arm settings; zcx2 is the complete previous format.
+-- zcx4 is a readable, sparse settings list. Omitted settings use their convar
+-- defaults, so the common share code is short enough to paste into chat.
+local SHARE_PREFIX = "zcx4"
+local SHARE_FIELDS = {
+    { key = "show", names = { "zc_crosshair" }, kind = "bool" },
+    { key = "shape", names = { "zc_crosshair_type" }, choices = { "ring", "cross", "ring+cross", "t-cross" } },
+    { key = "ring", names = { "zc_crosshair_radius" }, unit = "px" },
+    { key = "stroke", names = { "zc_crosshair_thickness" }, unit = "px" },
+    { key = "glow", names = { "zc_crosshair_glow" }, unit = "px" },
+    { key = "opacity", names = { "zc_crosshair_a" } },
+    { key = "ads", names = { "zc_crosshair_ads" }, kind = "bool" },
+    { key = "sprint", names = { "zc_crosshair_sprint" }, kind = "bool" },
+    { key = "color", names = { "zc_crosshair_color" }, choices = { "custom", "white", "yellow", "cyan", "green", "magenta", "orange", "blue" } },
+    { key = "rgb", names = { "zc_crosshair_r", "zc_crosshair_g", "zc_crosshair_b" }, kind = "rgb" },
+    { key = "outline", names = { "zc_crosshair_outline" }, kind = "bool" },
+    { key = "edge", names = { "zc_crosshair_outline_width" }, unit = "px" },
+    { key = "dot-size", names = { "zc_crosshair_dot_size" }, unit = "px" },
+    { key = "hit-ticks", names = { "zc_crosshair_hitmarker" }, kind = "bool" },
+    { key = "hit-click", names = { "zc_crosshair_hitsound" }, kind = "bool" },
+    { key = "empty", names = { "zc_crosshair_empty" }, kind = "bool" },
+    { key = "blocked", names = { "zc_crosshair_blocked" }, kind = "bool" },
+    { key = "move", names = { "zc_crosshair_move_feedback" }, kind = "bool" },
+    { key = "recoil", names = { "zc_crosshair_recoil_feedback" }, kind = "bool" },
+    { key = "turn", names = { "zc_crosshair_turn_feedback" }, kind = "bool" },
+    { key = "body", names = { "zc_crosshair_body_feedback" }, kind = "bool" },
+    { key = "notches", names = { "zc_crosshair_notches" }, kind = "bool" },
+    { key = "gaps", names = { "zc_crosshair_notch_count" } },
+    { key = "gap-width", names = { "zc_crosshair_notch_width" }, unit = "deg" },
+    { key = "arm", names = { "zc_crosshair_arm" }, unit = "px" },
+    { key = "center-dot", names = { "zc_crosshair_centerdot" }, kind = "bool" },
+}
+local SHARE_DEFAULTS = {
+    show = "on", shape = "ring", ring = "17px", stroke = "2px", glow = "5px", opacity = "200",
+    ads = "off", sprint = "off", color = "white", rgb = "255/255/255", outline = "on", edge = "1px",
+    ["dot-size"] = "1px", ["hit-ticks"] = "on", ["hit-click"] = "off", empty = "on", blocked = "on",
+    move = "on", recoil = "on", turn = "on", body = "on", notches = "on", gaps = "4", ["gap-width"] = "24deg",
+    arm = "8px", ["center-dot"] = "off",
+}
+local SHARE_BY_KEY = {}
+for _, field in ipairs(SHARE_FIELDS) do SHARE_BY_KEY[field.key] = field end
+
+-- zcx1 predates type and arm settings; zcx2 added those; zcx3 added the
+-- current fine-grained controls. All three numeric forms remain importable.
 local SHARE_ORDER_V2 = { "zc_crosshair", "zc_crosshair_type", "zc_crosshair_size", "zc_crosshair_a", "zc_crosshair_ads",
     "zc_crosshair_color", "zc_crosshair_r", "zc_crosshair_g", "zc_crosshair_b", "zc_crosshair_outline",
     "zc_crosshair_hitmarker", "zc_crosshair_hitsound", "zc_crosshair_empty", "zc_crosshair_blocked",
@@ -732,19 +771,125 @@ local SHARE_ORDER_V1 = { "zc_crosshair", "zc_crosshair_size", "zc_crosshair_a", 
     "zc_crosshair_hitsound", "zc_crosshair_empty", "zc_crosshair_blocked", "zc_crosshair_notches",
     "zc_crosshair_notch_count", "zc_crosshair_notch_width", "zc_crosshair_centerdot" }
 
-local function exportCode()
-    local parts = { SHARE_PREFIX }
-    for _, name in ipairs(SHARE_ORDER) do
-        local cv = GetConVar(name)
-        parts[#parts + 1] = string.format("%.3f", cv and cv:GetFloat() or 0)
+local function formatShareNumber(value)
+    local text = string.format("%.3f", value):gsub("0+$", ""):gsub("%.$", "")
+    return text == "" and "0" or text
+end
+
+local encodeField
+local function fieldChanged(field)
+    return encodeField(field) ~= SHARE_DEFAULTS[field.key]
+end
+
+encodeField = function(field)
+    if field.kind == "rgb" then
+        local values = {}
+        for i, name in ipairs(field.names) do
+            local cv = GetConVar(name)
+            values[i] = tostring(cv and cv:GetInt() or 0)
+        end
+        return table.concat(values, "/")
     end
-    return table.concat(parts, "-")
+    local cv = GetConVar(field.names[1])
+    if not cv then return "0" end
+    if field.kind == "bool" then return cv:GetBool() and "on" or "off" end
+    if field.choices then return field.choices[cv:GetInt() + 1] or field.choices[1] end
+    return formatShareNumber(cv:GetFloat()) .. (field.unit or "")
+end
+
+local function exportCode()
+    local values, parts = {}, {}
+    for _, field in ipairs(SHARE_FIELDS) do
+        if fieldChanged(field) then
+            local value = encodeField(field)
+            values[field.key] = value
+            parts[#parts + 1] = field.key .. "=" .. value
+        end
+    end
+    local code = SHARE_PREFIX .. "{" .. (#parts > 0 and table.concat(parts, "; ") or "default") .. "}"
+    if #code <= 230 then return code end
+
+    -- Unusually dense configurations still need a pasteable code below chat's
+    -- 256-byte cap. This fallback keeps the exact same keyed payload.
+    local json = util.TableToJSON(values, false)
+    local compressed = json and util.Compress(json)
+    local packed = compressed and util.Base64Encode(compressed, true)
+    return packed and (SHARE_PREFIX .. "~" .. string.gsub(packed, "[%s]", "")) or code
+end
+
+local function parseV4(code)
+    local values = {}
+    if string.sub(code, 1, #SHARE_PREFIX + 1) == SHARE_PREFIX .. "~" then
+        local packed = string.sub(code, #SHARE_PREFIX + 2)
+        local compressed = util.Base64Decode(packed)
+        local json = compressed and util.Decompress(compressed)
+        values = json and util.JSONToTable(json) or nil
+        if not istable(values) then return nil end
+    elseif string.sub(code, 1, #SHARE_PREFIX + 1) == SHARE_PREFIX .. "{" and string.sub(code, -1) == "}" then
+        local body = string.sub(code, #SHARE_PREFIX + 2, -2)
+        if body ~= "" and body ~= "default" then
+            for _, item in ipairs(string.Explode(";", body)) do
+                local key, value = string.match(item, "^%s*([%w%-]+)%s*=%s*(.-)%s*$")
+                if not key or value == "" or values[key] ~= nil then return nil end
+                values[key] = value
+            end
+        end
+    else
+        return nil
+    end
+
+    local commands = {}
+    for key in pairs(values) do if not SHARE_BY_KEY[key] then return nil end end
+    for _, field in ipairs(SHARE_FIELDS) do
+        local value = values[field.key] or SHARE_DEFAULTS[field.key]
+        if value ~= nil then
+            if not isstring(value) then value = tostring(value) end
+            if field.kind == "bool" then
+                local normalized = string.lower(value)
+                if normalized == "on" or normalized == "1" then value = "1"
+                elseif normalized == "off" or normalized == "0" then value = "0"
+                else return nil end
+                commands[#commands + 1] = { field.names[1], value }
+            elseif field.kind == "rgb" then
+                local r, g, b = string.match(value, "^(%d+)/(%d+)/(%d+)$")
+                r, g, b = tonumber(r), tonumber(g), tonumber(b)
+                if not r or not g or not b or r < 0 or g < 0 or b < 0 or r > 255 or g > 255 or b > 255 then return nil end
+                commands[#commands + 1] = { field.names[1], tostring(r) }
+                commands[#commands + 1] = { field.names[2], tostring(g) }
+                commands[#commands + 1] = { field.names[3], tostring(b) }
+            elseif field.choices then
+                local selected
+                for i, choice in ipairs(field.choices) do
+                    if string.lower(choice) == string.lower(value) then selected = i - 1 break end
+                end
+                if selected == nil then return nil end
+                commands[#commands + 1] = { field.names[1], tostring(selected) }
+            else
+                value = string.lower(value)
+                if field.unit and string.sub(value, -#field.unit) == field.unit then
+                    value = string.sub(value, 1, -#field.unit - 1)
+                end
+                local number = tonumber(value)
+                if not number or number ~= number or number == math.huge or number == -math.huge then return nil end
+                commands[#commands + 1] = { field.names[1], tostring(number) }
+            end
+        end
+    end
+    return commands
 end
 
 -- returns ok, message
 local function importCode(code)
-    local parts = string.Explode("-", string.Trim(code or ""))
-    local order = (parts[1] == SHARE_PREFIX and SHARE_ORDER) or (parts[1] == "zcx2" and SHARE_ORDER_V2) or (parts[1] == "zcx1" and SHARE_ORDER_V1)
+	code = string.Trim(code or "")
+	if string.sub(code, 1, #SHARE_PREFIX) == SHARE_PREFIX then
+		local commands = parseV4(code)
+		if not commands then return false, "That crosshair code is damaged; nothing was changed." end
+		RunConsoleCommand(CV.Size:GetName(), CV.Size:GetDefault())
+		for _, row in ipairs(commands) do RunConsoleCommand(row[1], row[2]) end
+		return true, "Crosshair code applied."
+	end
+	local parts = string.Explode("-", code)
+	local order = (parts[1] == "zcx3" and SHARE_ORDER) or (parts[1] == "zcx2" and SHARE_ORDER_V2) or (parts[1] == "zcx1" and SHARE_ORDER_V1)
     if not order or #parts ~= #order + 1 then
         return false, "That is not a crosshair code."
     end
@@ -917,9 +1062,9 @@ local function buildPreviewColumn(parent, K, T, refresh)
         end
     end)
     resetB.zcxRole = "reset"
-    local copyB = button(bar, "Copy code", function(self)
+    local copyB = button(bar, "Copy share code", function(self)
         SetClipboardText(exportCode())
-        flash(self, "Copied to clipboard", "Copy code", 2)
+        flash(self, "Copied for chat", "Copy share code", 2)
     end)
     copyB.zcxRole = "copy"
     bar.PerformLayout = function(_, w, h)
