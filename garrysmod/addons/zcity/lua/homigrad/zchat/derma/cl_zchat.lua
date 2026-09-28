@@ -140,6 +140,75 @@ end
 
 local PANEL = {}
 
+local function rowPlainText(markup)
+	local parts = {}
+	for _, block in ipairs(markup and markup.blocks or {}) do
+		if isstring(block.text) then parts[#parts + 1] = block.text end
+	end
+	return table.concat(parts)
+end
+
+local function makeSelectableText(row)
+	if IsValid(row.ZCSelectableText) then return row.ZCSelectableText end
+	local text = vgui.Create("DTextEntry", row)
+	text:SetPaintBackground(false)
+	text:SetFont("zChatFont")
+	text:SetTextInset(0, 0)
+	text:SetTextColor(Color(255, 255, 255, 0)) -- the markup below remains the visible, coloured text
+	text:SetCursorColor(Color(255, 255, 255, 0))
+	text:SetHighlightColor(Color(132, 185, 255, 170))
+	text:SetEditable(false)
+	text:SetMultiline(true)
+	text:SetVerticalScrollbarEnabled(false)
+	text:SetHorizontalScrolling(false)
+	text:SetUpdateOnType(false)
+	text:SetCursor("ibeam")
+	text:SetTooltip("Drag to select · Ctrl+C to copy · click links to open")
+	text:SetZPos(0)
+	text.ZCChatRow = row
+	local basePressed, baseReleased = text.OnMousePressed, text.OnMouseReleased
+	text.OnMousePressed = function(self, code)
+		self.ZCPressX, self.ZCPressY = gui.MousePos()
+		if basePressed then basePressed(self, code) end
+	end
+	text.OnMouseReleased = function(self, code)
+		if baseReleased then baseReleased(self, code) end
+		if code ~= MOUSE_LEFT or self.ZCPressX == nil then return end
+		local x, y = gui.MousePos()
+		local moved = math.abs(x - self.ZCPressX) > 3 or math.abs(y - self.ZCPressY) > 3
+		self.ZCPressX, self.ZCPressY = nil, nil
+		local parent = self.ZCChatRow
+		if not moved and IsValid(parent) and ZCGoobLinks and isfunction(ZCGoobLinks.ActivateAt) then
+			ZCGoobLinks.ActivateAt(parent, x, y)
+		end
+	end
+	row.ZCSelectableText = text
+	return text
+end
+
+local function updateSelectableText(row, width)
+	local selection = makeSelectableText(row)
+	local top = (row.ZCBubble and 4 or 0) + (row.ZCQuoteHeight or 0)
+	selection:SetText(rowPlainText(row.markup))
+	selection:SetPos(row.ZCTextX or 0, top)
+	selection:SetSize(math.max(1, width or row.markup:GetWidth()), math.max(1, row.markup:GetHeight()))
+	local chat = hg and hg.chat
+	local active = IsValid(chat) and chat:GetActive() and chat.phonePage == "chat"
+	row.ZCSelectionActive = active
+	row:SetMouseInputEnabled(active)
+	selection:SetMouseInputEnabled(active)
+end
+
+local function setRowsSelectable(chat, active)
+	for _, row in ipairs(chat.entries or {}) do
+		if IsValid(row) and IsValid(row.ZCSelectableText) then
+			row.ZCSelectionActive = active
+			row:SetMouseInputEnabled(active)
+			row.ZCSelectableText:SetMouseInputEnabled(active)
+		end
+	end
+end
+
 function PANEL:Init()
 	self.text = ""
 	self.alpha = 0
@@ -224,6 +293,7 @@ function PANEL:BuildMarkup(width)
 		if available < string.utf8len(text) then text = string.utf8sub(text, 1, available) end
 		PaintMarkupOverride(text, font, x, y, color, alignX, alignY, alpha)
 	end
+	updateSelectableText(self, textWidth)
 end
 
 function PANEL:PerformLayout(width, height)
@@ -430,13 +500,8 @@ function PANEL:Init()
 	self.resizeHandle:SetMouseInputEnabled(true)
 	self.resizeHandle:SetCursor("sizenesw")
 	self.resizeHandle:SetTooltip("Drag to resize")
-	self.resizeHandle.Paint = function(handle, w, h)
-		draw.RoundedBox(0, 0, 0, w, h, Color(40, 40, 44, handle:IsHovered() and 240 or 80))
-		surface.SetDrawColor(192, 0, 0, handle:IsHovered() and 255 or 160)
-		surface.DrawLine(6, 21, 21, 6)
-		surface.DrawLine(12, 21, 21, 12)
-		surface.DrawLine(16, 6, 21, 6)
-		surface.DrawLine(21, 6, 21, 11)
+	self.resizeHandle.Paint = function(button, w, h)
+		ZCGoobApps.Kit.IconControl(button, w, h, "resize")
 	end
 	self.resizeHandle.OnMousePressed = function(handle, button)
 		if button != MOUSE_LEFT or not self:GetActive() or self.ZCDocked then return end
@@ -485,17 +550,7 @@ function PANEL:Init()
 	self.bannerMuteButton:SetText("")
 	self.bannerMuteButton:SetTooltip(self.bannerMuted and "Unmute system banners" or "Mute system banners")
 	self.bannerMuteButton.Paint = function(button, w, h)
-		local hover = PhoneHover(button)
-		draw.RoundedBox(0, 0, 0, w, h, Color(55, 50, 52, 70 + hover * 130))
-		local ink = self.bannerMuted and Color(160, 160, 160) or Color(230, 220, 220)
-		draw.RoundedBox(5, 9, 7, 10, 12, ink)
-		surface.SetDrawColor(ink)
-		surface.DrawRect(7, 17, 14, 2)
-		draw.RoundedBox(2, 12, 20, 4, 3, ink)
-		if self.bannerMuted then
-			surface.SetDrawColor(255, 132, 147)
-			surface.DrawLine(6, 23, 23, 6)
-		end
+		ZCGoobApps.Kit.IconControl(button, w, h, self.bannerMuted and "belloff" or "bell")
 	end
 	self.bannerMuteButton.DoClick = function()
 		self.bannerMuted = not self.bannerMuted
@@ -533,7 +588,7 @@ function PANEL:Init()
 	self.entry:Dock(FILL)
 	self.entry:DockMargin(12, 5, 4, 5)
 	self.entry:SetPlaceholderText("Message")
-	self.entry:SetTooltip("Enter to send · Up/Down to recall sent messages")
+	self.entry:SetTooltip("Enter to send · Ctrl+V to paste · Up/Down to recall sent messages")
 	-- self.entry.OnValueChange = ix.util.Bind(self, self.OnTextChanged)
 	-- self.entry.OnKeyCodeTyped = ix.util.Bind(self, self.OnKeyCodeTyped)
 	self.entry.OnEnter = CallbackBind(self, self.OnMessageSent)
@@ -573,12 +628,7 @@ function PANEL:CreatePhoneShell()
 	self.homeButton:SetSize(32, 32)
 	self.homeButton:SetPos(6, 4)
 	self.homeButton.Paint = function(button, w, h)
-		local hover = PhoneHover(button)
-		local selected = self.phonePage == "home"
-		draw.RoundedBox(0, 0, 0, w, h, Color(102, 0, 0, (selected and 160 or 55) + hover * 60))
-		for x = 0, 1 do for y = 0, 1 do
-			draw.RoundedBox(2, 9 + x * 9, 9 + y * 9, 6, 6, Color(225, 120, 120))
-		end end
+		ZCGoobApps.Kit.IconControl(button, w, h, "grid", self.phonePage == "home")
 	end
 	self.homeButton.DoClick = function() self:SetPhonePage("home") end
 	self.phoneClose = self.phoneBar:Add("DButton")
@@ -586,10 +636,7 @@ function PANEL:CreatePhoneShell()
 	self.phoneClose:SetTooltip("Close phone")
 	self.phoneClose:SetSize(28, 28)
 	self.phoneClose.Paint = function(button, w, h)
-		draw.RoundedBox(0, 0, 0, w, h, Color(133, 68, 84, PhoneHover(button) * 160))
-		surface.SetDrawColor(225, 225, 225)
-		surface.DrawLine(10, 10, w - 10, h - 10)
-		surface.DrawLine(w - 10, 10, 10, h - 10)
+		ZCGoobApps.Kit.IconControl(button, w, h, "close", false, true)
 	end
 	self.phoneClose.DoClick = function() self:SetActive(false) end
 	self.mediaVisibilityButton = self.phoneBar:Add("DButton")
@@ -597,18 +644,7 @@ function PANEL:CreatePhoneShell()
 	self.mediaVisibilityButton:SetSize(28, 28)
 	self.mediaVisibilityButton:SetKeyboardInputEnabled(false)
 	self.mediaVisibilityButton.Paint = function(button, w, h)
-		local enabled = ZCChatMedia.InlineEnabled and ZCChatMedia.InlineEnabled()
-		draw.RoundedBox(0, 0, 0, w, h, Color(55, 50, 52, 70 + PhoneHover(button) * 130))
-		surface.SetDrawColor(enabled and Color(230, 220, 220) or Color(160, 160, 160))
-		surface.DrawOutlinedRect(6, 7, 16, 14, 1)
-		surface.DrawLine(7, 19, 12, 13)
-		surface.DrawLine(12, 13, 17, 19)
-		surface.DrawLine(17, 19, 21, 15)
-		surface.DrawRect(17, 10, 2, 2)
-		if not enabled then
-			surface.SetDrawColor(255, 132, 147)
-			surface.DrawLine(5, 24, 24, 5)
-		end
+		ZCGoobApps.Kit.IconControl(button, w, h, (ZCChatMedia.InlineEnabled and ZCChatMedia.InlineEnabled()) and "image" or "imageoff")
 	end
 	self.mediaVisibilityButton.DoClick = function()
 		if not ZCChatMedia.InlineEnabled then return end
@@ -662,6 +698,7 @@ function PANEL:SetPhonePage(page, quiet)
     if self.phonePage == page then return end
     local previous = self.phonePage
     self.phonePage = page
+    setRowsSelectable(self, self:GetActive() and page == "chat")
     self.phonePageChanged = CurTime()
     local chatPage = page == "chat"
     if not chatPage then
@@ -987,6 +1024,7 @@ function PANEL:SetActive(bActive, bRemovePrev)
 	end
 
 	self.bActive = bActive
+	setRowsSelectable(self, bActive and self.phonePage == "chat")
 	if ZCGoobApps then ZCGoobApps.Sync(self) end
 	ZCChatThreads.OnActive(self,bActive)
 
@@ -1306,3 +1344,4 @@ hook.Add("ZC_ULXVoteStarted", "ZCChat_ULXVotePush", function(title, timeout, opt
 		end)
 	end)
 end)
+
