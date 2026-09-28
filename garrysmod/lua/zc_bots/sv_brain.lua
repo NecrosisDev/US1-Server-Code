@@ -97,6 +97,7 @@ local CORE_PER_LIFE_FIELDS = {
 	"nextKickAt", "damageAt", "damagePos", "damageUntil", "damageTargetIndex", "damageTargetUntil",
 	"idleScanAt", "idleScanBaseYaw", "actualForward", "actualSide", "sprint", "objectivePos",
 	"objectiveRadius", "objectiveExpire", "objectivePriority", "objectiveSource", "objectivePhase",
+	"objectiveRejectPos", "objectiveRejectUntil", "pathFailedAt", "cornerCheckIdx", "cornerCheckPath", "cornerCheckClear",
 	"survival", "survivalThreatScanAt", "survivalVisibleHostile", "fistsRaisedAt", "manualCycle", "fireGatedUntil",
 	"nextHop", "nextHopCheck", "traverseButtons", "arb",
 	"progressPath", "progressIdx", "progressAt", "progressPos", "progressDist",
@@ -689,8 +690,21 @@ function lib.ObjectiveActive(brain, now)
 	return isvector(brain.objectivePos) and now <= (brain.objectiveExpire or 0)
 end
 
+-- 2026-09-26: a soft goal whose route just failed (no path, cached as
+-- failed by sv_nav.lua) is refused for a few seconds. Modes re-issue their
+-- soft objective every decision; without this a bot with an unreachable goal
+-- (a contact on a roof, a squad slot inside a wall) stood frozen, got
+-- kicked into a roam by StallWatch after 7 s, then had that roam overwritten
+-- by the same dead goal on the next decision -- over and over.
+local OBJECTIVE_REJECT_TIME = 8
+local OBJECTIVE_REJECT_RADIUS = 200
+
 function hg.botdriver.SetObjective(bot, pos, radius, ttl, priority, source)
 	local brain = hg.botdriver.GetBrain(bot)
+	if priority ~= "hard" and isvector(brain.objectiveRejectPos) and CurTime() < (brain.objectiveRejectUntil or 0)
+		and isvector(pos) and pos:DistToSqr(brain.objectiveRejectPos) < OBJECTIVE_REJECT_RADIUS ^ 2 then
+		return
+	end
 	brain.objectivePos = pos
 	brain.objectiveRadius = radius or 96
 	brain.objectiveExpire = CurTime() + (ttl or 10)
@@ -709,6 +723,12 @@ function lib.ObjectiveTravel(bot, brain, now)
 	end
 	brain.objectivePhase = "travel"
 	lib.PathTo(bot, brain, brain.objectivePos, now, 0.8)
+	if not brain.path and brain.pathFailedAt == now and brain.objectivePriority ~= "hard" then
+		brain.objectiveRejectPos = brain.objectivePos
+		brain.objectiveRejectUntil = now + OBJECTIVE_REJECT_TIME
+		brain.objectivePos = nil
+		return false
+	end
 	return true
 end
 
@@ -737,6 +757,7 @@ function lib.PathTo(bot, brain, pos, now, cadence)
 	if not hg.botdriver.CanPath() then return end
 	brain.nextRepath = now + (cadence or 2)
 	local path, _, _, _, meta = hg.botdriver.FindPath(bot:GetPos(), pos)
+	brain.pathFailedAt = not path and now or nil
 	brain.path = path
 	brain.pathMeta = path and meta or nil -- sv_nav.lua: { path, narrow[i], areaIndex[id] }
 	brain.pathGoal = brain.path and pos or nil
@@ -790,6 +811,7 @@ function lib.FollowPath(bot, brain)
 	local meta = brain.pathMeta
 	local narrowHere = meta ~= nil and meta.path == activePath and meta.narrow ~= nil
 		and (meta.narrow[brain.pathIdx] == true or meta.narrow[brain.pathIdx + 1] == true)
+	if narrowHere then brain.pathNarrowAt = now end -- sv_control.lua: steer this bit analog
 	local steerWp = wp
 	local nextWp = activePath[brain.pathIdx + 1]
 	if nextWp and not narrowHere then
@@ -800,8 +822,32 @@ function lib.FollowPath(bot, brain)
 		if toWp:Length() < CORNER_CUT_DIST and legOut:LengthSqr() > 1 and toWp:LengthSqr() > 1 then
 			if toWp:GetNormalized():Dot(legOut:GetNormalized()) > CORNER_CUT_DOT then
 				steerWp = nextWp
+			else
+				-- 2026-09-26: a sharp corner is rounded too when the direct line
+				-- to the following waypoint is walkable -- one hull trace per
+				-- corner (cached on the path index), instead of walking onto the
+				-- node and pivoting on the spot.
+				if brain.cornerCheckPath ~= activePath or brain.cornerCheckIdx ~= brain.pathIdx then
+					brain.cornerCheckPath, brain.cornerCheckIdx = activePath, brain.pathIdx
+					brain.cornerCheckClear = math.abs(nextWp.z - pos.z) < 40 and lib.ClearWalk ~= nil and lib.ClearWalk(bot, nextWp)
+				end
+				if brain.cornerCheckClear then steerWp = nextWp end
 			end
 		end
+	end
+
+	-- 2026-09-26 ladders (sv_navrepair.lua links a ladder's foot and top):
+	-- on a ladder the engine climbs toward where the player looks while
+	-- forward is held -- look well up (or down) past the next waypoint.
+	if bot:GetMoveType() == MOVETYPE_LADDER and math.abs(wp.z - pos.z) > 24 then
+		local flat = wp - pos
+		flat.z = 0
+		local yaw = flat:LengthSqr() > 1 and flat:Angle().y or bot:EyeAngles().y
+		brain.moveAngles = Angle(0, yaw, 0)
+		brain.forward, brain.side, brain.sprint = 200, 0, nil
+		local climb = wp.z > pos.z and 160 or -160
+		lib.LookAt(bot, brain, pos + Vector(0, 0, 64 + climb) + Angle(0, yaw, 0):Forward() * 40, "ladder", true)
+		return
 	end
 
 	-- D: a persistent per-life lateral offset inside the lane (not the
@@ -826,6 +872,7 @@ function lib.FollowPath(bot, brain)
 		dirAng, steerSpeedMul = lib.LocalSteer(bot, brain, dirAng, brain.pathSpeed or 250, now)
 	end
 	brain.moveAngles = dirAng
+	brain.lastSteerYaw = dirAng.y -- sv_traverse.lua's hop probe follows the steered heading
 	-- D: slight speed variation, re-rolled on a slow cadence so it reads as
 	-- natural gait drift rather than tick-to-tick jitter.
 	if now >= (brain.pathSpeedAt or 0) then
@@ -915,6 +962,11 @@ function lib.PreAimSteer(bot, brain, wp, distToWp)
 			outDir:Normalize()
 			if inDir:Dot(outDir) < CORNER_TURN_DOT then
 				brain.forward = CORNER_WALK_SPEED
+				-- 2026-09-26: Gait already ran this decision; drop its sprint
+				-- key too, or the bot shows the sprint pose at walking speed.
+				brain.sprint = false
+				brain.gait = "run"
+				brain.traverseButtons = bit.band(brain.traverseButtons or 0, bit.bnot(IN_SPEED))
 				local towardThreat = threat - wp
 				if towardThreat:LengthSqr() > 1 then
 					towardThreat:Normalize()
@@ -947,6 +999,9 @@ end
 function lib.Roam(bot, brain, now)
 	if hg.botdriver.SearchStep and hg.botdriver.SearchStep(bot, brain, now) then return end
 	if now < (brain.roamPauseUntil or 0) then return end
+	-- 2026-09-26: a squad follower near its (stopped) point bot hangs around
+	-- and looks about instead of starting a solo roam leg (sv_squad.lua).
+	if now < (brain.formationHoldUntil or 0) and not brain.roamPath then return end
 	if not brain.roamGoal or not brain.roamPath then
 		if now < (brain.nextRoam or 0) then return end
 		local goal = hg.botdriver.RandomRoamPos(bot:GetPos())
@@ -1069,9 +1124,11 @@ function lib.StuckCheck(bot, brain, now, buttons)
 			brain.progressAt = now
 			brain.progressPos = pos
 			brain.progressDist = wp and pos:Distance(wp) or nil
-			if not (lib.OnStairs and lib.OnStairs(bot, brain, now)) then
-				buttons = bit.bor(buttons, IN_JUMP, IN_DUCK)
-			end
+			-- 2026-09-26: no blind crouch-jump here any more. sv_traverse.lua's
+			-- diagnosis (0.5 s) already hops when a knee-high obstacle justifies
+			-- it; stacking this 1.6 s jump (and sv_doors.lua's 1.2 s one) on top
+			-- produced the bump -> jump -> crouch-jump spasm. This backstop now
+			-- only drops the route and learns the bad area.
 			brain.nextRepath = 0
 			if brain.roamPath == brain.path then
 				brain.roamPath = nil
@@ -1331,6 +1388,14 @@ function lib.Engage(bot, brain, now, skill, target, dist, behavior, buttons)
 	brain.lastSeenEntIndex = target:EntIndex()
 	brain.lastSeenTime = now
 
+	-- 2026-09-26 round director (sv_director.lua): in a choreographed
+	-- bot-vs-bot scene the aim point sits a few degrees off the target until
+	-- the director lets this bot's shots land.
+	local director = hg.botdriver.director
+	if director and director.AimFor then
+		visibleAim = director.AimFor(bot, brain, target, visibleAim, now) or visibleAim
+	end
+
 	-- HUMANIZE (2026-09-21): sv_aim.lua's per-tick motor model now owns the
 	-- aim-error tremor this block used to author directly (section A4: "fold
 	-- the existing aim-error/lead logic in lib.Engage into this model so
@@ -1449,10 +1514,22 @@ function lib.Engage(bot, brain, now, skill, target, dist, behavior, buttons)
 			-- path node) while reloading.
 			if hg.botdriver.gunhandling then
 				hg.botdriver.gunhandling.RetreatWhileReloading(bot, brain, now, target, dist)
+				if hg.botdriver.gunhandling.SetShellGoal and not brain.shellGoal then
+					hg.botdriver.gunhandling.SetShellGoal(bot, brain, wep, true, dist)
+				end
 			end
 			return bit.bor(buttonsNoFire, IN_RELOAD)
 		end
 		return buttonsNoFire
+	end
+
+	-- 2026-09-26: a tube/stripper loader mid-reload keeps R held until its
+	-- shell goal (sv_gunhandling.lua ShellReloadHold) instead of firing the
+	-- first shell that lands.
+	local ghMod = hg.botdriver.gunhandling
+	if ghMod and ghMod.ShellReloadHold and ghMod.ShellReloadHold(bot, brain, now, wep, dist) then
+		ghMod.RetreatWhileReloading(bot, brain, now, target, dist)
+		return bit.bor(bit.band(buttons, bit.bnot(bit.bor(IN_ATTACK, IN_SPEED))), IN_RELOAD)
 	end
 
 	local scared = 1 - ammoRatio
@@ -1471,6 +1548,20 @@ function lib.Engage(bot, brain, now, skill, target, dist, behavior, buttons)
 		brain.path = nil
 		brain.state = "disengage"
 		return bit.band(buttons, bit.bnot(bit.bor(IN_ATTACK, IN_ATTACK2, IN_SPEED)))
+	end
+
+	-- 2026-09-26: never fire a launcher inside its own blast/arming radius,
+	-- into a wall at arm's length, or with a teammate in the backblast
+	-- (sv_gunhandling.lua LauncherUnsafe). Back off to open the range.
+	if ghMod and ghMod.LauncherUnsafe
+		and ghMod.LauncherUnsafe(bot, brain, wep, dist, visibleAim, (behavior and behavior.allyOf) or hg.botdriver.AllyOf(bot)) then
+		brain.fireUntil = 0
+		brain.path = nil
+		brain.moveAngles = Angle(0, (target:GetPos() - bot:GetPos()):Angle().y, 0)
+		brain.forward = (dist or 0) < 520 and -200 or 0
+		brain.side = (bot:EntIndex() % 2 == 0) and 140 or -140
+		if lib.SafeCombatMove then lib.SafeCombatMove(bot, brain, now) end
+		return bit.band(buttons, bit.bnot(bit.bor(IN_ATTACK, IN_SPEED)))
 	end
 
 	brain.fireGatedUntil = now + 0.3
@@ -1581,6 +1672,12 @@ function lib.Engage(bot, brain, now, skill, target, dist, behavior, buttons)
 			brain.forward = -150
 			brain.side = math.sin(now * 2 + bot:EntIndex()) * 200
 		end
+	end
+
+	-- 2026-09-26: lean habits (peek lean / strafe lean), authored after the
+	-- stance above has picked this decision's strafe direction.
+	if ghMod and ghMod.ApplyLean then
+		buttons = ghMod.ApplyLean(bot, brain, now, dist, buttons)
 	end
 
 	return buttons

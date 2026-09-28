@@ -132,12 +132,14 @@ local function moveVector(brain)
 end
 lib.MoveVector = moveVector
 
-local function startSidestep(bot, brain, fwd, now)
+local function startSidestep(bot, brain, fwd, now, keepRight)
 	local moveAng = Angle(0, fwd:Angle().yaw, 0)
 	local right = moveAng:Right()
 	-- attempts count EXECUTED maneuvers only; the increment happens once a
-	-- safe side is actually committed below, not for merely looking for one
-	local preferRight = ((brain.unstickAttempts or 0) + 1 + bot:EntIndex()) % 2 == 0
+	-- safe side is actually committed below, not for merely looking for one.
+	-- keepRight (2026-09-26): around another PERSON everyone passes on the
+	-- same side, so two bots meeting head-on never mirror each other.
+	local preferRight = keepRight or ((brain.unstickAttempts or 0) + 1 + bot:EntIndex()) % 2 == 0
 	local first = preferRight and right or -right
 	local second = -first
 	local pos = bot:GetPos()
@@ -269,10 +271,24 @@ local function diagnoseStuck(bot, brain, now, escalate)
 
 	local knee = probe(bot, pos, fwd, 18)
 
-	-- nothing solid at knee height: catching on a ledge lip or a gap
+	-- nothing solid at knee height. 2026-09-26: this used to try a gap vault
+	-- unconditionally, and on flat ground the vault's landing search succeeds
+	-- at its very first probe (60 u ahead) -- so a bot blocked by anything the
+	-- knee probe misses did a running jump across an ordinary floor. Only a
+	-- real gap (no ground just ahead) justifies a vault; a chest/head-height
+	-- blocker is a wall to route around; anything else is transient (a body
+	-- in the way, a thin rail) and gets a plain sidestep without penalising
+	-- the nav area for every other bot.
 	if not knee.Hit then
-		if tryGapVault(bot, brain, now, fwd) then return 0 end
-		blockAreaAt(bot, brain, pos + fwd * 50, escalate)
+		local ground = groundAt(bot, pos + fwd * 40 + vector_up * 18, 60)
+		if not ground.Hit then
+			if tryGapVault(bot, brain, now, fwd) then return 0 end
+			blockAreaAt(bot, brain, pos + fwd * 50, escalate)
+			startSidestep(bot, brain, fwd, now)
+			return 0
+		end
+		local chestHit = probe(bot, pos, fwd, 48).Hit or probe(bot, pos, fwd, 68).Hit
+		if chestHit then blockAreaAt(bot, brain, pos + fwd * 50, escalate) end
 		startSidestep(bot, brain, fwd, now)
 		return 0
 	end
@@ -284,7 +300,7 @@ local function diagnoseStuck(bot, brain, now, escalate)
 	-- never blacklist their nav area.
 	if IsValid(ent) and ((ent.IsPlayer and ent:IsPlayer())
 		or (ent.IsNPC and ent:IsNPC()) or (ent.IsNextBot and ent:IsNextBot())) then
-		startSidestep(bot, brain, fwd, now)
+		startSidestep(bot, brain, fwd, now, true)
 		return 0
 	end
 
@@ -368,9 +384,12 @@ function lib.TraverseStep(bot, brain)
 		if now > unstick.until_ then
 			brain.unstick = nil
 		else
-			local moveAng = Angle(0, unstick.dir:Angle().yaw, 0)
-			brain.moveAngles = moveAng
-			if not brain.aimLocked then lib.SetLookAngles(brain, moveAng, "traverse:unstick", true) end
+			-- 2026-09-26: step in the recovery direction WITHOUT turning the
+			-- head to it. sv_control.lua projects this world heading onto the
+			-- current view, so it comes out as a strafe or a backpedal -- the
+			-- way a person sidesteps with A/D. Pointing the view along the
+			-- sidestep whipped the head sideways/backwards on every bump.
+			brain.moveAngles = Angle(0, unstick.dir:Angle().yaw, 0)
 			brain.forward = UNSTICK_SPEED
 			-- an active recovery IS progress; keep sv_brain.lua's blunt
 			-- StuckCheck from also firing mid-maneuver.
@@ -387,7 +406,15 @@ function lib.TraverseStep(bot, brain)
 		else
 			lib.LookAt(bot, brain, bt.ent:WorldSpaceCenter(), "traverse:break", true)
 			brain.forward = 0
-			brain.traverseButtons = bit.bor(brain.traverseButtons or 0, IN_ATTACK)
+			-- 2026-09-26: melee swings or kicks only. Holding IN_ATTACK with
+			-- whatever was out meant a gun-holder shot the crate in its way
+			-- (in Homicide: unexplained gunfire from an "innocent").
+			local wep = bot:GetActiveWeapon()
+			if IsValid(wep) and wep.ismelee then
+				brain.traverseButtons = bit.bor(brain.traverseButtons or 0, IN_ATTACK)
+			elseif lib.TryLegKick then
+				lib.TryLegKick(bot, brain, now, "clutter")
+			end
 			brain.progressAt = now
 			brain.progressPos = bot:GetPos()
 			return true
@@ -469,18 +496,28 @@ function lib.TraverseStep(bot, brain)
 	-- above: hop a short obstruction with clear headroom before it ever
 	-- becomes a full stall (curbs/small ledges -- "not stopping on small
 	-- ledges").
+	-- 2026-09-26: the probe used to aim straight at the waypoint, not along
+	-- the heading local steering actually takes, so a bed, counter or railing
+	-- the route was about to walk AROUND got hopped (and re-hopped every
+	-- 0.6 s along a long counter). Now: probe along last decision's steered
+	-- heading, only as far as the waypoint, never while steering is actively
+	-- bending around something, and a second hop inside 3 s is refused (and
+	-- mutes hopping for 5 s).
 	if now >= (brain.nextHopCheck or 0) then
 		brain.nextHopCheck = now + 0.2
 		local wp = brain.path and brain.path[brain.pathIdx]
-		if isvector(wp) then
+		local steering = (brain.steerYawOffset or 0) ~= 0
+		if isvector(wp) and not steering and now >= (brain.hopSuppressUntil or 0) then
 			local pos = bot:GetPos()
-			local dir = wp - pos
-			dir.z = 0
-			if dir:LengthSqr() >= 1 then
-				dir:Normalize()
+			local toWp = wp - pos
+			toWp.z = 0
+			local wpDist = toWp:Length()
+			if wpDist >= 1 then
+				local dir = brain.lastSteerYaw and Angle(0, brain.lastSteerYaw, 0):Forward() or (toWp / wpDist)
+				local reach = math.min(HOP_TRACE_DIST, wpDist)
 				local lowTrace = util.TraceLine({
 					start = pos + Vector(0, 0, HOP_STEP_CLEAR),
-					endpos = pos + Vector(0, 0, HOP_STEP_CLEAR) + dir * HOP_TRACE_DIST,
+					endpos = pos + Vector(0, 0, HOP_STEP_CLEAR) + dir * reach,
 					filter = bot,
 					mask = MASK_PLAYERSOLID,
 				})
@@ -490,12 +527,15 @@ function lib.TraverseStep(bot, brain)
 				if lowTrace.Hit and not lowIsActor and bot:IsOnGround() and not onStairs then
 					local highTrace = util.TraceLine({
 						start = pos + Vector(0, 0, HOP_MAX_HEIGHT),
-						endpos = pos + Vector(0, 0, HOP_MAX_HEIGHT) + dir * HOP_TRACE_DIST,
+						endpos = pos + Vector(0, 0, HOP_MAX_HEIGHT) + dir * reach,
 						filter = bot,
 						mask = MASK_PLAYERSOLID,
 					})
-					if not highTrace.Hit and now >= (brain.nextHop or 0) then
+					if not highTrace.Hit and now - (brain.hopPrevAt or -math.huge) < 3 then
+						brain.hopSuppressUntil = now + 5 -- hopping along something, not over it
+					elseif not highTrace.Hit and now >= (brain.nextHop or 0) then
 						brain.nextHop = now + HOP_COOLDOWN
+						brain.hopPrevAt = now
 						brain.traverseButtons = bit.bor(brain.traverseButtons or 0, IN_JUMP)
 						hg.botdriver.stats = hg.botdriver.stats or {}
 						hg.botdriver.stats.hops = (hg.botdriver.stats.hops or 0) + 1
@@ -552,8 +592,19 @@ function lib.NavPosture(bot, brain, waypoint)
 	local now = CurTime()
 	if now >= (brain.nextNavPosture or 0) then
 		brain.nextNavPosture = now + 0.15
-		local hereLow = not lib.HeadClear(bot, bot:GetPos())
-		local aheadLow = isvector(waypoint) and not lib.HeadClear(bot, waypoint) or false
+		local pos = bot:GetPos()
+		local hereLow = not lib.HeadClear(bot, pos)
+		-- 2026-09-26: probe a short step ahead, not the waypoint itself --
+		-- the waypoint can be hundreds of units away, which duck-walked the
+		-- bot the whole way to a low opening.
+		local ahead = waypoint
+		if isvector(waypoint) then
+			local flat = waypoint - pos
+			flat.z = 0
+			local d = flat:Length()
+			if d > 90 then ahead = pos + flat * (70 / d) end
+		end
+		local aheadLow = isvector(ahead) and not lib.HeadClear(bot, ahead) or false
 		brain.navMustCrouch = hereLow or aheadLow
 	end
 	if brain.navMustCrouch then
@@ -598,5 +649,6 @@ hg.botdriver.DeclareBrainState("traverse", {
 		"unstick", "unstickAttempts", "vault", "breakTarget", "breakAttempts",
 		"winded", "nextEdgeProbe", "nextNavPosture", "navMustCrouch",
 		"traverseStuckPos", "traverseStuckAt", "pathGoal",
+		"hopSuppressUntil", "hopPrevAt", "lastSteerYaw",
 	},
 })

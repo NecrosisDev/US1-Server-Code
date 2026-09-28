@@ -86,7 +86,7 @@ RB({
 			if IsValid(threat) then
 				if now >= (brain.outnumberedCoverAt or 0) then
 					brain.outnumberedCoverAt = now + 1.5
-					brain.outnumberedCoverPos = lib.FindCover(bot, threat, 700)
+					brain.outnumberedCoverPos = lib.KeepCover(bot, brain, "outnumbered", threat, 700)
 				end
 				dest = brain.outnumberedCoverPos
 			end

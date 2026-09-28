@@ -6,7 +6,7 @@ local D = hg.botdriver
 local lib = D.lib
 local H = {}
 D.homicide = H
-local variants = { hmcd = true, standard = true, soe = true, wildwest = true, gunfreezone = true }
+local variants = { hmcd = true, standard = true, soe = true, wildwest = true, gunfreezone = true, juggernaut = true }
 
 function H.Active()
 	return zb ~= nil and (zb.CROUND_MAIN == "hmcd" or variants[zb.CROUND_MAIN or zb.CROUND] == true)
@@ -40,6 +40,9 @@ function H.EnemyOf(bot)
 	return function(other)
 		if not playing(other) or other == bot then return false end
 		if bot.isTraitor then return other.isTraitor ~= true end
+		-- zc_juggernaut: the Juggernaut is announced to everyone at round
+		-- start (ply.zc_isJugg), so he is no secret to hunt for.
+		if other.zc_isJugg == true then return true end
 		local now = CurTime()
 		-- Innocents can defend themselves against anyone who actually hurt them.
 		if brain.attackedBy == other and now < (brain.damageUntil or 0) then return true end

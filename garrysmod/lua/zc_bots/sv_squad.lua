@@ -38,6 +38,7 @@ local FLANK_OFFSET_MIN, FLANK_OFFSET_MAX = 250, 400
 -- non-point member re-forms, and where its slot sits relative to the point
 -- bot's current facing.
 local FORMATION_SLACK = 220
+hg.botdriver.DeclareBrainState("squad_formation", { fields = { "formationFace", "formationHoldUntil" } })
 local SUPPORT_BEHIND = 220
 local FLANK_BEHIND = 80
 local FLANK_SIDE = 180
@@ -342,11 +343,17 @@ local lastCallout = {} -- squadId -> time
 local cv_callouts = ConVarExists("zc_bots_callouts") and GetConVar("zc_bots_callouts")
 	or CreateConVar("zc_bots_callouts", "0", FCVAR_ARCHIVE, "Bot team-chat callouts to human teammates")
 
+-- 2026-09-26: worded the way people actually type mid-fight (short, no
+-- radio-speak like "enemy spotted").
 local CALLOUT_LINES = {
-	contact = { "contact", "got one over here", "enemy spotted", "eyes on", "they're here" },
-	cover_me = { "reloading, cover me", "cover me", "changing mag" },
-	regroup = { "on me", "group up", "wait for me" },
-	down = { "he's down", "got him", "one down" },
+	contact = { "contact", "one over here", "hes here", "theyre here", "here", "one here" },
+	cover_me = { "reloading", "cover me", "reload", "cover me im reloading" },
+	regroup = { "on me", "wait up", "wait for me", "come here" },
+	down = { "got him", "hes down", "one down", "got one" },
+	-- 2026-09-26 (sv_duel.lua): relocating between covers, and falling back hurt.
+	moving = { "moving", "switching spots", "going left", "going right", "repositioning" },
+	hurt = { "im hit", "im hurt", "falling back", "need to patch up", "hes got me pinned" },
+	flushed = { "hes behind cover", "hes peeking that corner", "watch that corner", "hes hurt" },
 }
 
 -- Team modes only: in masscasualty/activeshooter the shooter(s) share team 0
@@ -358,6 +365,8 @@ local CALLOUT_LINES = {
 local CALLOUT_MODES = {
 	tdm = true, cstrike = true, hl2dm = true,
 	gwars = true, criresp = true, riot = true, uncontainedriot = true, wildcard = true,
+	-- 2026-09-26: every other real team split too (addon mode included).
+	["Cops/Gangsters"] = true, coop = true, defense = true,
 }
 
 function squad.EmitLine(bot, key)
@@ -386,14 +395,16 @@ function squad.EmitLine(bot, key)
 	-- instant a bot decides to call out; only the actual print is deferred
 	-- behind sv_chatter.lua's shared typing helper. doEmit re-checks
 	-- cv_callouts/IsValid itself since the send can land up to 4s later.
-	local function doEmit()
+	-- 2026-09-26 parity: ZChat gives humans no team channel, so a
+	-- "(TEAM) name:" line was a format only bots could produce (and it
+	-- skipped the typing-style pass). A callout is now ordinary chat through
+	-- sv_chatter.lua's funnel: styled, proximity-limited and rendered like
+	-- anyone else's line -- the teammates near enough to matter read it.
+	local function doEmit(speaker, styledText)
 		if not cv_callouts:GetBool() then return end
 		if not IsValid(bot) then return end
-		local col = _G.team.GetColor(team)
-		for _, ply in ipairs(player.GetHumans()) do
-			if hg.botdriver.TeamOf(ply) == team and ply:Alive() and ply.zChatPrint then
-				ply:zChatPrint(col, "(TEAM) " .. bot:Nick(), color_white, ": " .. line)
-			end
+		if hg.botdriver.chatter and hg.botdriver.chatter.Say then
+			hg.botdriver.chatter.Say(bot, styledText or line, false, true)
 		end
 	end
 
@@ -450,16 +461,35 @@ hg.botdriver.RegisterBehavior({
 		-- objective" into a squad that visibly moves together; the old
 		-- far-away regroup-to-centroid case below still covers a squad that
 		-- has come apart (e.g. its point died mid-round).
+		-- 2026-09-26 (formation "yo-yo" fix): the slot used to hang off the
+		-- point bot's AIM vector -- which sweeps, glances and checks behind
+		-- -- and was only enforced beyond 220 u, so inside that a follower
+		-- roamed off randomly, drifted out, turned back, and repeated. The
+		-- slot now follows the point's direction of TRAVEL (last heading kept
+		-- while it stands still), keeps following while the point moves, and
+		-- a follower near a stopped point hangs around (lib.Roam honours
+		-- brain.formationHoldUntil) instead of wandering away.
 		local info = squad.SquadOf(bot)
 		local mates = squad.Squadmates(bot)
 		if info and info.slot ~= "point" and #mates > 1 then
 			local point = squad.PointOf(bot)
 			if IsValid(point) and point ~= bot then
+				local brain = ctx.brain
 				local pointPos = point:GetPos()
-				if bot:GetPos():DistToSqr(pointPos) > FORMATION_SLACK * FORMATION_SLACK then
-					local faceDir = point:GetAimVector()
-					faceDir.z = 0
-					if faceDir:LengthSqr() < 1 then faceDir = Vector(1, 0, 0) else faceDir:Normalize() end
+				local vel = point:GetVelocity()
+				vel.z = 0
+				local pointMoving = vel:LengthSqr() > 60 * 60
+				if pointMoving then brain.formationFace = vel:GetNormalized() end
+				local distSqr = bot:GetPos():DistToSqr(pointPos)
+				brain.formationHoldUntil = ctx.now + 1.5
+				if distSqr > FORMATION_SLACK * FORMATION_SLACK
+					or (pointMoving and distSqr > (FORMATION_SLACK * 0.55) ^ 2) then
+					local faceDir = brain.formationFace
+					if not faceDir then
+						faceDir = point:GetAimVector()
+						faceDir.z = 0
+						if faceDir:LengthSqr() < 1 then faceDir = Vector(1, 0, 0) else faceDir:Normalize() end
+					end
 					local right = Vector(-faceDir.y, faceDir.x, 0)
 					local dest
 					if info.slot == "support" then

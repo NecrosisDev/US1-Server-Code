@@ -21,7 +21,12 @@ hg.botdriver.DeclareBrainState("control_quantize", { fields = {
 	"qForwardSign", "qForwardAt", "qForwardDwell", "qSideSign", "qSideAt", "qSideDwell", "jumpStartedAt",
 	"cmdLOSTarget", "cmdLOSNextCheck", "cmdLOSLastVisible",
 	"lagHitchAt", "lagHitchUntil",
+	"kbHeld", "kbErr", "kbHoldUntil", "kbAt", "pathNarrowAt",
 } })
+
+local cv_keyboard = ConVarExists("zc_bots_keyboard_move") and GetConVar("zc_bots_keyboard_move")
+	or CreateConVar("zc_bots_keyboard_move", "1", FCVAR_ARCHIVE,
+		"Bots move in the 8 directions WASD allows relative to where they look, tapping between two to hold a line", 0, 1)
 
 local KEY_SWITCH_MIN, KEY_SWITCH_MAX = 0.08, 0.16
 local AXIS_DEADZONE = 5
@@ -41,6 +46,68 @@ local function quantizeAxis(brain, signField, atField, dwellField, sign, now)
 		end
 	end
 	return brain[signField] or 0
+end
+
+-- 2026-09-26 keyboard-style movement (owner ask, movement review #9): a
+-- human on WASD only moves straight, sideways or at 45 degrees relative to
+-- where they look. When a bot looks away from where it walks (strafing
+-- while aiming, walking while watching someone), the analog direction is
+-- snapped to one of those 8 octants and held for a human key cadence; the
+-- leftover angle error is integrated and pays itself back by tapping the
+-- neighbouring octant (W, W+D, W, W+D ...) -- how a person holds a line
+-- between two key directions. Doors, vaults, unsticking, ladders and narrow
+-- path legs stay analog: those need the precision a person gets from
+-- turning their view, which the look layer does not do there.
+local KB_HOLD_MIN, KB_HOLD_MAX = 0.14, 0.32
+local KB_RETARGET = 60 -- degrees off the held octant: re-press now
+local KB_ERR_CAP = 18  -- degree-seconds of banked error
+-- Within this of an octant nothing is banked: a person corrects a few
+-- degrees with the mouse (the look/path layer's re-steer), not by tapping a
+-- diagonal -- banking it made a bot walking almost straight zigzag.
+local KB_DEADBAND = 11
+
+local function wrap180(a)
+	a = a % 360
+	if a > 180 then a = a - 360 end
+	return a
+end
+
+local function keyboardExempt(ply, brain, now)
+	return brain.doorTarget ~= nil or brain.doorBreachDoor ~= nil or brain.vault ~= nil
+		or (brain.unstick ~= nil and now < (brain.unstick.until_ or 0))
+		or brain.traverseButtons ~= nil
+		or now - (brain.pathNarrowAt or -math.huge) < 0.4
+		or ply:GetMoveType() == MOVETYPE_LADDER
+end
+
+local function keyboardSnap(ply, brain, forward, side, now)
+	local mag = math.sqrt(forward * forward + side * side)
+	if mag <= AXIS_DEADZONE or not cv_keyboard:GetBool() or keyboardExempt(ply, brain, now) then
+		brain.kbHeld, brain.kbErr = nil, 0
+		return forward, side
+	end
+	local ang = math.deg(math.atan2(side, forward)) -- 0 = W, +90 = D
+	local held = brain.kbHeld
+	local dt = math.min(now - (brain.kbAt or now), 0.1)
+	brain.kbAt = now
+	if held then
+		local off = wrap180(ang - held)
+		if math.abs(off) > KB_DEADBAND then
+			brain.kbErr = math.Clamp((brain.kbErr or 0) + off * dt, -KB_ERR_CAP, KB_ERR_CAP)
+		else
+			brain.kbErr = (brain.kbErr or 0) * (1 - math.min(dt * 4, 1))
+		end
+	end
+	if not held or now >= (brain.kbHoldUntil or 0) or math.abs(wrap180(ang - held)) > KB_RETARGET then
+		local hold = math.Rand(KB_HOLD_MIN, KB_HOLD_MAX)
+		local aim = ang + math.Clamp((brain.kbErr or 0) / hold, -44, 44)
+		local pick = math.floor(aim / 45 + 0.5) * 45
+		if held and math.abs(wrap180(ang - held)) > KB_RETARGET then brain.kbErr = 0 end
+		brain.kbHeld, brain.kbHoldUntil = wrap180(pick), now + hold
+		held = brain.kbHeld
+	end
+	local rad = math.rad(held)
+	return math.cos(rad) * mag, math.sin(rad) * mag
 end
 
 hook.Add("StartCommand", "zc_bots_control", function(ply, cmd)
@@ -114,6 +181,7 @@ hook.Add("StartCommand", "zc_bots_control", function(ply, cmd)
 		rawForward = worldMove:Dot(viewMove:Forward())
 		rawSide = worldMove:Dot(viewMove:Right())
 	end
+	rawForward, rawSide = keyboardSnap(ply, brain, rawForward, rawSide, now)
 
 	local suppressed, moveCap = false, nil
 	if hg.botdriver.MovementSuppression then
@@ -196,6 +264,13 @@ hook.Add("StartCommand", "zc_bots_control", function(ply, cmd)
 
 	if not roundAllowsCombat then
 		finalButtons = bit.band(finalButtons, bit.bnot(bit.bor(IN_ATTACK, IN_ATTACK2)))
+	end
+
+	-- 2026-09-26: crouch/lean dances (sv_emote.lua) press their keys at
+	-- command rate -- a decision-rate (~6 Hz) button could not hold the
+	-- rhythm of someone hammering crouch.
+	if brain.emote and hg.botdriver.emote and hg.botdriver.emote.Buttons then
+		finalButtons = hg.botdriver.emote.Buttons(brain, now, finalButtons)
 	end
 
 	-- Rule 3, enforced again at command rate: IN_SPEED/IN_USE never ride

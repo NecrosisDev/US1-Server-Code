@@ -389,14 +389,29 @@ function hg.botdriver.ApplySurvivalPreemption(bot, brain, now, state, policy)
 	local endgame = hg.botdriver.EndgameFactor and hg.botdriver.EndgameFactor() or 0
 	if hg.botdriver.HomicideRush and hg.botdriver.HomicideRush() then endgame = 1 end
 	if endgame > aggression then aggression = endgame end
+	-- 2026-09-26 (owner rule): ANY bot falls back to cover once it has taken
+	-- too much damage -- unless the fight is close quarters or a face-off in
+	-- direct line of sight (being shot right now by someone it can see), where
+	-- turning away only gets it shot in the back. "Too much" scales with
+	-- aggression: a hothead holds on longer than a cautious bot.
 	local heavyHurt = (state.body.blood and state.body.blood < 3000) or (state.body.bleed or 0) >= 15
-	if state.threats.visibleHostile and heavyHurt and aggression < 0.6 and lib and lib.FindCover
+	local tooHurt = heavyHurt or (state.body.healthFrac or 1) < (0.74 - 0.14 * aggression)
+		or (state.body.pain or 0) >= 60
+	local fallbackThreat = IsValid(brain.attackedBy) and brain.attackedBy or brain.target
+	local closeQuarters = IsValid(fallbackThreat) and bot:GetPos():DistToSqr(fallbackThreat:GetPos()) < 320 * 320
+	if state.threats.visibleHostile and tooHurt and not closeQuarters and endgame < 0.85 and lib and lib.FindCover
 		and not hg.botdriver.UnderFireFromVisible(bot, brain, now) then
-		local threat = IsValid(brain.attackedBy) and brain.attackedBy or brain.target
+		local threat = fallbackThreat
 		if IsValid(threat) then
+			if not brain.fellBackAt or now - brain.fellBackAt > 20 then
+				brain.fellBackAt = now
+				if hg.botdriver.duel and hg.botdriver.duel.End then hg.botdriver.duel.End(brain, 8) end
+				if hg.botdriver.squad and hg.botdriver.squad.EmitLine then hg.botdriver.squad.EmitLine(bot, "hurt") end
+				if hg.botdriver.radial and hg.botdriver.radial.OnCallout then hg.botdriver.radial.OnCallout(bot, brain, "help", 0.5) end
+			end
 			if now >= (brain.breakContactCoverAt or 0) then
 				brain.breakContactCoverAt = now + 1.5
-				brain.breakContactCoverPos = lib.FindCover(bot, threat, 700)
+				brain.breakContactCoverPos = lib.KeepCover(bot, brain, "break", threat, 700)
 			end
 			if isvector(brain.breakContactCoverPos) then
 				brain.target = nil
@@ -425,7 +440,7 @@ function hg.botdriver.ApplySurvivalPreemption(bot, brain, now, state, policy)
 			if now - brain.selfTreatCoverStart < 3 then
 				if now >= (brain.selfTreatCoverAt or 0) then
 					brain.selfTreatCoverAt = now + 1.5
-					brain.selfTreatCoverPos = lib.FindCover(bot, threat, 700)
+					brain.selfTreatCoverPos = lib.KeepCover(bot, brain, "treat", threat, 700)
 				end
 				if isvector(brain.selfTreatCoverPos)
 					and bot:GetPos():DistToSqr(brain.selfTreatCoverPos) > 96 * 96 then
@@ -450,6 +465,6 @@ hg.botdriver.DeclareBrainState("survival", {
 	fields = {
 		"survival", "survivalThreatScanAt", "survivalVisibleHostile",
 		"breakContactCoverAt", "breakContactCoverPos",
-		"selfTreatCoverStart", "selfTreatCoverAt", "selfTreatCoverPos",
+		"selfTreatCoverStart", "selfTreatCoverAt", "selfTreatCoverPos", "fellBackAt",
 	},
 })

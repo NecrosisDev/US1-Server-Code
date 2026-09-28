@@ -142,6 +142,69 @@ local STYLE_LINES = {
 	},
 }
 
+-- 2026-09-26: temperament voices (sv_personality.lua). Drawn from about
+-- half the time for a non-chill bot, so a crude player swears a lot but not
+-- in literally every line, and a polite one still sometimes just says "gg".
+local TEMPER_LINES = {
+	crude = {
+		death = {"fuck off {name}", "oh fuck me", "shit", "bro what the fuck", "{name} you absolute dickhead",
+			"ok that was some bullshit", "i got railed", "that was ass", "fucking hell", "cool cool cool fuck this",
+			"motherfucker", "my shit got rocked", "absolutely clapped lmao", "{name} u sweaty fuck"},
+		hurt = {"fuck", "ow what the fuck", "shit shit shit", "{name} you prick", "stop shooting my ass", "ow my ass"},
+		heavyhurt = {"im fucked", "that fucked me up", "leaking like a bitch", "yeah im fucking done", "shit im cooked"},
+		revenge = {"get fucked {name}", "eat shit", "sit the fuck down", "suck it", "ez clap", "cry about it", "bye bitch"},
+		roundend = {"gg fuckers", "that round was ass", "absolute shitshow", "who let us cook", "gg that was dogshit"},
+		teamkill = {"{name} what the fuck", "are you fucking blind", "SAME TEAM dumbass", "cool thanks asshole"},
+		repeatkill = {"{name} fuck off already", "why the fuck are you always there", "{name} get a life", "{name} marry me or leave me alone"},
+		melee = {"bro beat my ass", "clubbed like a seal wtf", "got bonked like a bitch"},
+		longrange = {"fucking sniper", "from narnia??", "go touch grass {name}"},
+		propdeath = {"killed by a fucking chair", "physics can suck my ass"},
+	},
+	polite = {
+		death = {"Nice shot, {name}.", "Well played.", "Fair enough, that was clean.", "Good one.",
+			"I should not have peeked there.", "My mistake entirely.", "That was well timed."},
+		hurt = {"Ouch.", "Easy there, {name}.", "Noted, I'll move.", "That stung."},
+		heavyhurt = {"That hurt quite a lot actually.", "I need a bandage, please.", "Not doing well here."},
+		revenge = {"Sorry, {name}.", "Sorry about that.", "Good fight.", "No hard feelings."},
+		roundend = {"Good game, everyone.", "GG, well played all.", "Thanks for the round.", "That was a good one."},
+		teamkill = {"{name}, I'm on your team.", "Friendly fire, {name}.", "Please check your target.", "That was me, {name}."},
+		repeatkill = {"{name}, you're very good at this.", "Okay, I'll avoid you, {name}.", "Well played again, {name}."},
+		melee = {"That was rather personal.", "Impressive, honestly."},
+		longrange = {"Excellent shot from there.", "Very nice shot, {name}."},
+		propdeath = {"Killed by furniture. Lovely.", "The prop wins this time."},
+	},
+	ragey = {
+		death = {"ARE YOU SERIOUS", "HOW", "what the hell was that", "this game is broken", "hitreg is dogshit",
+			"oh come ON", "unreal", "i shot first", "WHAT", "that did NOT hit me", "i swear to god"},
+		hurt = {"WHAT", "stop", "{name} I SEE YOU", "are you kidding me", "oh my god"},
+		heavyhurt = {"through the wall??", "this is bs", "HOW AM I ALMOST DEAD"},
+		revenge = {"YEAH", "how about THAT {name}", "sit down", "thats what you get", "GET REKT"},
+		roundend = {"this map sucks", "worst round ever", "whatever", "gg i hate it here", "my team is useless"},
+		teamkill = {"{name} ARE YOU BLIND", "WRONG TEAM", "unbelievable {name}", "who taught you to play"},
+		repeatkill = {"{name} AGAIN??", "i swear {name} is walling", "{name} is cheating 100%", "report {name}"},
+		melee = {"melee?? REALLY", "that range is BROKEN"},
+		longrange = {"how did that even hit", "no way that hit me from there"},
+		propdeath = {"A CHAIR", "i hate physics so much"},
+	},
+	gloomy = {
+		death = {"yeah that tracks", "of course", "sure", "why do i even try", "classic me", "ok...",
+			"same as always", "i should just spectate forever", "mood"},
+		hurt = {"figures", "yeah ok", "cool", "not surprised"},
+		heavyhurt = {"this is fine", "just let me die", "im basically dead already"},
+		revenge = {"oh... it worked", "huh", "first useful thing ive done all day", "wont last"},
+		roundend = {"gg i guess", "at least its over", "i was useless again", "another one", "wow i contributed nothing"},
+		teamkill = {"sure {name}, why not", "even my team hates me"},
+		repeatkill = {"{name} again... sure", "{name} has decided im the hobby"},
+		melee = {"beaten to death, how fitting"},
+		longrange = {"didnt even see it coming. relatable"},
+		propdeath = {"even the furniture wants me gone"},
+	},
+}
+local TEMPER_SHARE = { crude = .5, ragey = .5, gloomy = .5, polite = .45 }
+-- A polite bot rarely drops into the low-effort register ("wtf", "ez").
+local LOW_EFFORT_SHARE = { polite = .2 }
+hg.botdriver.chatterTemperLines = TEMPER_LINES
+
 hg.botdriver.chatTyping = hg.botdriver.chatTyping or {}
 
 -- WS-D5: applies at most one typo to a whitespace-delimited, purely
@@ -238,22 +301,90 @@ end
 -- One death hook owns cancellation and the replacement death reaction.
 hook.Remove("PlayerDeath", "zc_bots_typing_cancel")
 
-local function doSay(bot, line, spectatorOnly)
-	if not cv_chatter:GetBool() or not available(bot) then return end
+-- 2026-09-26 parity: a human's chat line goes through ZChat's PlayerSay
+-- (addons/zcity/lua/homigrad/zchat/sh_chat.lua): HG_PlayerSay mutations
+-- first (sv_comunication.lua "huy": pain > 80 turns the line into a pain
+-- cry, a broken/dislocated jaw dashes letters out, brain damage scrambles
+-- them, no oxygen makes it "..."; "furrifyPhraseOwO" for the furry class),
+-- then per-listener visibility (unconscious listeners get nothing, the
+-- living never see the dead, and sv_comunication.lua's RealiticChar: 3000 u
+-- + PVS between the living, dead-to-dead always, plus any mode override).
+-- Bots used to skip all of it -- a bot with its jaw shot off typed
+-- perfectly, and its line reached every human on the map. Only those two
+-- pure transforms and the one visibility hook are called directly: the rest
+-- of the HG_PlayerSay chain is chat commands, map votes and logging, and
+-- running the whole PlayerCanSeePlayersChat chain would also fire the
+-- text-presence bridge a second time (the manual relay below owns that).
+local HUMAN_MUTATIONS = { "huy", "furrifyPhraseOwO" }
+
+local function mutateLikeHuman(bot, line)
+	if not bot:Alive() then return line end
+	local hooks = hook.GetTable().HG_PlayerSay
+	if not hooks then return line end
+	local tbl = { line }
+	for _, id in ipairs(HUMAN_MUTATIONS) do
+		local fn = hooks[id]
+		if isfunction(fn) and not pcall(fn, bot, tbl, line) then return line end
+	end
+	local out = tbl[1]
+	if not isstring(out) or out == "" then return nil end
+	return out
+end
+
+local function canSee(listener, speaker, line)
+	if listener:Alive() and listener.organism and listener.organism.otrub then return false end
+	if listener:Alive() and not speaker:Alive() then return false end
+	local visibility = (hook.GetTable().PlayerCanSeePlayersChat or {}).RealiticChar
+	if not isfunction(visibility) then return true end
+	local ok, result = pcall(visibility, line, false, listener, speaker)
+	return not ok or (result and true or false)
+end
+
+-- 2026-09-26 parity: deliver exactly the packet ZChat sends for a human's
+-- line (zchat/sh_chat.lua PlayerSay: entity, text, whisper, message id,
+-- reply id). The client then renders a bot's line through the same
+-- OnPlayerChat path as anyone else's -- player colour and name from the
+-- entity, the 512 u distance dash-out for living listeners (homigrad/
+-- cl_chat.lua), and the skull + ghost colour for the dead. The old
+-- zChatPrintMeta line ("(DEAD) name: text" in team colour) was a format no
+-- human could ever produce. Dead listeners get the clean text and living
+-- ones the organism-mutated text, same as ZChat.
+local function sendAsPlayer(recipient, bot, text, messageID)
+	net.Start("zChatMessage")
+	net.WriteEntity(bot)
+	net.WriteString(text)
+	net.WriteBool(false)
+	net.WriteUInt(messageID or 0, 32)
+	net.WriteUInt(0, 32)
+	net.Send(recipient)
+end
+
+local function doSay(bot, line, spectatorOnly, ignoreChatterConvar)
+	if not (ignoreChatterConvar or cv_chatter:GetBool()) or not available(bot) then return end
+	if bot:Alive() and bot.organism and bot.organism.otrub then return end -- ZChat: unconscious players cannot chat
 	local dead = not bot:Alive() or bot:Team() == TEAM_SPECTATOR
-	local liveRound = zb and zb.ROUND_STATE == 1
+	local cleanLine = line
+	line = mutateLikeHuman(bot, line)
+	if not line then return end
 	local col = _G.team.GetColor(hg.botdriver.TeamOf(bot) or 0) or color_white
 	local recipients = {}
 	for _, ply in ipairs(player.GetHumans()) do
-		if IsValid(ply) and (ply.zChatPrintMeta or ply.zChatPrint) and ((not spectatorOnly and (not dead or not liveRound)) or not ply:Alive() or ply:Team() == TEAM_SPECTATOR) then
-			recipients[#recipients + 1] = ply
+		if IsValid(ply) and (ply.zChatPrintMeta or ply.zChatPrint) then
+			local listenerDead = not ply:Alive() or ply:Team() == TEAM_SPECTATOR
+			if (listenerDead or not spectatorOnly) and canSee(ply, bot, line) then
+				recipients[#recipients + 1] = ply
+			end
 		end
 	end
 	if #recipients == 0 then return end
 	local messageID = ZCChatReaction_Register and ZCChatReaction_Register(bot, recipients) or 0
+	local native = util.NetworkStringToID("zChatMessage") ~= 0
 	local speaker = (dead and "(DEAD) " or "") .. bot:Nick()
 	for _, ply in ipairs(recipients) do
-		if ply.zChatPrintMeta then
+		local listenerDead = not ply:Alive() or ply:Team() == TEAM_SPECTATOR
+		if native then
+			sendAsPlayer(ply, bot, listenerDead and cleanLine or line, messageID)
+		elseif ply.zChatPrintMeta then
 			ply:zChatPrintMeta(messageID, bot, col, speaker, color_white, ": " .. line)
 		else
 			ply:zChatPrint(col, speaker, color_white, ": " .. line)
@@ -287,9 +418,14 @@ local function doSay(bot, line, spectatorOnly)
 end
 
 hg.botdriver.chatter = hg.botdriver.chatter or {}
-function hg.botdriver.chatter.Say(bot, line)
-	doSay(bot, line)
+-- ignoreChatterConvar: for callers gated by their own convar (squad
+-- callouts, zc_bots_callouts) rather than zc_bots_chatter.
+function hg.botdriver.chatter.Say(bot, line, spectatorOnly, ignoreChatterConvar)
+	doSay(bot, line, spectatorOnly, ignoreChatterConvar)
 end
+-- Would `listener` get `speaker`'s public chat line? Same rule both ways,
+-- so sv_chat_listen.lua's bots only "hear" what a human in their place would.
+hg.botdriver.chatter.CanSee = canSee
 
 -- WS-chat-realism: chat.ShortName replaces the old fixed safeName() -- it
 -- rolls per-bot how THIS bot writes another player's name (short/full/
@@ -302,6 +438,10 @@ local function applyName(template, bot, actor)
 	local line = string.gsub(template, "{name}", name)
 	if name == "" then
 		local collapsed = string.gsub(line, "%s%s+", " ")
+		collapsed = string.gsub(collapsed, "%s+([,%.!%?])", "%1")
+		collapsed = string.gsub(collapsed, ",([%.!%?])", "%1")
+		collapsed = string.gsub(collapsed, "^[,%s]+", "")
+		collapsed = string.gsub(collapsed, "[,%s]+$", "")
 		line = string.Trim(collapsed)
 	end
 	return line, name
@@ -319,6 +459,10 @@ local function chooseLine(bot, event, personality, actor)
 	local styledLines = STYLE_LINES[personality and personality.chatStyle or "casual"]
 	styledLines = social and social[personality and personality.archetype or "regular"] or (styledLines and styledLines[event] or nil)
 	local lowEffort = chat and chat.LowEffort and chat.LowEffort[event]
+	local temper = personality and personality.temperament
+	local temperLines = temper and TEMPER_LINES[temper] and TEMPER_LINES[temper][event]
+	local temperShare = temper and TEMPER_SHARE[temper] or 0
+	local lowEffortShare = temper and LOW_EFFORT_SHARE[temper] or .65
 
 	local function candidatesFrom(lines)
 		local out = {}
@@ -336,7 +480,9 @@ local function chooseLine(bot, event, personality, actor)
 	-- up silently rather than force a stale line out.
 	for _attempt = 1, 4 do
 		local pool
-		if lowEffort and math.random() < .65 then
+		if temperLines and math.random() < temperShare then
+			pool = temperLines
+		elseif lowEffort and math.random() < lowEffortShare then
 			pool = lowEffort
 		else
 			pool = (styledLines and math.random() < .58 and styledLines) or common
@@ -457,7 +603,10 @@ hook.Add("PlayerDeath", "zc_bots_chatter_death", function(victim, inflictor, att
 	if not IsValid(victim) or not victim:IsBot() or not victim.zcBot then return end
 	clearPending(victim)
 	if not available(victim) then return end
-	if not IsValid(attacker) or not attacker:IsPlayer() or attacker:IsBot() then return end
+	-- 2026-09-26: bots react to being killed by other bots too (at a lower
+	-- rate below). Reacting only ever to humans was itself a pattern.
+	if not IsValid(attacker) or not attacker:IsPlayer() or attacker == victim then return end
+	local byBot = attacker:IsBot()
 	local brain = hg.botdriver.brains[victim]
 	if not brain then return end
 	local known = observed(victim, brain, attacker)
@@ -482,14 +631,15 @@ hook.Add("PlayerDeath", "zc_bots_chatter_death", function(victim, inflictor, att
 	local token = runtime.epoch
 	timer.Create("zc_bots_death_chat_" .. victim:EntIndex(), math.Rand(0.4, 4), 1, function()
 		if token ~= runtime.epoch or not available(victim) then return end
-		maybeSpeak(victim, brain, event, actor, .58, false)
+		maybeSpeak(victim, brain, event, actor, byBot and .34 or .58, false)
 	end)
 end)
 
 hook.Add("HomigradDamage", "zc_bots_chatter_hurt", function(victim, dmg)
 	if not IsValid(victim) or not victim.IsBot or not available(victim) or not cv_chatter:GetBool() then return end
 	local attacker = dmg and dmg.GetAttacker and dmg:GetAttacker() or nil
-	if not IsValid(attacker) or not attacker:IsPlayer() or attacker:IsBot() or attacker == victim then return end
+	if not IsValid(attacker) or not attacker:IsPlayer() or attacker == victim then return end
+	local byBot = attacker:IsBot()
 	local brain = hg.botdriver.brains[victim]
 	local damage = dmg.GetDamage and dmg:GetDamage() or 0
 	if not brain or damage <= 0 then return end
@@ -506,12 +656,12 @@ hook.Add("HomigradDamage", "zc_bots_chatter_hurt", function(victim, dmg)
 		if token ~= runtime.epoch or not available(victim) or not victim:Alive() then return end
 		if IsValid(brain.target) or busy(victim, brain) then return end
 		local event = (damage >= 35 or victim:Health() <= 35) and "heavyhurt" or "hurt"
-		maybeSpeak(victim, brain, event, known and attacker or nil, damage >= 35 and .24 or .12, true)
+		maybeSpeak(victim, brain, event, known and attacker or nil, (damage >= 35 and .24 or .12) * (byBot and .6 or 1), true)
 	end)
 end)
 
 hook.Add("PlayerDeath", "zc_bots_chatter_revenge", function(victim, _inflictor, attacker)
-	if not IsValid(victim) or not victim:IsPlayer() or victim:IsBot() then return end
+	if not IsValid(victim) or not victim:IsPlayer() or victim == attacker then return end
 	if not available(attacker) then return end
 	local brain = hg.botdriver.brains[attacker]
 	if not brain or not observed(attacker, brain, victim) then return end
