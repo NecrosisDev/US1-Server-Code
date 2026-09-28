@@ -21,7 +21,7 @@ if not CLIENT then return end
 --
 -- Convars (archived, per player; v3 also lists them in Settings > Crosshair):
 --   zc_crosshair 1            zc_crosshair_centerdot 0 (opt-in centre dot)
---   zc_crosshair_size 0..12   zc_crosshair_r/g/b/a
+--   zc_crosshair_radius 0.1..44 px, thickness/glow and zc_crosshair_r/g/b/a
 --   zc_crosshair_outline 1    zc_crosshair_ads 0 (keep while aiming)
 --   zc_crosshair_empty 1 (dashed ring when empty)
 --   zc_crosshair_notches 1 (gaps in the ring so leaning shows)
@@ -31,13 +31,18 @@ if not CLIENT then return end
 --   zc_crosshair_blocked 1 (X when the barrel is blocked by cover you can see past)
 -- ============================================================================
 
-ZC_CROSSHAIR_VERSION = "20260925.20"
+ZC_CROSSHAIR_VERSION = "20260927.21"
 
 -- Convar handles live in one table: LuaJIT caps a function at 60 upvalues,
 -- and the paint function would otherwise hold one per convar.
 local CV = {}
 CV.Enable    = CreateClientConVar("zc_crosshair", "1", true, false, "Your crosshair, centred on where your gun really points", 0, 1)
-CV.Size      = CreateClientConVar("zc_crosshair_size", "3", true, false, "How wide it sits at rest; movement and recoil widen it", 0, 12)
+-- Radius is in pixels at 1080p. 0.1 is intentionally usable: players can
+-- make a genuinely miniscule ring without changing the aim point.
+CV.Radius    = CreateClientConVar("zc_crosshair_radius", "17", true, false, "Ring radius in pixels at 1080p; 0.1 is miniscule", 0.1, 44)
+CV.Size      = CreateClientConVar("zc_crosshair_size", "3", true, false, "Legacy size setting; kept for old share codes", 0, 12)
+CV.Thickness = CreateClientConVar("zc_crosshair_thickness", "2", true, false, "Ring and arm thickness in pixels at 1080p", 0.1, 6)
+CV.Glow      = CreateClientConVar("zc_crosshair_glow", "5", true, false, "Soft outer ring width in pixels at 1080p; 0 disables the glow", 0, 12)
 CV.R         = CreateClientConVar("zc_crosshair_r", "255", true, false, "Used when Colour is set to Custom", 0, 255)
 CV.G         = CreateClientConVar("zc_crosshair_g", "255", true, false, "Used when Colour is set to Custom", 0, 255)
 CV.B         = CreateClientConVar("zc_crosshair_b", "255", true, false, "Used when Colour is set to Custom", 0, 255)
@@ -53,10 +58,17 @@ CV.Outline = CreateClientConVar("zc_crosshair_outline", "1", true, false, "Thin 
 CV.ADS     = CreateClientConVar("zc_crosshair_ads", "0", true, false, "Keep the ring on screen while aiming down sights", 0, 1)
 CV.Empty   = CreateClientConVar("zc_crosshair_empty", "1", true, false, "Dashed ring and dimmed arms when your magazine is empty", 0, 1)
 CV.HitSnd  = CreateClientConVar("zc_crosshair_hitsound", "0", true, false, "Quiet click with each hit tick", 0, 1)
-CV.Preset  = CreateClientConVar("zc_crosshair_color", "1", true, false, "Pick a preset, or Custom to use the red, green and blue sliders", 0, 5)
+CV.Preset  = CreateClientConVar("zc_crosshair_color", "1", true, false, "Pick a preset, or Custom to use the red, green and blue sliders", 0, 7)
 CV.Type    = CreateClientConVar("zc_crosshair_type", "0", true, false, "Ring, a cross, both, or a T-shaped cross", 0, 3)
 CV.Arm     = CreateClientConVar("zc_crosshair_arm", "8", true, false, "Length of each cross arm, in pixels at 1080p", 3, 24)
 CV.Blocked = CreateClientConVar("zc_crosshair_blocked", "1", true, false, "An X appears when cover in front of the barrel would stop your shot", 0, 1)
+CV.OutlineWidth = CreateClientConVar("zc_crosshair_outline_width", "1", true, false, "Dark outline width in pixels at 1080p; increase for stronger contrast", 0, 4)
+CV.DotSize  = CreateClientConVar("zc_crosshair_dot_size", "1", true, false, "Centre dot radius in pixels at 1080p", 0.5, 5)
+CV.Move     = CreateClientConVar("zc_crosshair_move_feedback", "1", true, false, "Widen while moving or airborne", 0, 1)
+CV.Recoil   = CreateClientConVar("zc_crosshair_recoil_feedback", "1", true, false, "Widen after firing and during sustained fire", 0, 1)
+CV.Turn     = CreateClientConVar("zc_crosshair_turn_feedback", "1", true, false, "Widen during fast turns", 0, 1)
+CV.Body     = CreateClientConVar("zc_crosshair_body_feedback", "1", true, false, "Show arm injury and held-breath stability changes", 0, 1)
+CV.Sprint   = CreateClientConVar("zc_crosshair_sprint", "0", true, false, "Keep the crosshair visible while sprinting", 0, 1)
 
 -- Yellow, cyan, magenta and white stay distinct under the common red-green
 -- colour-vision deficiencies; green is here because players ask for it.
@@ -66,6 +78,8 @@ local PRESETS = {
     [3] = { 86, 200, 240 },
     [4] = { 80, 230, 90 },
     [5] = { 235, 90, 235 },
+    [6] = { 255, 145, 35 },
+    [7] = { 70, 150, 255 },
 }
 
 local LocalPlayer = LocalPlayer
@@ -93,12 +107,15 @@ local GRAD = Material("vgui/gradient-l")
 local GRAD_U_SOLID = 0
 local TAU = math.pi * 2
 
--- Rest radius in px at 1080p for a size setting: 3 px a step from size 2
--- (14 px) up, as it always was, and 3.5 px a step below it, so size 0 (7 px)
--- is half the old minimum.
-local function restRadius(size)
+-- Legacy radius mapping used to migrate saved size settings without changing
+-- existing players' reticles when the fine-grained radius control was added.
+local function legacyRestRadius(size)
     if size >= 2 then return 8 + size * 3 end
     return 7 + math.max(size, 0) * 3.5
+end
+
+local function restRadius()
+    return math.max(0.1, CV.Radius:GetFloat())
 end
 
 -- spans: { startAngle, endAngle, pieces }; angles in screen space (y down).
@@ -217,12 +234,17 @@ local function drawRingPass(x, y, r0, coreW, gw, spans, roll, cr, cg, cb, ringA,
     if iTo and iFrom and iTo < iFrom then return end
     local uIn, uOut = GRAD_U_SOLID, 1 - GRAD_U_SOLID
     surface.SetMaterial(GRAD)
-    drawBand(x, y, r0, r0 + gw, spans, roll, uIn, uOut, cr, cg, cb, ringA * 0.16 * k, fade, steps, iFrom, iTo)
-    drawBand(x, y, r0, r0 + gw * 0.25, spans, roll, uIn, uOut, cr, cg, cb, ringA * 0.45 * k, fade, steps, iFrom, iTo)
+    if gw > coreW then
+        drawBand(x, y, r0, r0 + gw, spans, roll, uIn, uOut, cr, cg, cb, ringA * 0.16 * k, fade, steps, iFrom, iTo)
+        drawBand(x, y, r0, r0 + math.min(gw * 0.25, gw - coreW), spans, roll, uIn, uOut, cr, cg, cb, ringA * 0.45 * k, fade, steps, iFrom, iTo)
+    end
     drawBand(x, y, r0, r0 + coreW, spans, roll, uIn, uOut, cr, cg, cb, ringA * k, fade, steps, iFrom, iTo)
     draw.NoTexture()
     if edgeA > 0 then
-        drawBand(x, y, r0 - math.max(1, coreW * 0.5), r0, spans, roll, 0, 0, 0, 0, 0, edgeA * k, fade, steps, iFrom, iTo)
+        local outlineW = CV.OutlineWidth:GetFloat() * ScrH() / 1080 * k
+        if outlineW > 0 then
+            drawBand(x, y, r0 - outlineW, r0, spans, roll, 0, 0, 0, 0, 0, edgeA * k, fade, steps, iFrom, iTo)
+        end
     end
 end
 
@@ -267,14 +289,15 @@ local function drawHitTicks(x, y, ringR, size, scale, p, tk, outline, cr, cg, cb
     local o = off * 0.7071
     local e = (off + len) * 0.7071
     local w = math.max(1.5, 1.5 * scale * k)
+    local outlineExtra = CV.OutlineWidth:GetFloat() * scale * k
     surface.SetMaterial(GRAD)
-    if outline then
+    if outline and outlineExtra > 0 then
         -- strong enough to read on bright walls, where the white vanishes
         surface_SetDrawColor(0, 0, 0, 170 * p * tk)
-        drawStroke(x, y, -o, -o, -e, -e, c, s, w + 1.5, 0, 0.6)
-        drawStroke(x, y, o, -o, e, -e, c, s, w + 1.5, 0, 0.6)
-        drawStroke(x, y, -o, o, -e, e, c, s, w + 1.5, 0, 0.6)
-        drawStroke(x, y, o, o, e, e, c, s, w + 1.5, 0, 0.6)
+        drawStroke(x, y, -o, -o, -e, -e, c, s, w + outlineExtra, 0, 0.6)
+        drawStroke(x, y, o, -o, e, -e, c, s, w + outlineExtra, 0, 0.6)
+        drawStroke(x, y, -o, o, -e, e, c, s, w + outlineExtra, 0, 0.6)
+        drawStroke(x, y, o, o, e, e, c, s, w + outlineExtra, 0, 0.6)
     end
     surface_SetDrawColor(cr, cg, cb, 255 * p * tk)
     drawStroke(x, y, -o, -o, -e, -e, c, s, w, 0, 0.6)
@@ -295,8 +318,8 @@ local function drawShape(x, y, ringR, scale, k, roll, cr, cg, cb, ringA, edgeA, 
     local fade = math.min(4 * scale * k / math.max(ringR, 1), 0.5)   -- arc ends fade over ~4 px
     local dashFade = math.min(fade, 0.049)    -- short dashes keep a solid middle
     if kind == 0 or kind == 2 then
-        local r0 = ringR - 0.5 * scale * k      -- the ring's inner face
-        local coreW = 2 * scale * k             -- line fades out over 2 px, reads as 1 px
+        local coreW = CV.Thickness:GetFloat() * scale * k
+        local r0 = ringR - coreW * 0.25         -- keep the core centered on the chosen radius
         if reloadP then
             local lit = math.floor(reloadP * 16 + 0.5)
             drawRingPass(x, y, r0, coreW, gw, SPANS_RELOAD, roll, cr, cg, cb, ringA, edgeA, 1, dashFade, 2, 1, lit)
@@ -311,7 +334,8 @@ local function drawShape(x, y, ringR, scale, k, roll, cr, cg, cb, ringA, edgeA, 
     -- like the ring would); with the ring they start just outside its glow
     local inner = kind == 2 and (ringR + gw * 0.35 + 2 * scale * k) or ringR
     local outer = inner + CV.Arm:GetInt() * scale * k
-    local w = math.max(1.5, 1.5 * scale * k)
+    local w = math.max(0.5, CV.Thickness:GetFloat() * scale * k)
+    local outlineW = CV.OutlineWidth:GetFloat() * scale * k
     local c, s = math.cos(roll), math.sin(roll)
     local first = kind == 3 and 2 or 1        -- the T-cross has no top arm
     local n = 5 - first
@@ -321,9 +345,9 @@ local function drawShape(x, y, ringR, scale, k, roll, cr, cg, cb, ringA, edgeA, 
     for i = first, 4 do
         local d = ARM_DIRS[i]
         local a = ringA * dim * ((i - first + 1) <= lit and 1 or 0.3)
-        if edgeA > 0 then
+        if edgeA > 0 and outlineW > 0 then
             surface_SetDrawColor(0, 0, 0, edgeA * a / math.max(ringA, 1))
-            drawStroke(x, y, d[1] * inner, d[2] * inner, d[1] * outer, d[2] * outer, c, s, w + 1.5, 0, 0.6)
+            drawStroke(x, y, d[1] * inner, d[2] * inner, d[1] * outer, d[2] * outer, c, s, w + outlineW, 0, 0.6)
         end
         surface_SetDrawColor(cr, cg, cb, a)
         drawStroke(x, y, d[1] * inner, d[2] * inner, d[1] * outer, d[2] * outer, c, s, w, 0, 0.6)
@@ -441,7 +465,7 @@ local function v3Paint()
     -- ---------------------------------------------------------- visibility --
     local vis = 1
     if wep.deploy or wep.holster then vis = 0 end
-    if vis > 0 and wep.IsSprinting and wep:IsSprinting() then vis = 0 end
+    if vis > 0 and not CV.Sprint:GetBool() and wep.IsSprinting and wep:IsSprinting() then vis = 0 end
     if vis > 0 and not CV.ADS:GetBool() then
         -- wep.k is the base's own 0..1 aim lerp; gone once the sights are a third of the way up
         vis = vis * math.Clamp(1 - (tonumber(wep.k) or 0) * 3, 0, 1)
@@ -492,9 +516,9 @@ local function v3Paint()
     -- ------------------------------------------------------------ ring size --
     -- A readout of how steady the gun is. The shot still goes to the ring
     -- centre (the muzzle trace); every cartridge here has zero cone spread.
-    local size = CV.Size:GetInt()
+    local size = CV.Radius:GetFloat()
     local scale = ScrH() / 1080
-    local base = restRadius(size) * scale
+    local base = restRadius() * scale
 
     -- recoil: a kick per shot (engine shot timer) plus heat that builds under
     -- sustained fire and cools at ~2.5 shots per second
@@ -510,20 +534,20 @@ local function v3Paint()
     -- third of that per shot held, and all recoil stops at 1.25x the rest size.
     local force = wep.Primary and tonumber(wep.Primary.Force) or 10
     local kickPx = math.Clamp(4 + 5 * math.log(math.max(force, 1) / 12) / math.log(2), 3, 20)
-    local recoil = math.min((kick * kickPx + heat * kickPx * 0.35) * scale, base * 1.25)
+    local recoil = CV.Recoil:GetBool() and math.min((kick * kickPx + heat * kickPx * 0.35) * scale, base * 1.25) or 0
 
     -- movement: walking widens, running more, airborne a lot. Speed is eased
     -- (~0.15 s) so each step breathes instead of jumping.
     speedK = Lerp(8 * ft, speedK, ply:GetVelocity():Length2D())
-    local move = math.Clamp(speedK / 200, 0, 1.5) * 10 * scale
-    if not ply:IsOnGround() then move = move + 16 * scale end
+    local move = CV.Move:GetBool() and math.Clamp(speedK / 200, 0, 1.5) * 10 * scale or 0
+    if CV.Move:GetBool() and not ply:IsOnGround() then move = move + 16 * scale end
 
     -- turning: fast mouse turns swing the gun (homigrad sway lags the view)
     local ang = EyeAngles()
     local turn = 0
     if lastP then
         local dp, dy = angdiff(ang.p, lastP), angdiff(ang.y, lastY)
-        turn = math.Clamp(math.sqrt(dp * dp + dy * dy) / ft / 20, 0, 10) * scale
+        if CV.Turn:GetBool() then turn = math.Clamp(math.sqrt(dp * dp + dy * dy) / ft / 20, 0, 10) * scale end
     end
     lastP, lastY = ang.p, ang.y
 
@@ -531,7 +555,7 @@ local function v3Paint()
     local unstable = 0
     local holding = false
     local org = ply.organism
-    if istable(org) then
+    if CV.Body:GetBool() and istable(org) then
         local larm = tonumber(org.larm) or 0
         local rarm = tonumber(org.rarm) or 0
         unstable = math.Clamp(larm + rarm, 0, 2) * 5 * scale
@@ -586,7 +610,8 @@ local function v3Paint()
 
     -- ------------------------------------------------------------- shape --
     if alpha > 0.02 then
-        local gw = math.Clamp(base * 0.65, 5 * scale, 12 * scale) -- glow width follows ring size
+        local coreW = CV.Thickness:GetFloat() * scale
+        local gw = math.max(coreW, CV.Glow:GetFloat() * scale)
         local edgeA = outline and 140 * alpha * op or 0
         -- COL_MAIN.a is already dimmed while the blocked X is up
         drawShape(x, y, ringR, scale, 1, roll, COL_MAIN.r, COL_MAIN.g, COL_MAIN.b, COL_MAIN.a, edgeA, gw, reloadP, empty)
@@ -598,19 +623,20 @@ local function v3Paint()
         -- a solid diamond where the diagonals cross, and four arms that start at
         -- its edge (so nothing overlaps) and ease off to 40% at the tips; a
         -- dark outline 1 px wider underneath so it reads on bright walls
-        local h = 2 + size * 0.75
-        local w = math.max(1.5, 1.5 * scale)
+        local h = 2 + math.min(size, 12) * 0.75
+        local w = math.max(0.5, CV.Thickness:GetFloat() * scale)
         local d = w * 0.7071
         local a0 = w * 0.3536                   -- arm start: w/2 along the diagonal
-        if outline then
+        local outlineW = CV.OutlineWidth:GetFloat() * scale
+        if outline and outlineW > 0 then
             surface_SetDrawColor(0, 0, 0, COL_OUT.a * 0.85)   -- a warning: keep it readable on bright walls
             draw_NoTexture()
-            drawDiamond(x, y, d + 0.5, c, s)
+            drawDiamond(x, y, d + outlineW, c, s)
             surface.SetMaterial(GRAD)
-            drawStroke(x, y, -a0, -a0, -h, -h, c, s, w + 1, 0, 0.6)
-            drawStroke(x, y, a0, -a0, h, -h, c, s, w + 1, 0, 0.6)
-            drawStroke(x, y, -a0, a0, -h, h, c, s, w + 1, 0, 0.6)
-            drawStroke(x, y, a0, a0, h, h, c, s, w + 1, 0, 0.6)
+            drawStroke(x, y, -a0, -a0, -h, -h, c, s, w + outlineW, 0, 0.6)
+            drawStroke(x, y, a0, -a0, h, -h, c, s, w + outlineW, 0, 0.6)
+            drawStroke(x, y, -a0, a0, -h, h, c, s, w + outlineW, 0, 0.6)
+            drawStroke(x, y, a0, a0, h, h, c, s, w + outlineW, 0, 0.6)
         end
         surface_SetDrawColor(COL_MAIN)
         draw_NoTexture()
@@ -622,11 +648,11 @@ local function v3Paint()
         drawStroke(x, y, a0, a0, h, h, c, s, w, 0, 0.6)
         draw_NoTexture()
     elseif CV.Dot:GetBool() and alpha > 0.02 then
-        local r = 1 + size * 0.25
+        local r = CV.DotSize:GetFloat() * scale
         draw_NoTexture()
         if outline then
             surface_SetDrawColor(COL_OUT)
-            fillDot(dotOutPoly, x, y, r + 1)
+            fillDot(dotOutPoly, x, y, r + CV.OutlineWidth:GetFloat() * scale)
             surface_DrawPoly(dotOutPoly)
         end
         surface_SetDrawColor(COL_MAIN)
@@ -653,22 +679,31 @@ local SETTINGS = {
     { "Crosshair", {
         { "zc_crosshair", "Show crosshair" },
         { "zc_crosshair_type", "Type", choice = { "Ring", "Cross", "Ring + cross", "T-cross" } },
-        { "zc_crosshair_size", "Size" },
+        { "zc_crosshair_radius", "Inner ring radius", decimals = true },
+        { "zc_crosshair_thickness", "Ring and arm thickness", decimals = true },
+        { "zc_crosshair_glow", "Soft glow width", decimals = true },
         { "zc_crosshair_a", "Opacity" },
         { "zc_crosshair_ads", "Keep while aiming" },
+        { "zc_crosshair_sprint", "Show while sprinting" },
     } },
     { "Crosshair colour", {
-        { "zc_crosshair_color", "Colour", choice = { "Custom", "White", "Yellow", "Cyan", "Green", "Magenta" } },
+        { "zc_crosshair_color", "Colour", choice = { "Custom", "White", "Yellow", "Cyan", "Green", "Magenta", "Orange", "Blue" } },
         { "zc_crosshair_r", "Custom red" },
         { "zc_crosshair_g", "Custom green" },
         { "zc_crosshair_b", "Custom blue" },
         { "zc_crosshair_outline", "Dark edge" },
+        { "zc_crosshair_outline_width", "Outline width", decimals = true },
+        { "zc_crosshair_dot_size", "Centre dot size", decimals = true },
     } },
     { "Crosshair feedback", {
         { "zc_crosshair_hitmarker", "Hit ticks" },
         { "zc_crosshair_hitsound", "Hit click" },
         { "zc_crosshair_empty", "Dashed ring when empty" },
         { "zc_crosshair_blocked", "X when the barrel is blocked" },
+        { "zc_crosshair_move_feedback", "Movement and airborne widening" },
+        { "zc_crosshair_recoil_feedback", "Recoil widening" },
+        { "zc_crosshair_turn_feedback", "Fast-turn widening" },
+        { "zc_crosshair_body_feedback", "Injury and breath feedback" },
     } },
     { "Crosshair shape", {
         { "zc_crosshair_notches", "Lean notches" },
@@ -686,8 +721,12 @@ local SHARE_ORDER = {}
 for _, group in ipairs(SETTINGS) do
     for _, row in ipairs(group[2]) do SHARE_ORDER[#SHARE_ORDER + 1] = row[1] end
 end
-local SHARE_PREFIX = "zcx2"
--- codes made before types existed (zcx1: 17 values in the old order) still apply
+local SHARE_PREFIX = "zcx3"
+-- zcx1 predates type and arm settings; zcx2 is the complete previous format.
+local SHARE_ORDER_V2 = { "zc_crosshair", "zc_crosshair_type", "zc_crosshair_size", "zc_crosshair_a", "zc_crosshair_ads",
+    "zc_crosshair_color", "zc_crosshair_r", "zc_crosshair_g", "zc_crosshair_b", "zc_crosshair_outline",
+    "zc_crosshair_hitmarker", "zc_crosshair_hitsound", "zc_crosshair_empty", "zc_crosshair_blocked",
+    "zc_crosshair_notches", "zc_crosshair_notch_count", "zc_crosshair_notch_width", "zc_crosshair_arm", "zc_crosshair_centerdot" }
 local SHARE_ORDER_V1 = { "zc_crosshair", "zc_crosshair_size", "zc_crosshair_a", "zc_crosshair_ads", "zc_crosshair_color",
     "zc_crosshair_r", "zc_crosshair_g", "zc_crosshair_b", "zc_crosshair_outline", "zc_crosshair_hitmarker",
     "zc_crosshair_hitsound", "zc_crosshair_empty", "zc_crosshair_blocked", "zc_crosshair_notches",
@@ -697,7 +736,7 @@ local function exportCode()
     local parts = { SHARE_PREFIX }
     for _, name in ipairs(SHARE_ORDER) do
         local cv = GetConVar(name)
-        parts[#parts + 1] = tostring(math.Round(cv and cv:GetFloat() or 0))
+        parts[#parts + 1] = string.format("%.3f", cv and cv:GetFloat() or 0)
     end
     return table.concat(parts, "-")
 end
@@ -705,7 +744,7 @@ end
 -- returns ok, message
 local function importCode(code)
     local parts = string.Explode("-", string.Trim(code or ""))
-    local order = (parts[1] == SHARE_PREFIX and SHARE_ORDER) or (parts[1] == "zcx1" and SHARE_ORDER_V1)
+    local order = (parts[1] == SHARE_PREFIX and SHARE_ORDER) or (parts[1] == "zcx2" and SHARE_ORDER_V2) or (parts[1] == "zcx1" and SHARE_ORDER_V1)
     if not order or #parts ~= #order + 1 then
         return false, "That is not a crosshair code."
     end
@@ -715,12 +754,43 @@ local function importCode(code)
         if not v then return false, "That code is damaged; nothing was changed." end
         values[i - 1] = v
     end
-    for i, name in ipairs(order) do RunConsoleCommand(name, tostring(values[i])) end
+    for i, name in ipairs(order) do
+        if name ~= "zc_crosshair_size" then RunConsoleCommand(name, tostring(values[i])) end
+    end
+    if parts[1] ~= SHARE_PREFIX then
+        local oldSize
+        for i, name in ipairs(order) do if name == "zc_crosshair_size" then oldSize = values[i] break end end
+        if oldSize then RunConsoleCommand("zc_crosshair_radius", tostring(legacyRestRadius(math.Clamp(oldSize, 0, 12)))) end
+    end
     return true, "Crosshair code applied."
 end
 
 local function resetAll()
     for _, cv in pairs(CV) do RunConsoleCommand(cv:GetName(), cv:GetDefault()) end
+end
+
+local PRESET_FILE = "zc_crosshair/presets.json"
+local function readPresets()
+    local raw = file.Read(PRESET_FILE, "DATA")
+    local data = raw and util.JSONToTable(raw) or nil
+    return istable(data) and data or {}
+end
+
+local function writePresets(data)
+    file.CreateDir("zc_crosshair")
+    file.Write(PRESET_FILE, util.TableToJSON(data, false) or "{}")
+end
+
+local function savePreset(slot)
+    local data = readPresets()
+    data[tostring(slot)] = exportCode()
+    writePresets(data)
+end
+
+local function loadPreset(slot)
+    local code = readPresets()[tostring(slot)]
+    if not isstring(code) then return false, "This slot is empty." end
+    return importCode(code)
 end
 
 -- ------------------------------------------------------ settings preview --
@@ -731,17 +801,17 @@ local PREVIEW_KICK = math.Clamp(4 + 5 * math.log(35 / 12) / math.log(2), 3, 20) 
 local function drawPreview(cx, cy, t, fit)
     local cyc = t % PREVIEW_CYCLE
     local scale = ScrH() / 1080
-    local size = CV.Size:GetInt()
-    local base = restRadius(size) * scale
+    local size = CV.Radius:GetFloat()
+    local base = restRadius() * scale
     local r, reloadP, hitP, label = base, nil, 0, "At rest"
     if cyc >= 2.4 and cyc < 4 then
         label = "Walking"
-        r = base + math.min(1, (cyc - 2.4) / 0.35) * 7.5 * scale
+        r = base + (CV.Move:GetBool() and math.min(1, (cyc - 2.4) / 0.35) * 7.5 * scale or 0)
     elseif cyc >= 4 and cyc < 5.6 then
         label = "Firing"
         local kick = 1 - ((cyc - 4) % 0.15) / 0.15
         local demoHeat = math.min(4, (cyc - 4) / 0.15 * 0.6)
-        r = base + math.min((kick * kick * PREVIEW_KICK + demoHeat * PREVIEW_KICK * 0.35) * scale, base * 1.25)
+        r = base + (CV.Recoil:GetBool() and math.min((kick * kick * PREVIEW_KICK + demoHeat * PREVIEW_KICK * 0.35) * scale, base * 1.25) or 0)
         for _, at in ipairs({ 4.3, 5.0 }) do
             local since = cyc - at
             if since >= 0 and since < 0.35 then hitP = 1 - since / 0.35 end
@@ -751,7 +821,7 @@ local function drawPreview(cx, cy, t, fit)
         reloadP = (cyc - 5.6) / 2
     end
     r = math.min(r, base * 2.5)
-    local gw = math.Clamp(base * 0.65, 5 * scale, 12 * scale)
+    local gw = math.max(CV.Thickness:GetFloat() * scale, CV.Glow:GetFloat() * scale)
     -- a big crosshair shrinks as a whole to fit the swatch (arms included)
     local kind = CV.Type:GetInt()
     local reach = gw
@@ -769,7 +839,7 @@ local function drawPreview(cx, cy, t, fit)
     local edgeA = outline and 140 * op or 0
     drawShape(cx, cy, r, scale, k, 0, cr, cg, cb, ringA, edgeA, gw, reloadP, false)
     if CV.Dot:GetBool() then
-        local rd = (1 + size * 0.25) * k
+        local rd = CV.DotSize:GetFloat() * scale * k
         draw_NoTexture()
         if outline then
             surface_SetDrawColor(0, 0, 0, 180 * op)
@@ -858,6 +928,48 @@ local function buildPreviewColumn(parent, K, T, refresh)
         resetB:SetSize(bw, h)
         copyB:SetPos(w - bw, 0)
         copyB:SetSize(bw, h)
+    end
+
+    local presets = vgui.Create("DPanel", parent)
+    presets.zcxRole = "presets"
+    presets:Dock(TOP)
+    presets:DockMargin(0, 0, 0, 8)
+    presets:SetTall(104)
+    presets.Paint = function(_, w, h)
+        K.Text("SAVED PRESETS", 12, 600, 0, 2, T.muted, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
+    end
+    local presetButtons = {}
+    for slot = 1, 3 do
+        local y = 24 + (slot - 1) * 26
+        local label = vgui.Create("DPanel", presets)
+        label.Paint = function(_, w, h) K.Text("Slot " .. slot, 12, 500, 0, h / 2, T.text, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER) end
+        label:SetPos(0, y)
+        label:SetSize(48, 24)
+        local saveB = button(presets, "Save", function(self)
+            savePreset(slot)
+            flash(self, "Saved", "Save", 1.5)
+        end)
+        saveB.zcxRole = "presetSave" .. slot
+        saveB:SetPos(52, y)
+        saveB:SetSize(math.max(1, (parent:GetWide() - 60) * 0.46), 24)
+        local loadB = button(presets, "Load", function(self)
+            local ok, msg = loadPreset(slot)
+            flash(self, ok and "Loaded" or "Empty", "Load", 1.5)
+            if not ok then self:SetTooltip(msg) else later() end
+        end)
+        loadB.zcxRole = "presetLoad" .. slot
+        presetButtons[slot] = { saveB, loadB }
+        presets.PerformLayout = function(_, w)
+            local half = math.max(1, math.floor((w - 60) / 2))
+            for i = 1, 3 do
+                local rowY = 24 + (i - 1) * 26
+                local pair = presetButtons[i]
+                if pair then
+                    pair[1]:SetPos(52, rowY); pair[1]:SetSize(half, 24)
+                    pair[2]:SetPos(60 + half, rowY); pair[2]:SetSize(math.max(1, w - 60 - half), 24)
+                end
+            end
+        end
     end
 
     local row = vgui.Create("DPanel", parent)
@@ -994,6 +1106,7 @@ local function registerSettings()
             local meta = S.tbl[group[1]][row[1]]
             meta[8] = i
             if choice then meta[7] = choice end
+            if row.decimals then meta[4] = true end
         end
     end
     return true
@@ -1017,7 +1130,7 @@ end
 -- to the old default". Runs once per player; bump DEFAULTS_REV for the next one.
 -- The file holds the last step applied; each step runs once, so a value a
 -- player picks after a step is never moved again.
-local DEFAULTS_REV = 3
+local DEFAULTS_REV = 4
 local DEFAULTS_FILE = "zc_crosshair_defaults.txt"
 local defaultsDone = tonumber(file.Read(DEFAULTS_FILE, "DATA") or "") or 1
 if defaultsDone < DEFAULTS_REV then
@@ -1034,6 +1147,11 @@ if defaultsDone < DEFAULTS_REV then
     -- wider gaps between the quadrants: notch width 16 -> 24 degrees
     if defaultsDone < 3 and at(CV.NotchWidth, 16) then
         RunConsoleCommand("zc_crosshair_notch_width", "24")
+    end
+    -- Carry forward the old radius setting. Untouched size 3 already equals
+    -- the new default of 17 px; custom old values keep their visual radius.
+    if defaultsDone < 4 and at(CV.Radius, 17) and not at(CV.Size, 3) then
+        RunConsoleCommand("zc_crosshair_radius", tostring(legacyRestRadius(CV.Size:GetInt())))
     end
     file.Write(DEFAULTS_FILE, tostring(DEFAULTS_REV))
 end
@@ -1071,3 +1189,4 @@ end)
 concommand.Add("zc_crosshair_version", function()
     print("[zc_crosshair] client " .. ZC_CROSSHAIR_VERSION)
 end)
+
