@@ -69,6 +69,9 @@ GMod merges every addon's `lua/` into one virtual filesystem. That is why the ~5
 ## Checks
 
 Run `python3 tools/build.py --check`. Set `GLUALINT` to the glualint binary.
-- `tools/check.py` compares findings with `manifests/check-baseline.json`, so only **new** problems fail.
+- `tools/check.py` compares warnings with `manifests/check-baseline.json`, including occurrence counts.
+  Tool/input failures and reported syntax errors always block, even during a baseline update.
+- `python3 tools/check.py --tests` runs the existing unittest suites with required-runtime, discovery and
+  no-skip checks. Install `tests/requirements.txt` and the native LuaJIT executable first.
 - When a migration removes debt, shrink the baseline with `--update-baseline` in its own commit.
 - CI (`.github/workflows/ci.yml`) runs the unit tests, the build and the strict check on every push.

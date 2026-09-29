@@ -3,9 +3,18 @@
 Code for the US1 Garry's Mod server: one US1 addon plus pinned upstream Z-City, ULX and ULib with our patches.
 
 ```
+python3 -m pip install -r tests/requirements.txt
+python3 tools/check.py --tests      # all required offline tests; no skips
 python3 tools/build.py --check      # -> dist/garrysmod/addons/{us1,zcity,ulx,ulib}
-python3 -m unittest discover -s tests
 ```
+
+The required test gate needs both `lupa.luajit21` (installed above) and the native
+`luajit` executable on PATH. Static checks require glualint 1.29.0; set `GLUALINT`
+to its path. Missing tools, incomplete inputs and reported syntax errors cannot be
+waived through the warning baseline. `--strict` remains a compatible alias.
+
+`python3 -m unittest discover -s tests` is still available for local development,
+but may skip unavailable runtimes and is not a substitute for the required gate.
 
 - [Architecture and rules](docs/ARCHITECTURE.md). Agents: see [CLAUDE.md](CLAUDE.md).
 - [Migration status and backlog](docs/MIGRATION.md). The pre-restructure raw import is tag `pre-restructure`.
